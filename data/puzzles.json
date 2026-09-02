@@ -1,0 +1,12 @@
+{
+  "level1_gate_code": {
+    "prompt": "Enter the agent's clearance level as an integer.",
+    "answer": "5",
+    "hint": "Clearance levels are stored as integers, not strings."
+  },
+  "level2_grid_code": {
+    "prompt": "Combine the two numbers with the correct operator to reach 42.",
+    "answer": "6*7",
+    "hint": "Multiplication uses the * operator in Python."
+  }
+}
