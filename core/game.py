@@ -10,6 +10,7 @@ team starts building on top of it.
 
 import sys
 import pygame
+from core.player import Player
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -33,6 +34,7 @@ class Game:
         # "final_vault", "win", "lose". Level modules will register
         # themselves here once built.
         self.state = "menu"
+        self.player = Player(100, 100)
 
     def run(self):
         while self.running:
@@ -54,11 +56,13 @@ class Game:
 
     def update(self, dt):
         # TODO: update player, active level, systems (timer, security meter)
-        pass
+        keys = pygame.key.get_pressed()
+        self.player.handle_input(keys, dt)
 
     def render(self):
         self.screen.fill(BG_COLOR)
         # TODO: draw active level / HUD here
+        self.player.draw(self.screen)
         pygame.display.flip()
 
     def change_state(self, new_state: str):
