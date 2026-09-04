@@ -11,6 +11,8 @@ team starts building on top of it.
 import sys
 import pygame
 
+from core.player import Player
+
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
@@ -34,6 +36,9 @@ class Game:
         # themselves here once built.
         self.state = "menu"
 
+        self.player = Player(100, 100)
+        self.wall = pygame.Rect(400, 200, 160, 40)
+
     def run(self):
         while self.running:
             dt = self.clock.tick(FPS) / 1000  # delta time in seconds
@@ -53,12 +58,18 @@ class Game:
             # TODO: forward events to the active level/player once built
 
     def update(self, dt):
-        # TODO: update player, active level, systems (timer, security meter)
-        pass
+        # TODO: update active level, systems (timer, security meter)
+        keys = pygame.key.get_pressed()
+        old_rect = self.player.rect.copy()
+        self.player.handle_input(keys, dt)
+        if self.player.rect.colliderect(self.wall):
+            self.player.rect = old_rect
 
     def render(self):
         self.screen.fill(BG_COLOR)
         # TODO: draw active level / HUD here
+        pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
+        self.player.draw(self.screen)
         pygame.display.flip()
 
     def change_state(self, new_state: str):
