@@ -64,6 +64,7 @@ class Game:
         self.player.handle_input(keys, dt)
         if self.player.rect.colliderect(self.wall):
             self.player.rect = old_rect
+        self.player.rect.clamp_ip(self.screen.get_rect())
 
     def render(self):
         self.screen.fill(BG_COLOR)
