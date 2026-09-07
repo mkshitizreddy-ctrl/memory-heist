@@ -38,6 +38,8 @@ class Game:
 
         self.player = Player(100, 100)
         self.wall = pygame.Rect(400, 200, 160, 40)
+        self.terminal = pygame.Rect(600, 400, 40, 40)
+        self.interact_range = 60
 
     def run(self):
         while self.running:
@@ -55,6 +57,9 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_e:
+                if self.player.rect.colliderect(self.terminal.inflate(self.interact_range, self.interact_range)):
+                    print("Terminal accessed!")
             # TODO: forward events to the active level/player once built
 
     def update(self, dt):
@@ -71,6 +76,7 @@ class Game:
         # TODO: draw active level / HUD here
         pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
         self.player.draw(self.screen)
+        pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
         pygame.display.flip()
 
     def change_state(self, new_state: str):
