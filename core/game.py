@@ -12,6 +12,7 @@ import sys
 import pygame
 
 from core.player import Player
+from core.level_manager import LevelManager
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -37,6 +38,7 @@ class Game:
         self.state = "menu"
 
         self.player = Player(100, 100)
+        self.level_manager = LevelManager(self)
         self.wall = pygame.Rect(400, 200, 160, 40)
         self.terminal = pygame.Rect(600, 400, 40, 40)
         self.interact_range = 60
@@ -70,6 +72,7 @@ class Game:
         if self.player.rect.colliderect(self.wall):
             self.player.rect = old_rect
         self.player.rect.clamp_ip(self.screen.get_rect())
+        self.level_manager.update(dt)
 
     def render(self):
         self.screen.fill(BG_COLOR)
@@ -77,6 +80,7 @@ class Game:
         pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
         self.player.draw(self.screen)
         pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
+        self.level_manager.render(self.screen)
         pygame.display.flip()
 
     def change_state(self, new_state: str):
