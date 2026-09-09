@@ -24,7 +24,9 @@ class Player:
         if keys[pygame.K_s]:
             dy += 1
 
-        # TODO: normalize diagonal movement, apply collision checks
+        if dx != 0 and dy != 0:
+            dx *= 0.7071  # 1/sqrt(2), keeps diagonal speed equal to straight-line speed
+            dy *= 0.7071
         self.rect.x += dx * self.speed * dt
         self.rect.y += dy * self.speed * dt
 
