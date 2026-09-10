@@ -14,7 +14,7 @@ Keep puzzle DATA (questions, answers, patterns) in data/puzzles.json
 rather than hardcoding it here, so it's easy to tweak difficulty
 without touching code.
 """
-
+import pygame
 
 class Level1SecurityGate:
     def __init__(self):
@@ -24,7 +24,7 @@ class Level1SecurityGate:
         pass
 
     def render(self, surface):
-        pass
+        pygame.draw.rect(surface, (80, 80, 200), (50, 50, 100, 50))
 
     def is_complete(self):
         return self.complete
