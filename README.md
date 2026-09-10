@@ -10,9 +10,9 @@ See `docs/PROJECT_REPORT.md` for the full design document and
 
 ## Setup
 
-```bash
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+```powershell
+conda create -n ai_env python=3.11
+conda activate ai_env
 pip install -r requirements.txt
 python main.py
 ```
@@ -37,12 +37,17 @@ memory-heist/
 |---|---|
 | W / A / S / D | Move |
 | E | Interact |
-| ESC | Pause |
+| ESC | Quit |
 | Mouse | Menu / puzzle interaction |
 
 ## Status
 
-Project initialized — core game loop runs (empty window). Levels and
-systems are stubbed out per the module contracts described in each file's
-docstring. Next step: Week 1, Day 3-4 (player movement, room structure,
-collision, interaction system) per the development plan.
+Core game system is complete: player movement, wall collision, screen
+boundary clamping, diagonal movement normalization, an E-to-interact
+system, and the level manager are all working and merged into main.
+
+Level 1 currently shows a placeholder rectangle to confirm the level
+manager wiring works end to end — it isn't the real puzzle yet.
+
+Next: individual level puzzle logic (Levels 1-5), Final Vault, menu/HUD,
+and full integration between levels.
