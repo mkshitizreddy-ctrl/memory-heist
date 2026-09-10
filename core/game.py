@@ -39,6 +39,9 @@ class Game:
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
+        from levels.level1_variables import Level1SecurityGate
+        self.level_manager.register("level1", Level1SecurityGate())
+        self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)
         self.terminal = pygame.Rect(600, 400, 40, 40)
         self.interact_range = 60
