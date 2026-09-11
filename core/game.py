@@ -36,6 +36,7 @@ class Game:
         # "final_vault", "win", "lose". Level modules will register
         # themselves here once built.
         self.state = "menu"
+        self.paused = False
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
@@ -61,7 +62,7 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.running = False
+                self.paused = not self.paused
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_e:
                 if self.player.rect.colliderect(self.terminal.inflate(self.interact_range, self.interact_range)):
                     print("Terminal accessed!")
@@ -69,6 +70,8 @@ class Game:
 
     def update(self, dt):
         # TODO: update active level, systems (timer, security meter)
+        if self.paused:
+            return	
         keys = pygame.key.get_pressed()
         old_rect = self.player.rect.copy()
         self.player.handle_input(keys, dt)
@@ -84,6 +87,8 @@ class Game:
         self.player.draw(self.screen)
         pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
         self.level_manager.render(self.screen)
+        if self.paused:
+            pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.flip()
 
     def change_state(self, new_state: str):
