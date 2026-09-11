@@ -37,14 +37,18 @@ memory-heist/
 |---|---|
 | W / A / S / D | Move |
 | E | Interact |
-| ESC | Quit |
+| ESC | Pause / Unpause |
 | Mouse | Menu / puzzle interaction |
+
+Close the window using its title bar (X) to quit — ESC now toggles pause
+instead of quitting.
 
 ## Status
 
 Core game system is complete: player movement, wall collision, screen
 boundary clamping, diagonal movement normalization, an E-to-interact
-system, and the level manager are all working and merged into main.
+system, a pause toggle, and the level manager are all working and merged
+into main.
 
 Level 1 currently shows a placeholder rectangle to confirm the level
 manager wiring works end to end — it isn't the real puzzle yet.
