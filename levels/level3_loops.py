@@ -17,5 +17,8 @@ class Level3LaserLoop:
     def render(self, surface):
         pass
 
+    def handle_event(self, event):
+        pass
+
     def is_complete(self):
         return self.complete

@@ -3,8 +3,9 @@ core/level_manager.py
 Owner: Member 1 - Core Game System
 
 Loads and switches between levels. Each level module (see levels/)
-must expose a class with .update(dt), .render(surface), and
-.is_complete() so the manager can treat them uniformly.
+must expose a class with .update(dt), .render(surface),
+.handle_event(event), and .is_complete() so the manager can treat
+them uniformly.
 """
 
 
@@ -30,3 +31,7 @@ class LevelManager:
     def render(self, surface):
         if self.current:
             self.current.render(surface)
+
+    def handle_event(self, event):
+        if self.current:
+            self.current.handle_event(event)
