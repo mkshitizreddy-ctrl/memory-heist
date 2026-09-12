@@ -66,10 +66,9 @@ class Game:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_e:
                 if self.player.rect.colliderect(self.terminal.inflate(self.interact_range, self.interact_range)):
                     print("Terminal accessed!")
-            # TODO: forward events to the active level/player once built
+            self.level_manager.handle_event(event)
 
     def update(self, dt):
-        # TODO: update active level, systems (timer, security meter)
         if self.paused:
             return
         keys = pygame.key.get_pressed()
@@ -82,7 +81,6 @@ class Game:
 
     def render(self):
         self.screen.fill(BG_COLOR)
-        # TODO: draw active level / HUD here
         pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
         self.player.draw(self.screen)
         pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
