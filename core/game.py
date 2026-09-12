@@ -13,6 +13,7 @@ import pygame
 
 from core.player import Player
 from core.level_manager import LevelManager
+from levels.level1_variables import Level1SecurityGate
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -40,7 +41,6 @@ class Game:
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
-        from levels.level1_variables import Level1SecurityGate
         self.level_manager.register("level1", Level1SecurityGate())
         self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)
@@ -71,7 +71,7 @@ class Game:
     def update(self, dt):
         # TODO: update active level, systems (timer, security meter)
         if self.paused:
-            return	
+            return
         keys = pygame.key.get_pressed()
         old_rect = self.player.rect.copy()
         self.player.handle_input(keys, dt)
