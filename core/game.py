@@ -45,7 +45,7 @@ class Game:
         
         self.level_manager.register("level1", Level1SecurityGate())
         self.level_manager.register("level3", Level3LaserLoop())
-        self.level_manager.start("level3")
+        self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)
         self.terminal = pygame.Rect(600, 400, 40, 40)
         self.interact_range = 60
