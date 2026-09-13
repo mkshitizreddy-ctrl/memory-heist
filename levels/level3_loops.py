@@ -18,103 +18,140 @@ class Level3LaserLoop:
     """Controls the Laser Loop level."""
 
     def __init__(self):
-        # Level state
-        self.complete = False
-        self.failed = False
 
-        # Answer selection and feedback
+        # -------------------------
+        # Level state
+        # -------------------------
+        self.complete = False
         self.selected_option = None
         self.feedback = ""
 
-        # Challenge timer
-        self.time_limit = 20.0
+        # -------------------------
+        # Security timer
+        # -------------------------
+        self.time_limit = 20
         self.time_left = self.time_limit
 
-        # Laser movement
+        # -------------------------
+        # Room
+        # -------------------------
+        self.room_x = 40
+        self.room_y = 30
+        self.room_width = 880
+        self.room_height = 560
+
+        # -------------------------
+        # Laser track
+        # -------------------------
+        self.track_x = 75
+        self.track_y = 215
+        self.track_width = 810
+        self.track_height = 42
+
+        # -------------------------
+        # Moving laser
+        # -------------------------
         self.laser_x = 100
-        self.laser_speed = 200
+        self.laser_y = 228
+        self.laser_width = 150
+        self.laser_height = 14
+
+        self.laser_speed = 280
         self.laser_direction = 1
 
-        # Laser settings
-        self.laser_y = 275
-        self.laser_width = 140
-        self.laser_height = 12
-
-        # Room boundaries
-        self.room_x = 50
-        self.room_y = 40
-        self.room_width = 760
-        self.room_height = 540
-
-        # Code shown to the player
+        # -------------------------
+        # Security code
+        # -------------------------
         self.code_lines = [
             "while True:",
             "    if laser_detected:",
             "        break",
         ]
 
+        # -------------------------
         # Answer options
+        # -------------------------
         self.options = [
             "for",
             "while",
             "break",
         ]
 
+    # =========================================================
+    # UPDATE
+    # =========================================================
+
     def update(self, dt):
         """Update the timer and moving laser."""
 
-        # Stop updating after the level is finished
-        if self.complete or self.failed:
+        # Once completed, freeze the level
+        if self.complete:
             return
 
-        # Countdown
+        # -------------------------
+        # Countdown timer
+        # -------------------------
         self.time_left -= dt
 
-        # Time runs out
         if self.time_left <= 0:
             self.time_left = 0
-            self.failed = True
-            self.feedback = "TIME UP! Security system activated."
-            return
+            self.feedback = "TIME'S UP! Try again."
 
+            # Restart the timer
+            self.time_left = self.time_limit
+
+        # -------------------------
         # Move laser
+        # -------------------------
         self.laser_x += (
             self.laser_speed
             * self.laser_direction
             * dt
         )
 
-        # Reverse direction at boundaries
-        if self.laser_x <= self.room_x:
-            self.laser_x = self.room_x
+        # Left boundary
+        if self.laser_x <= self.track_x:
+            self.laser_x = self.track_x
             self.laser_direction = 1
 
+        # Right boundary
         elif (
             self.laser_x + self.laser_width
-            >= self.room_x + self.room_width
+            >= self.track_x + self.track_width
         ):
             self.laser_x = (
-                self.room_x
-                + self.room_width
+                self.track_x
+                + self.track_width
                 - self.laser_width
             )
             self.laser_direction = -1
 
+    # =========================================================
+    # RENDER
+    # =========================================================
+
     def render(self, surface):
-        """Draw the Level 3 room, laser, puzzle and HUD."""
+        """Draw the Level 3 room and puzzle."""
 
+        # -------------------------
         # Fonts
-        title_font = pygame.font.Font(None, 36)
-        heading_font = pygame.font.Font(None, 28)
-        code_font = pygame.font.Font(None, 25)
-        option_font = pygame.font.Font(None, 26)
-        small_font = pygame.font.Font(None, 22)
-        feedback_font = pygame.font.Font(None, 25)
+        # -------------------------
+        title_font = pygame.font.Font(None, 34)
+        timer_font = pygame.font.Font(None, 28)
+        objective_font = pygame.font.Font(None, 23)
+        heading_font = pygame.font.Font(None, 26)
+        code_font = pygame.font.Font(None, 24)
+        option_font = pygame.font.Font(None, 24)
+        feedback_font = pygame.font.Font(None, 23)
+        instruction_font = pygame.font.Font(None, 21)
 
-        # Room
+        # =====================================================
+        # ROOM
+        # =====================================================
+
         pygame.draw.rect(
             surface,
-            (25, 30, 45),
+            (24, 28, 42),
             (
                 self.room_x,
                 self.room_y,
@@ -125,7 +162,7 @@ class Level3LaserLoop:
 
         pygame.draw.rect(
             surface,
-            (120, 40, 40),
+            (140, 45, 45),
             (
                 self.room_x,
                 self.room_y,
@@ -135,7 +172,10 @@ class Level3LaserLoop:
             3,
         )
 
-        # Title
+        # =====================================================
+        # TITLE
+        # =====================================================
+
         title_text = title_font.render(
             "LEVEL 3 - THE LASER LOOP",
             True,
@@ -144,54 +184,90 @@ class Level3LaserLoop:
 
         surface.blit(
             title_text,
-            (self.room_x + 20, self.room_y + 15),
+            (self.room_x + 25, self.room_y + 20),
         )
 
-        # Timer
-        timer_text = heading_font.render(
+        # =====================================================
+        # TIMER
+        # =====================================================
+
+        timer_text = timer_font.render(
             f"SECURITY TIMER: {self.time_left:.1f}s",
             True,
-            (255, 220, 100),
+            (255, 210, 60),
+        )
+
+        timer_rect = timer_text.get_rect(
+            topright=(
+                self.room_x + self.room_width - 25,
+                self.room_y + 25,
+            )
         )
 
         surface.blit(
             timer_text,
-            (self.room_x + 500, self.room_y + 20),
+            timer_rect,
         )
 
-        # Objective
-        objective_text = small_font.render(
+        # =====================================================
+        # OBJECTIVE
+        # =====================================================
+
+        objective_text = objective_font.render(
             "Objective: Identify the statement that stops the loop.",
             True,
-            (190, 200, 210),
+            (190, 195, 205),
         )
 
         surface.blit(
             objective_text,
-            (self.room_x + 20, self.room_y + 60),
+            (
+                self.room_x + 25,
+                self.room_y + 65,
+            ),
         )
 
-        # Laser warning area
-        warning_text = small_font.render(
+        # =====================================================
+        # SECURITY SYSTEM HEADING
+        # =====================================================
+
+        security_text = heading_font.render(
             "LASER SECURITY SYSTEM",
             True,
-            (255, 100, 100),
+            (255, 90, 90),
         )
 
         surface.blit(
-            warning_text,
-            (self.room_x + 20, self.room_y + 100),
+            security_text,
+            (
+                self.room_x + 25,
+                self.room_y + 105,
+            ),
         )
 
-        # Laser track
+        # =====================================================
+        # LASER TRACK
+        # =====================================================
+
         pygame.draw.rect(
             surface,
-            (60, 60, 70),
+            (42, 46, 58),
             (
-                self.room_x + 20,
-                self.laser_y - 8,
-                self.room_width - 40,
-                self.laser_height + 16,
+                self.track_x,
+                self.track_y,
+                self.track_width,
+                self.track_height,
+            ),
+        )
+
+        pygame.draw.rect(
+            surface,
+            (65, 68, 80),
+            (
+                self.track_x,
+                self.track_y,
+                self.track_width,
+                self.track_height,
             ),
             2,
         )
@@ -199,7 +275,7 @@ class Level3LaserLoop:
         # Moving laser
         pygame.draw.rect(
             surface,
-            (255, 40, 40),
+            (255, 45, 45),
             (
                 self.laser_x,
                 self.laser_y,
@@ -208,15 +284,18 @@ class Level3LaserLoop:
             ),
         )
 
-        # Security code panel
-        panel_x = self.room_x + 210
-        panel_y = self.room_y + 300
-        panel_width = 500
-        panel_height = 115
+        # =====================================================
+        # SECURITY CODE PANEL
+        # =====================================================
+
+        panel_x = 270
+        panel_y = 275
+        panel_width = 420
+        panel_height = 125
 
         pygame.draw.rect(
             surface,
-            (15, 18, 28),
+            (10, 13, 22),
             (
                 panel_x,
                 panel_y,
@@ -227,7 +306,7 @@ class Level3LaserLoop:
 
         pygame.draw.rect(
             surface,
-            (70, 100, 130),
+            (70, 105, 140),
             (
                 panel_x,
                 panel_y,
@@ -237,56 +316,82 @@ class Level3LaserLoop:
             2,
         )
 
-        # Panel heading
-        heading_text = heading_font.render(
+        # Panel title
+        code_heading = heading_font.render(
             "SECURITY CODE",
             True,
-            (255, 255, 255),
+            (240, 240, 240),
         )
 
         surface.blit(
-            heading_text,
-            (panel_x + 20, panel_y + 12),
+            code_heading,
+            (
+                panel_x + 25,
+                panel_y + 15,
+            ),
         )
 
-        # Code
-        y = panel_y + 45
+        # Code lines
+        code_y = panel_y + 50
 
         for line in self.code_lines:
+
             code_text = code_font.render(
                 line,
                 True,
-                (100, 220, 255),
+                (90, 220, 255),
             )
 
             surface.blit(
                 code_text,
-                (panel_x + 25, y),
+                (
+                    panel_x + 30,
+                    code_y,
+                ),
             )
 
-            y += 25
+            code_y += 23
 
-        # Answer section
-        answer_heading = heading_font.render(
+        # =====================================================
+        # ANSWERS
+        # =====================================================
+
+        options_heading = heading_font.render(
             "SELECT THE CORRECT ANSWER",
             True,
-            (255, 255, 255),
+            (245, 245, 245),
+        )
+
+        options_heading_rect = options_heading.get_rect(
+            center=(
+                self.room_x + self.room_width // 2,
+                425,
+            )
         )
 
         surface.blit(
-            answer_heading,
-            (self.room_x + 250, self.room_y + 430),
+            options_heading,
+            options_heading_rect,
         )
 
-        # Options
-        option_y = self.room_y + 465
+        # Answer positions
+        option_y = 455
 
         for index, option in enumerate(self.options):
-            text_color = (255, 255, 255)
 
-            # Highlight selected option
-            if self.selected_option == index + 1:
-                text_color = (100, 255, 150)
+            # Default color
+            text_color = (240, 240, 240)
+
+            # Correct answer
+            if (
+                self.selected_option == index + 1
+                and index + 1 == 3
+            ):
+                text_color = (60, 230, 110)
+
+            # Wrong answer
+            elif self.selected_option == index + 1:
+                text_color = (255, 100, 100)
 
             option_text = option_font.render(
                 f"[{index + 1}]  {option}",
@@ -294,25 +399,72 @@ class Level3LaserLoop:
                 text_color,
             )
 
-            surface.blit(
-                option_text,
-                (self.room_x + 270, option_y),
+            option_rect = option_text.get_rect(
+                centerx=self.room_x + self.room_width // 2,
+                y=option_y,
             )
 
-            option_y += 30
+            surface.blit(
+                option_text,
+                option_rect,
+            )
 
-        # Feedback
+            option_y += 27
+
+        # =====================================================
+        # FEEDBACK
+        # =====================================================
+
         if self.feedback:
+
+            if self.complete:
+                feedback_color = (60, 230, 110)
+            else:
+                feedback_color = (255, 100, 100)
+
             feedback_text = feedback_font.render(
                 self.feedback,
                 True,
-                (255, 255, 255),
+                feedback_color,
+            )
+
+            feedback_rect = feedback_text.get_rect(
+                center=(
+                    self.room_x + self.room_width // 2,
+                    540,
+                )
             )
 
             surface.blit(
                 feedback_text,
-                (self.room_x + 180, self.room_y + 555),
+                feedback_rect,
             )
+
+        # =====================================================
+        # INSTRUCTION
+        # =====================================================
+
+        instruction_text = instruction_font.render(
+            "Press 1, 2 or 3 to choose an answer",
+            True,
+            (180, 180, 190),
+        )
+
+        instruction_rect = instruction_text.get_rect(
+            center=(
+                self.room_x + self.room_width // 2,
+                570,
+            )
+        )
+
+        surface.blit(
+            instruction_text,
+            instruction_rect,
+        )
+
+    # =========================================================
+    # EVENT HANDLING
+    # =========================================================
 
     def handle_event(self, event):
         """Handle keyboard input for the Level 3 puzzle."""
@@ -320,30 +472,54 @@ class Level3LaserLoop:
         if event.type != pygame.KEYDOWN:
             return
 
-        # Don't accept answers after success/failure
-        if self.complete or self.failed:
+        # Don't allow input after completion
+        if self.complete:
             return
 
+        # -------------------------
         # Option 1
+        # -------------------------
+
         if event.key == pygame.K_1:
+
             self.selected_option = 1
-            self.feedback = "Incorrect. Try again."
 
+            self.feedback = (
+                "INCORRECT! 'for' does not stop the loop."
+            )
+
+        # -------------------------
         # Option 2
-        elif event.key == pygame.K_2:
-            self.selected_option = 2
-            self.feedback = "Incorrect. Try again."
+        # -------------------------
 
+        elif event.key == pygame.K_2:
+
+            self.selected_option = 2
+
+            self.feedback = (
+                "INCORRECT! 'while' creates the loop."
+            )
+
+        # -------------------------
         # Option 3
+        # -------------------------
+
         elif event.key == pygame.K_3:
+
             self.selected_option = 3
+
             self.feedback = (
                 "CORRECT! break stops the loop. "
                 "Security bypassed!"
             )
+
             self.complete = True
 
+    # =========================================================
+    # COMPLETION
+    # =========================================================
+
     def is_complete(self):
-        """Return True when the player has solved the level."""
+        """Return True when the level is complete."""
 
         return self.complete
