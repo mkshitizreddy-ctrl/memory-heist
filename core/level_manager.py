@@ -24,9 +24,8 @@ class LevelManager:
     def update(self, dt):
         if self.current:
             self.current.update(dt)
-            if self.current.is_complete():
-                # TODO: advance to next level via game.change_state
-                pass
+        if self.current.is_complete():
+            print("Level complete!")
 
     def render(self, surface):
         if self.current:
