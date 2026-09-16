@@ -37,7 +37,7 @@ class Game:
         # Placeholder state machine: "menu", "tutorial", "level1"...,
         # "final_vault", "win", "lose". Level modules will register
         # themselves here once built.
-        self.state = "menu"
+        self.state = "playing"
         self.paused = False
 
         self.player = Player(100, 100)
@@ -72,7 +72,7 @@ class Game:
             self.level_manager.handle_event(event)
 
     def update(self, dt):
-        if self.paused:
+        if self.paused or self.state != "playing":
             return
         keys = pygame.key.get_pressed()
         old_rect = self.player.rect.copy()
