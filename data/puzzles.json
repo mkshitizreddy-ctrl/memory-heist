@@ -4,9 +4,76 @@
     "answer": "5",
     "hint": "Clearance levels are stored as integers, not strings."
   },
+
   "level2_grid_code": {
     "prompt": "Combine the two numbers with the correct operator to reach 42.",
     "answer": "6*7",
     "hint": "Multiplication uses the * operator in Python."
+  },
+
+  "level5_function_parameter": {
+    "prompt": "In def unlock_vault(level), what is level?",
+    "answer": "parameter",
+    "hint": "A parameter is the variable listed in a function definition."
+  },
+
+  "level5_function_argument": {
+    "prompt": "In unlock_vault(5), what is 5?",
+    "answer": "argument",
+    "hint": "An argument is the value passed when calling a function."
+  },
+
+  "level5_return_value": {
+    "prompt": "What sends a result back from a function?",
+    "answer": "return",
+    "hint": "Python uses the return statement to send a value back."
+  },
+
+  "level5_exception_handling": {
+    "prompt": "Which structure can safely handle a ValueError?",
+    "answer": "try/except",
+    "hint": "Put risky code inside try and handle the error in except."
+  },
+
+  "level5_terminal": {
+    "prompt": "Enter the required clearance level.",
+    "answer": "5",
+    "hint": "The unlock function requires a level of at least 5."
+  },
+
+  "final_vault_data_type": {
+    "prompt": "What data type should store the clearance value 5?",
+    "answer": "integer",
+    "hint": "Whole numbers are integers."
+  },
+
+  "final_vault_operator": {
+    "prompt": "Which operator generates 42 from 6 and 7?",
+    "answer": "*",
+    "hint": "The multiplication operator is *."
+  },
+
+  "final_vault_loop": {
+    "prompt": "Which statement stops a loop immediately?",
+    "answer": "break",
+    "hint": "break exits the current loop."
+  },
+
+  "final_vault_dictionary": {
+    "prompt": "How do you retrieve the value associated with key 'key'?",
+    "answer": "vault['key']",
+    "hint": "Dictionary values are accessed using their keys."
+  },
+
+  "final_vault_function": {
+    "prompt": "What sends a result from authorize() back to the caller?",
+    "answer": "return",
+    "hint": "A return statement sends a value back."
+  },
+
+  "final_vault_exception": {
+    "prompt": "Which structure handles invalid integer input?",
+    "answer": "try/except",
+    "hint": "int() can raise ValueError, which can be handled with except."
   }
 }
