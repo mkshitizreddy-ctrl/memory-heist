@@ -18,6 +18,8 @@ from levels.level2_operators import Level2SecurityGrid
 from levels.level3_loops import Level3LaserLoop
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
+from ui.menu import MainMenu
+from ui.screens import WinScreen
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -37,11 +39,12 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        # Placeholder state machine: "menu", "tutorial", "level1"...,
-        # "final_vault", "win", "lose". Level modules will register
-        # themselves here once built.
-        self.state = "playing"
+        # State machine: "menu", "playing", "win", "lose".
+        self.state = "menu"
         self.paused = False
+
+        self.menu = MainMenu()
+        self.win_screen = WinScreen()
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
@@ -71,14 +74,21 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.paused = not self.paused
+                if self.state == "playing":
+                    self.paused = not self.paused
+                elif self.state == "win":
+                    self.running = False
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                if self.state == "menu":
+                    self.change_state("playing")
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_e:
                 if self.player.rect.colliderect(self.terminal.inflate(self.interact_range, self.interact_range)):
                     print("Terminal accessed!")
-            self.level_manager.handle_event(event)
+            if self.state == "playing":
+                self.level_manager.handle_event(event)
 
     def update(self, dt):
-        if self.paused or self.state != "playing":
+        if self.state != "playing" or self.paused:
             return
         keys = pygame.key.get_pressed()
         old_rect = self.player.rect.copy()
@@ -90,12 +100,19 @@ class Game:
 
     def render(self):
         self.screen.fill(BG_COLOR)
-        pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
-        self.player.draw(self.screen)
-        pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
-        self.level_manager.render(self.screen)
-        if self.paused:
-            pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        if self.state == "menu":
+            self.menu.render(self.screen)
+        elif self.state == "playing":
+            pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
+            self.player.draw(self.screen)
+            pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
+            self.level_manager.render(self.screen)
+            if self.paused:
+                pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+        elif self.state == "win":
+            self.win_screen.render(self.screen)
+
         pygame.display.flip()
 
     def change_state(self, new_state: str):
