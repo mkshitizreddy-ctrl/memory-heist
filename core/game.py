@@ -14,7 +14,10 @@ import pygame
 from core.player import Player
 from core.level_manager import LevelManager
 from levels.level1_variables import Level1SecurityGate
+from levels.level2_operators import Level2SecurityGrid
 from levels.level3_loops import Level3LaserLoop
+from levels.level4_memory import Level4MemoryVault
+from levels.level5_control import Level5ControlCenter
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -42,9 +45,12 @@ class Game:
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
-        
+
         self.level_manager.register("level1", Level1SecurityGate())
+        self.level_manager.register("level2", Level2SecurityGrid())
         self.level_manager.register("level3", Level3LaserLoop())
+        self.level_manager.register("level4", Level4MemoryVault())
+        self.level_manager.register("level5", Level5ControlCenter())
         self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)
         self.terminal = pygame.Rect(600, 400, 40, 40)
