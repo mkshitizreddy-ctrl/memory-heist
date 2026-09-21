@@ -20,6 +20,7 @@ from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from ui.menu import MainMenu
 from ui.screens import WinScreen
+from ui.hud import HUD
 
 # --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
@@ -45,6 +46,7 @@ class Game:
 
         self.menu = MainMenu()
         self.win_screen = WinScreen()
+        self.hud = HUD()
 
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
@@ -108,6 +110,7 @@ class Game:
             self.player.draw(self.screen)
             pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
             self.level_manager.render(self.screen)
+            self.hud.render(self.screen, self.level_manager.current_name)
             if self.paused:
                 pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
         elif self.state == "win":
