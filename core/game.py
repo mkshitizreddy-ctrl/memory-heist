@@ -13,16 +13,16 @@ import pygame
 
 from core.player import Player
 from core.level_manager import LevelManager
-from levels.level1_variables import Level1SecurityGate
-from levels.level2_operators import Level2SecurityGrid
+from levels.level1 import Level1
+from levels.level2 import Level2
 from levels.level3_loops import Level3LaserLoop
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
+from levels.final_vault import FinalVault
 from ui.menu import MainMenu
 from ui.screens import WinScreen
 from ui.hud import HUD
 
-# --- Config (move to a settings module if it grows) ---
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
 FPS = 60
@@ -40,7 +40,6 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        # State machine: "menu", "playing", "win", "lose".
         self.state = "menu"
         self.paused = False
 
@@ -51,19 +50,18 @@ class Game:
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
 
-        self.level_manager.register("level1", Level1SecurityGate())
-        self.level_manager.register("level2", Level2SecurityGrid())
+        self.level_manager.register("level1", Level1(player=self.player))
+        self.level_manager.register("level2", Level2(player=self.player))
         self.level_manager.register("level3", Level3LaserLoop())
-        self.level_manager.register("level4", Level4MemoryVault())
+        self.level_manager.register("level4", Level4MemoryVault(player=self.player))
         self.level_manager.register("level5", Level5ControlCenter())
+        self.level_manager.register("final_vault", FinalVault())
         self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)
-        self.terminal = pygame.Rect(600, 400, 40, 40)
-        self.interact_range = 60
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS) / 1000  # delta time in seconds
+            dt = self.clock.tick(FPS) / 1000
             self.handle_events()
             self.update(dt)
             self.render()
@@ -83,21 +81,19 @@ class Game:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 if self.state == "menu":
                     self.change_state("playing")
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_e:
-                if self.player.rect.colliderect(self.terminal.inflate(self.interact_range, self.interact_range)):
-                    print("Terminal accessed!")
             if self.state == "playing":
                 self.level_manager.handle_event(event)
 
     def update(self, dt):
         if self.state != "playing" or self.paused:
             return
-        keys = pygame.key.get_pressed()
-        old_rect = self.player.rect.copy()
-        self.player.handle_input(keys, dt)
-        if self.player.rect.colliderect(self.wall):
-            self.player.rect = old_rect
-        self.player.rect.clamp_ip(self.screen.get_rect())
+        if self.level_manager.current_name == "level4":
+            keys = pygame.key.get_pressed()
+            old_rect = self.player.rect.copy()
+            self.player.handle_input(keys, dt)
+            if self.player.rect.colliderect(self.wall):
+                self.player.rect = old_rect
+            self.player.rect.clamp_ip(self.screen.get_rect())
         self.level_manager.update(dt)
 
     def render(self):
@@ -106,10 +102,9 @@ class Game:
         if self.state == "menu":
             self.menu.render(self.screen)
         elif self.state == "playing":
-            pygame.draw.rect(self.screen, (150, 60, 60), self.wall)
-            self.player.draw(self.screen)
-            pygame.draw.rect(self.screen, (60, 200, 120), self.terminal)
             self.level_manager.render(self.screen)
+            if self.level_manager.current_name == "level4":
+                self.player.draw(self.screen)
             self.hud.render(self.screen, self.level_manager.current_name)
             if self.paused:
                 pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))

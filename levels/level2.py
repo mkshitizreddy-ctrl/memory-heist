@@ -92,6 +92,10 @@ class Level2:
         tiles = self._tiles()
         return " ".join(str(tiles[i]) for i in self.expr)
 
+    def handle_event(self, event):
+        """No keyboard interaction needed — this level is mouse-driven."""
+        pass
+
     def update(self, dt):
         """Handle clicks on tiles and buttons."""
         clicked = self.clicks.clicked()

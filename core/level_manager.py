@@ -8,13 +8,13 @@ must expose a class with .update(dt), .render(surface),
 them uniformly.
 """
 
-LEVEL_ORDER = ["level1", "level2", "level3", "level4", "level5"]
+LEVEL_ORDER = ["level1", "level2", "level3", "level4", "level5", "final_vault"]
 
 
 class LevelManager:
     def __init__(self, game):
         self.game = game
-        self.levels = {}   # e.g. {"level1": Level1Instance}
+        self.levels = {}
         self.current = None
         self.current_name = None
 
