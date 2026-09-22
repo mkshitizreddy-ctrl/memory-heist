@@ -44,6 +44,10 @@ class Level1:
         """Return one clickable rect per answer option."""
         return [pygame.Rect(60, 400 + i * 62, 500, 50) for i in range(count)]
 
+    def handle_event(self, event):
+        """No keyboard interaction needed — this level is mouse-driven."""
+        pass
+
     def update(self, dt):
         """Handle mouse clicks on answer options."""
         clicked = self.clicks.clicked()
