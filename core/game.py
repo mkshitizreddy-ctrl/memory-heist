@@ -3,9 +3,6 @@ core/game.py
 Owner: Member 1 - Core Game System
 
 Sets up the Pygame window and runs the main game loop.
-This is the skeleton every other module plugs into, so keep its
-public interface (Game.run, Game.change_state) stable once the
-team starts building on top of it.
 """
 
 import sys
@@ -20,8 +17,13 @@ from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.final_vault import FinalVault
 from ui.menu import MainMenu
-from ui.screens import WinScreen
+from ui.screens import WinScreen, LoseScreen
 from ui.hud import HUD
+
+from systems.scoring import ScoreTracker
+from systems.timer import Timer
+from systems.security import SecurityMeter
+from systems.hints import HintSystem
 
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
@@ -40,28 +42,39 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.state = "menu"
+        self.state = "menu"          # "menu" | "playing" | "win" | "lose"
         self.paused = False
 
+        # Systems (now live)
+        self.score = ScoreTracker()
+        self.timer = Timer()
+        self.security = SecurityMeter(max_level=100)
+        self.hints = HintSystem()
+
+        # UI
         self.menu = MainMenu()
         self.win_screen = WinScreen()
+        self.lose_screen = LoseScreen()
         self.hud = HUD()
 
+        # Player & levels
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
 
-        self.level_manager.register("level1", Level1(player=self.player))
-        self.level_manager.register("level2", Level2(player=self.player))
-        self.level_manager.register("level3", Level3LaserLoop())
-        self.level_manager.register("level4", Level4MemoryVault(player=self.player))
-        self.level_manager.register("level5", Level5ControlCenter())
-        self.level_manager.register("final_vault", FinalVault())
+        # Register levels – pass game so they can reach systems
+        self.level_manager.register("level1", Level1(player=self.player, game=self))
+        self.level_manager.register("level2", Level2(player=self.player, game=self))
+        self.level_manager.register("level3", Level3LaserLoop(game=self))
+        self.level_manager.register("level4", Level4MemoryVault(player=self.player, game=self))
+        self.level_manager.register("level5", Level5ControlCenter(game=self))
+        self.level_manager.register("final_vault", FinalVault(game=self))
+
         self.level_manager.start("level1")
-        self.wall = pygame.Rect(400, 200, 160, 40)
+        self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS) / 1000
+            dt = self.clock.tick(FPS) / 1000.0
             self.handle_events()
             self.update(dt)
             self.render()
@@ -73,20 +86,30 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                if self.state == "playing":
-                    self.paused = not self.paused
-                elif self.state == "win":
-                    self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                if self.state == "menu":
-                    self.change_state("playing")
-            if self.state == "playing":
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if self.state == "playing":
+                        self.paused = not self.paused
+                    elif self.state in ("win", "lose", "menu"):
+                        self.running = False
+
+                elif event.key == pygame.K_RETURN:
+                    if self.state == "menu":
+                        self._start_new_run()
+
+                elif event.key == pygame.K_r:
+                    if self.state == "lose":
+                        self._start_new_run()
+
+            if self.state == "playing" and not self.paused:
                 self.level_manager.handle_event(event)
 
     def update(self, dt):
         if self.state != "playing" or self.paused:
             return
+
+        # Level 4 movement (unchanged)
         if self.level_manager.current_name == "level4":
             keys = pygame.key.get_pressed()
             old_rect = self.player.rect.copy()
@@ -94,26 +117,65 @@ class Game:
             if self.player.rect.colliderect(self.wall):
                 self.player.rect = old_rect
             self.player.rect.clamp_ip(self.screen.get_rect())
+
+        # Update current level
         self.level_manager.update(dt)
+
+        # Update global timer
+        self.timer.update(dt)
+
+        # Lose conditions
+        if self.security.is_lockdown() or self.timer.expired():
+            self.change_state("lose")
 
     def render(self):
         self.screen.fill(BG_COLOR)
 
         if self.state == "menu":
             self.menu.render(self.screen)
+
         elif self.state == "playing":
             self.level_manager.render(self.screen)
+
             if self.level_manager.current_name == "level4":
                 self.player.draw(self.screen)
-            self.hud.render(self.screen, self.level_manager.current_name)
+
+            # HUD with live data
+            timer_val = self.timer.get_remaining() if self.timer.active else None
+            self.hud.render(
+                self.screen,
+                self.level_manager.current_name,
+                score=self.score.get_score(),
+                security_level=self.security.level,
+                security_max=self.security.max_level,
+                timer_remaining=timer_val,
+            )
+
             if self.paused:
-                pygame.draw.rect(self.screen, (40, 40, 40), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 160))
+                self.screen.blit(overlay, (0, 0))
+                pause_font = pygame.font.Font(None, 48)
+                txt = pause_font.render("PAUSED", True, (220, 220, 220))
+                self.screen.blit(txt, (SCREEN_WIDTH // 2 - txt.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+
         elif self.state == "win":
-            self.win_screen.render(self.screen)
+            self.win_screen.render(self.screen, score=self.score.get_score())
+
+        elif self.state == "lose":
+            self.lose_screen.render(self.screen, score=self.score.get_score())
 
         pygame.display.flip()
 
     def change_state(self, new_state: str):
-        """Central place to switch between menu/levels so state changes
-        are traceable and don't get scattered across modules."""
+        """Central place to switch between menu / playing / win / lose."""
         self.state = new_state
+        self.paused = False
+
+    def _start_new_run(self):
+        """Reset systems and go back to Level 1."""
+        self.score.reset()
+        self.security.reset()
+        self.timer = Timer()          # fresh timer
+        self.level_manager.start("level1")
+        self.change_state("playing")

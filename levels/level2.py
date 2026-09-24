@@ -59,9 +59,10 @@ def safe_eval(expr):
 class Level2:
     """Security Grid: click tiles to build an expression that matches the goal."""
 
-    def __init__(self, player=None):
+    def __init__(self, player=None, game=None):
         """Load puzzle data and set up level state."""
         self.player = player
+        self.game = game
         data = load_level_data("level2", DEFAULT_DATA)
         self.puzzles = data.get("puzzles", DEFAULT_DATA["puzzles"])
         self.index = 0
@@ -133,9 +134,13 @@ class Level2:
         if ok:
             self.index += 1
             self.expr = []
+            if self.game:
+                self.game.score.add(50)
             if self.index >= len(self.puzzles):
                 self.complete = True
                 self.message = "SECURITY CODE ACCEPTED - grid unlocked!"
+                if self.game:
+                    self.game.score.add(100)     # level completion bonus
             else:
                 self.message = "Correct! Next panel."
             self.message_color = GREEN
@@ -143,9 +148,12 @@ class Level2:
             self._fail(f"That evaluates to {result}. Try again.")
 
     def _fail(self, text):
-        """Show an error message."""
+        """Show an error message and raise security."""
         self.message = text
         self.message_color = RED
+        if self.game:
+            self.game.security.increase(20)
+            self.game.score.penalize(10)
 
     def render(self, surface):
         """Draw the prompt, tiles, current expression and buttons."""
