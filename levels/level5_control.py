@@ -87,7 +87,7 @@ class Level5ControlCenter:
             True,
             (255, 255, 255),
         )
-        surface.blit(title, (self.room_x + 25, self.room_y + 18))
+        surface.blit(title, (self.room_x + 25, self.room_y + 50))
 
         # -----------------------------------------------------
         # Objective

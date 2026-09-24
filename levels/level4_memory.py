@@ -149,7 +149,7 @@ class Level4MemoryVault:
             True,
             (255, 255, 255)
         )
-        surface.blit(title, (45, 18))
+        surface.blit(title, (45, 55))
 
         objective = small_font.render(
             "Explore the vault, collect memory items, and unlock the door.",
