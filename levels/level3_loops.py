@@ -187,7 +187,7 @@ class Level3LaserLoop:
 
         surface.blit(
             title_text,
-            (self.room_x + 25, self.room_y + 20),
+            (self.room_x + 25, self.room_y + 50),
         )
 
         # =====================================================

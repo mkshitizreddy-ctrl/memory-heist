@@ -158,7 +158,7 @@ class Level2:
     def render(self, surface):
         """Draw the prompt, tiles, current expression and buttons."""
         surface.fill(BG)
-        draw_text(surface, self.big, "LEVEL 2 - SECURITY GRID", (60, 30), YELLOW)
+        draw_text(surface, self.big, "LEVEL 2 - SECURITY GRID", (60, 60), YELLOW)
         if self.complete:
             draw_text(surface, self.big, "GRID UNLOCKED", (60, 200), GREEN)
             draw_text(surface, self.font, self.message, (60, 590), self.message_color)

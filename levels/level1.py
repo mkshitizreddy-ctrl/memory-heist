@@ -85,7 +85,7 @@ class Level1:
     def render(self, surface):
         """Draw the agent record, question, options and lock indicators."""
         surface.fill(BG)
-        draw_text(surface, self.big, "LEVEL 1 - SECURITY GATE", (60, 30), YELLOW)
+        draw_text(surface, self.big, "LEVEL 1 - SECURITY GATE", (60, 60), YELLOW)
 
         panel = pygame.Rect(60, 90, 840, 170)
         pygame.draw.rect(surface, PANEL, panel, border_radius=10)
