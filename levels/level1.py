@@ -26,9 +26,10 @@ DEFAULT_DATA = {
 class Level1:
     """Security Gate: answer questions about an agent record to open the locks."""
 
-    def __init__(self, player=None):
+    def __init__(self, player=None, game=None):
         """Load puzzle data and set up level state."""
         self.player = player
+        self.game = game
         data = load_level_data("level1", DEFAULT_DATA)
         self.agent = data.get("agent", DEFAULT_DATA["agent"])
         self.questions = data.get("questions", DEFAULT_DATA["questions"])
@@ -61,18 +62,25 @@ class Level1:
                 break
 
     def _check_answer(self, question, choice):
-        """Open a lock on a correct answer, otherwise show the hint."""
+        """Open a lock on a correct answer, otherwise raise security and show hint."""
         if choice == question["answer"]:
             self.index += 1
+            if self.game:
+                self.game.score.add(50)          # points for correct answer
             if self.index >= len(self.questions):
                 self.complete = True
                 self.message = "ACCESS GRANTED - gate unlocked!"
+                if self.game:
+                    self.game.score.add(100)     # bonus for finishing the level
             else:
                 self.message = "Correct! Lock opened."
             self.message_color = GREEN
         else:
             self.message = "Wrong. Hint: " + question.get("hint", "Try again.")
             self.message_color = RED
+            if self.game:
+                self.game.security.increase(20)  # raise security on wrong answer
+                self.game.score.penalize(10)     # small score penalty
 
     def render(self, surface):
         """Draw the agent record, question, options and lock indicators."""

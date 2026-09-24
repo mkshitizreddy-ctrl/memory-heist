@@ -22,7 +22,8 @@ from systems.inventory import Inventory
 class Level4MemoryVault:
     """Controls the Memory Vault level."""
 
-    def __init__(self, player=None):
+    def __init__(self, player=None, game=None):
+        self.game = game
 
         # -------------------------
         # Level state
@@ -100,7 +101,6 @@ class Level4MemoryVault:
 
     def set_player(self, player):
         """Set the player used for level interaction."""
-
         self.player = player
 
     # =========================================================
@@ -109,7 +109,6 @@ class Level4MemoryVault:
 
     def get_obstacles(self):
         """Return objects that block player movement."""
-
         return [self.vault_rect]
 
     # =========================================================
@@ -118,7 +117,6 @@ class Level4MemoryVault:
 
     def update(self, dt):
         """Update the Memory Vault level."""
-
         if self.complete:
             return
 
@@ -151,7 +149,6 @@ class Level4MemoryVault:
             True,
             (255, 255, 255)
         )
-
         surface.blit(title, (45, 18))
 
         objective = small_font.render(
@@ -159,43 +156,22 @@ class Level4MemoryVault:
             True,
             (190, 195, 205)
         )
-
         surface.blit(objective, (45, 52))
 
         # =====================================================
         # GAME ROOM
         # =====================================================
 
-        room_rect = pygame.Rect(
-            45,
-            80,
-            870,
-            300
-        )
-
-        pygame.draw.rect(
-            surface,
-            (25, 30, 43),
-            room_rect
-        )
-
-        pygame.draw.rect(
-            surface,
-            (80, 90, 115),
-            room_rect,
-            2
-        )
+        room_rect = pygame.Rect(45, 80, 870, 300)
+        pygame.draw.rect(surface, (25, 30, 43), room_rect)
+        pygame.draw.rect(surface, (80, 90, 115), room_rect, 2)
 
         room_text = small_font.render(
             "MEMORY VAULT STORAGE AREA",
             True,
             (120, 130, 150)
         )
-
-        surface.blit(
-            room_text,
-            (65, 95)
-        )
+        surface.blit(room_text, (65, 95))
 
         # =====================================================
         # ITEMS
@@ -208,72 +184,33 @@ class Level4MemoryVault:
         }
 
         for item in self.available_items:
-
             if item in self.collected:
                 continue
 
             position = self.item_data[item]["position"]
+            item_rect = pygame.Rect(position[0], position[1], 120, 55)
 
-            item_rect = pygame.Rect(
-                position[0],
-                position[1],
-                120,
-                55
-            )
+            pygame.draw.rect(surface, (35, 40, 55), item_rect)
+            pygame.draw.rect(surface, item_colors[item], item_rect, 2)
 
-            pygame.draw.rect(
-                surface,
-                (35, 40, 55),
-                item_rect
-            )
-
-            pygame.draw.rect(
-                surface,
-                item_colors[item],
-                item_rect,
-                2
-            )
-
-            item_text = small_font.render(
-                item,
-                True,
-                (235, 235, 240)
-            )
-
-            item_text_rect = item_text.get_rect(
-                center=item_rect.center
-            )
-
-            surface.blit(
-                item_text,
-                item_text_rect
-            )
+            item_text = small_font.render(item, True, (235, 235, 240))
+            item_text_rect = item_text.get_rect(center=item_rect.center)
+            surface.blit(item_text, item_text_rect)
 
             # Interaction prompt
             if self.player:
-
-                interaction_rect = self.player.rect.inflate(
-                    70,
-                    70
-                )
-
+                interaction_rect = self.player.rect.inflate(70, 70)
                 if interaction_rect.colliderect(item_rect):
-
                     prompt = small_font.render(
                         "Press E to collect",
                         True,
                         (90, 230, 150)
                     )
-
                     prompt_rect = prompt.get_rect(
                         centerx=item_rect.centerx,
                         bottom=item_rect.top - 15
                     )
-
-                    surface.blit(
-                        prompt,
-                        prompt_rect
-                    )
+                    surface.blit(prompt, prompt_rect)
 
         # =====================================================
         # VAULT
@@ -286,122 +223,54 @@ class Level4MemoryVault:
             vault_color = (210, 130, 70)
             vault_label = "LOCKED"
 
-        pygame.draw.rect(
-            surface,
-            (40, 30, 42),
-            self.vault_rect
-        )
+        pygame.draw.rect(surface, (40, 30, 42), self.vault_rect)
+        pygame.draw.rect(surface, vault_color, self.vault_rect, 3)
 
-        pygame.draw.rect(
-            surface,
-            vault_color,
-            self.vault_rect,
-            3
-        )
-
-        vault_text = heading_font.render(
-            "VAULT",
-            True,
-            vault_color
-        )
-
+        vault_text = heading_font.render("VAULT", True, vault_color)
         vault_text_rect = vault_text.get_rect(
-            center=(
-                self.vault_rect.centerx,
-                self.vault_rect.centery - 10
-            )
+            center=(self.vault_rect.centerx, self.vault_rect.centery - 10)
         )
+        surface.blit(vault_text, vault_text_rect)
 
-        surface.blit(
-            vault_text,
-            vault_text_rect
-        )
-
-        status_text = small_font.render(
-            vault_label,
-            True,
-            (220, 220, 225)
-        )
-
+        status_text = small_font.render(vault_label, True, (220, 220, 225))
         status_rect = status_text.get_rect(
-            center=(
-                self.vault_rect.centerx,
-                self.vault_rect.centery + 18
-            )
+            center=(self.vault_rect.centerx, self.vault_rect.centery + 18)
         )
-
-        surface.blit(
-            status_text,
-            status_rect
-        )
+        surface.blit(status_text, status_rect)
 
         # Vault interaction prompt
         if self.player and not self.complete:
-
-            interaction_rect = self.player.rect.inflate(
-                70,
-                70
-            )
-
+            interaction_rect = self.player.rect.inflate(70, 70)
             if interaction_rect.colliderect(self.vault_rect):
-
                 prompt = small_font.render(
                     "Press E to interact",
                     True,
                     (90, 230, 150)
                 )
-
                 prompt_rect = prompt.get_rect(
                     centerx=self.vault_rect.centerx,
                     bottom=self.vault_rect.top - 15
                 )
-
-                surface.blit(
-                    prompt,
-                    prompt_rect
-                )
+                surface.blit(prompt, prompt_rect)
 
         # =====================================================
         # INVENTORY
         # =====================================================
 
-        inventory_rect = pygame.Rect(
-            45,
-            395,
-            270,
-            195
-        )
-
-        pygame.draw.rect(
-            surface,
-            (29, 34, 48),
-            inventory_rect
-        )
-
-        pygame.draw.rect(
-            surface,
-            (100, 80, 150),
-            inventory_rect,
-            2
-        )
+        inventory_rect = pygame.Rect(45, 395, 270, 195)
+        pygame.draw.rect(surface, (29, 34, 48), inventory_rect)
+        pygame.draw.rect(surface, (100, 80, 150), inventory_rect, 2)
 
         inventory_title = heading_font.render(
             "PLAYER INVENTORY",
             True,
             (190, 140, 255)
         )
-
-        surface.blit(
-            inventory_title,
-            (65, 415)
-        )
+        surface.blit(inventory_title, (65, 415))
 
         if self.inventory.items:
-
             y = 450
-
             for index, item in enumerate(self.inventory.items):
-
                 if self.selected_index == index:
                     item_color = (80, 230, 120)
                     prefix = "> "
@@ -414,26 +283,15 @@ class Level4MemoryVault:
                     True,
                     item_color
                 )
-
-                surface.blit(
-                    item_text,
-                    (65, y)
-                )
-
+                surface.blit(item_text, (65, y))
                 y += 28
-
         else:
-
             empty_text = small_font.render(
                 "Inventory empty.",
                 True,
                 (150, 155, 165)
             )
-
-            surface.blit(
-                empty_text,
-                (65, 450)
-            )
+            surface.blit(empty_text, (65, 450))
 
         count_text = small_font.render(
             f"Items: {len(self.inventory.items)} / "
@@ -441,83 +299,46 @@ class Level4MemoryVault:
             True,
             (170, 175, 185)
         )
-
-        surface.blit(
-            count_text,
-            (65, 555)
-        )
+        surface.blit(count_text, (65, 555))
 
         # =====================================================
         # PYTHON CONCEPT
         # =====================================================
 
-        concept_rect = pygame.Rect(
-            335,
-            395,
-            580,
-            195
-        )
-
-        pygame.draw.rect(
-            surface,
-            (24, 31, 42),
-            concept_rect
-        )
-
-        pygame.draw.rect(
-            surface,
-            (60, 150, 120),
-            concept_rect,
-            2
-        )
+        concept_rect = pygame.Rect(335, 395, 580, 195)
+        pygame.draw.rect(surface, (24, 31, 42), concept_rect)
+        pygame.draw.rect(surface, (60, 150, 120), concept_rect, 2)
 
         concept_heading = heading_font.render(
             "PYTHON CONCEPT",
             True,
             (80, 220, 150)
         )
-
-        surface.blit(
-            concept_heading,
-            (355, 415)
-        )
+        surface.blit(concept_heading, (355, 415))
 
         concept_title = text_font.render(
             self.concept_title,
             True,
             (240, 240, 240)
         )
-
-        surface.blit(
-            concept_title,
-            (355, 447)
-        )
+        surface.blit(concept_title, (355, 447))
 
         concept_text = small_font.render(
             self.concept_text,
             True,
             (190, 195, 205)
         )
-
-        surface.blit(
-            concept_text,
-            (355, 475)
-        )
+        surface.blit(concept_text, (355, 475))
 
         concept_code = small_font.render(
             self.concept_code,
             True,
             (100, 210, 255)
         )
-
-        surface.blit(
-            concept_code,
-            (355, 505)
-        )
+        surface.blit(concept_code, (355, 505))
 
         # Feedback
         if self.feedback:
-
             if self.complete:
                 feedback_color = (70, 230, 110)
             else:
@@ -528,11 +349,7 @@ class Level4MemoryVault:
                 True,
                 feedback_color
             )
-
-            surface.blit(
-                feedback,
-                (355, 540)
-            )
+            surface.blit(feedback, (355, 540))
 
         # =====================================================
         # CONTROLS
@@ -543,15 +360,8 @@ class Level4MemoryVault:
             True,
             (175, 180, 190)
         )
-
-        controls_rect = controls.get_rect(
-            center=(625, 565)
-        )
-
-        surface.blit(
-            controls,
-            controls_rect
-        )
+        controls_rect = controls.get_rect(center=(625, 565))
+        surface.blit(controls, controls_rect)
 
     # =========================================================
     # EVENT HANDLING
@@ -559,7 +369,6 @@ class Level4MemoryVault:
 
     def handle_event(self, event):
         """Handle interaction and inventory controls."""
-
         if event.type != pygame.KEYDOWN:
             return
 
@@ -569,29 +378,23 @@ class Level4MemoryVault:
         # -------------------------
         # World interaction
         # -------------------------
-
         if event.key == pygame.K_e:
-
             if self.player:
                 self.interact(self.player)
 
         # -------------------------
         # Inventory selection
         # -------------------------
-
         elif event.key == pygame.K_1:
             self.select_item(0)
-
         elif event.key == pygame.K_2:
             self.select_item(1)
-
         elif event.key == pygame.K_3:
             self.select_item(2)
 
         # -------------------------
         # Use selected item
         # -------------------------
-
         elif event.key == pygame.K_RETURN:
             self.use_selected_item()
 
@@ -601,54 +404,29 @@ class Level4MemoryVault:
 
     def interact(self, player):
         """Collect nearby items or interact with the vault."""
-
-        interaction_rect = player.rect.inflate(
-            70,
-            70
-        )
+        interaction_rect = player.rect.inflate(70, 70)
 
         # Check items
         for item in self.available_items:
-
             if item in self.collected:
                 continue
 
             position = self.item_data[item]["position"]
-
-            item_rect = pygame.Rect(
-                position[0],
-                position[1],
-                120,
-                55
-            )
+            item_rect = pygame.Rect(position[0], position[1], 120, 55)
 
             if interaction_rect.colliderect(item_rect):
-
                 self.collect_item(item)
                 return
 
         # Check vault
         if interaction_rect.colliderect(self.vault_rect):
-
             if self.selected_index is not None:
-
                 self.use_selected_item()
-
             else:
-
-                self.feedback = (
-                    "Select an inventory item first."
-                )
-
+                self.feedback = "Select an inventory item first."
                 self.concept_title = "INDEXING"
-
-                self.concept_text = (
-                    "Select an item by its position in the list."
-                )
-
-                self.concept_code = (
-                    "inventory[index]"
-                )
+                self.concept_text = "Select an item by its position in the list."
+                self.concept_code = "inventory[index]"
 
     # =========================================================
     # COLLECT ITEM
@@ -656,32 +434,20 @@ class Level4MemoryVault:
 
     def collect_item(self, item):
         """Add an item to the inventory."""
-
         if item in self.collected:
             return
 
         if self.inventory.add_item(item):
-
             self.collected.append(item)
+            self.feedback = f"{item} added to inventory."
 
-            self.feedback = (
-                f"{item} added to inventory."
-            )
+            if self.game:
+                self.game.score.add(30)   # points for collecting an item
 
-            self.concept_title = (
-                "LISTS - ADDING ELEMENTS"
-            )
-
-            self.concept_text = (
-                "append() adds an item to a Python list."
-            )
-
-            self.concept_code = (
-                f'inventory.append("{item}")'
-            )
-
+            self.concept_title = "LISTS - ADDING ELEMENTS"
+            self.concept_text = "append() adds an item to a Python list."
+            self.concept_code = f'inventory.append("{item}")'
         else:
-
             self.feedback = "Inventory is full."
 
     # =========================================================
@@ -690,42 +456,19 @@ class Level4MemoryVault:
 
     def select_item(self, index):
         """Select an inventory item using its index."""
-
         if index >= len(self.inventory.items):
-
-            self.feedback = (
-                "That inventory slot is empty."
-            )
-
+            self.feedback = "That inventory slot is empty."
             self.concept_title = "INDEXING"
-
-            self.concept_text = (
-                "An index must point to an existing item."
-            )
-
-            self.concept_code = (
-                "inventory[index]"
-            )
-
+            self.concept_text = "An index must point to an existing item."
+            self.concept_code = "inventory[index]"
             return
 
         self.selected_index = index
-
         item = self.inventory.items[index]
-
-        self.feedback = (
-            f"Selected: {item}"
-        )
-
+        self.feedback = f"Selected: {item}"
         self.concept_title = "INDEXING"
-
-        self.concept_text = (
-            "Indexing accesses an item by its position."
-        )
-
-        self.concept_code = (
-            f"inventory[{index}] -> {item}"
-        )
+        self.concept_text = "Indexing accesses an item by its position."
+        self.concept_code = f"inventory[{index}] -> {item}"
 
     # =========================================================
     # USE ITEM
@@ -733,17 +476,11 @@ class Level4MemoryVault:
 
     def use_selected_item(self):
         """Use the selected item on the vault."""
-
         if self.selected_index is None:
-
-            self.feedback = (
-                "Select an inventory item first."
-            )
-
+            self.feedback = "Select an inventory item first."
             return
 
         if self.selected_index >= len(self.inventory.items):
-
             self.selected_index = None
             return
 
@@ -755,7 +492,6 @@ class Level4MemoryVault:
 
         # Check selected item
         if item == required_item:
-
             # Remove used item
             self.inventory.remove_item(item)
 
@@ -770,36 +506,26 @@ class Level4MemoryVault:
                 "Memory Vault unlocked!"
             )
 
-            self.concept_title = (
-                "DICTIONARIES + REMOVE"
-            )
+            if self.game:
+                self.game.score.add(50)
+                self.game.score.add(100)   # level completion bonus
 
+            self.concept_title = "DICTIONARIES + REMOVE"
             self.concept_text = (
                 "Key-value pairs store vault data. "
                 "The used item was removed."
             )
-
-            self.concept_code = (
-                'vault_data["required_item"] -> "Vault Key"'
-            )
-
+            self.concept_code = 'vault_data["required_item"] -> "Vault Key"'
         else:
+            self.feedback = f"{item} cannot unlock the vault."
 
-            self.feedback = (
-                f"{item} cannot unlock the vault."
-            )
+            if self.game:
+                self.game.security.increase(20)
+                self.game.score.penalize(10)
 
-            self.concept_title = (
-                "DICTIONARY - KEY VALUE"
-            )
-
-            self.concept_text = (
-                "The vault checks its required_item value."
-            )
-
-            self.concept_code = (
-                'vault_data["required_item"]'
-            )
+            self.concept_title = "DICTIONARY - KEY VALUE"
+            self.concept_text = "The vault checks its required_item value."
+            self.concept_code = 'vault_data["required_item"]'
 
     # =========================================================
     # COMPLETION
@@ -807,5 +533,4 @@ class Level4MemoryVault:
 
     def is_complete(self):
         """Return True when the level is complete."""
-
         return self.complete

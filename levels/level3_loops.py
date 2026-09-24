@@ -17,7 +17,8 @@ import pygame
 class Level3LaserLoop:
     """Controls the Laser Loop level."""
 
-    def __init__(self):
+    def __init__(self, game=None):
+        self.game = game
 
         # -------------------------
         # Level state
@@ -27,7 +28,7 @@ class Level3LaserLoop:
         self.feedback = ""
 
         # -------------------------
-        # Security timer
+        # Security timer (visual)
         # -------------------------
         self.time_limit = 20
         self.time_left = self.time_limit
@@ -95,9 +96,11 @@ class Level3LaserLoop:
 
         if self.time_left <= 0:
             self.time_left = 0
-            self.feedback = "TIME'S UP! Try again."
-
-            # Restart the timer
+            self.feedback = "TIME'S UP! Security increased."
+            if self.game:
+                self.game.security.increase(25)
+                self.game.score.penalize(15)
+            # Restart the timer so the player can keep trying
             self.time_left = self.time_limit
 
         # -------------------------
@@ -477,43 +480,38 @@ class Level3LaserLoop:
             return
 
         # -------------------------
-        # Option 1
+        # Option 1 (wrong)
         # -------------------------
-
         if event.key == pygame.K_1:
-
             self.selected_option = 1
-
-            self.feedback = (
-                "INCORRECT! 'for' does not stop the loop."
-            )
+            self.feedback = "INCORRECT! 'for' does not stop the loop."
+            if self.game:
+                self.game.security.increase(20)
+                self.game.score.penalize(10)
 
         # -------------------------
-        # Option 2
+        # Option 2 (wrong)
         # -------------------------
-
         elif event.key == pygame.K_2:
-
             self.selected_option = 2
-
-            self.feedback = (
-                "INCORRECT! 'while' creates the loop."
-            )
+            self.feedback = "INCORRECT! 'while' creates the loop."
+            if self.game:
+                self.game.security.increase(20)
+                self.game.score.penalize(10)
 
         # -------------------------
-        # Option 3
+        # Option 3 (correct)
         # -------------------------
-
         elif event.key == pygame.K_3:
-
             self.selected_option = 3
-
             self.feedback = (
                 "CORRECT! break stops the loop. "
                 "Security bypassed!"
             )
-
             self.complete = True
+            if self.game:
+                self.game.score.add(50)
+                self.game.score.add(100)   # level completion bonus
 
     # =========================================================
     # COMPLETION
@@ -521,5 +519,4 @@ class Level3LaserLoop:
 
     def is_complete(self):
         """Return True when the level is complete."""
-
         return self.complete
