@@ -44,26 +44,24 @@ memory-heist/
 | WASD | Move (Level 4 only) |
 | E | Collect items / interact (Level 4 only) |
 | ESC | Pause during gameplay; quit from the win screen |
+| R     | Retry from lose screen |
 
 Close the window using its title bar (X) to quit from the menu or mid-level.
 
 ## Status
 
-All 5 levels plus the Final Vault are built, registered, and chained
-together — the game runs a complete arc: menu → Level 1 → Level 2 →
-Level 3 → Level 4 → Level 5 → Final Vault → win screen. A HUD shows
-current level progress.
+All 5 levels plus the Final Vault are complete and fully chained.
 
-Each level teaches its topic directly through gameplay:
-- Level 1: variables & data types (agent record quiz)
-- Level 2: operators & conditionals (expression-building tiles)
-- Level 3: loops (`break` identification under a timer)
-- Level 4: lists & dictionaries (inventory collection + vault unlock)
-- Level 5: functions & exceptions (concept quiz + terminal input)
-- Final Vault: all topics combined across 6 stages
+Features now working:
+- Scoring system (points for correct answers + level completion bonuses)
+- Security meter that rises on wrong answers
+- Lockdown / lose condition when security reaches 100
+- Retry from the lose screen (press R)
+- Live HUD showing level, score and security
+- Polished menu, win and lose screens
 
-Pending: no lose condition yet, menu/HUD/win screen are placeholder
-styling, no sound, and the scoring/timer/security systems exist in code
-but aren't wired into gameplay yet.
+Optional / future:
+- Sound effects
+- Extra visual assets
 
 ---
