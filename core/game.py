@@ -19,6 +19,7 @@ from levels.final_vault import FinalVault
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
 from ui.hud import HUD
+from systems.audio import Audio
 
 from systems.scoring import ScoreTracker
 from systems.timer import Timer
@@ -56,6 +57,7 @@ class Game:
         self.win_screen = WinScreen()
         self.lose_screen = LoseScreen()
         self.hud = HUD()
+        self.audio = Audio()
 
         # Player & levels
         self.player = Player(100, 100)
@@ -157,7 +159,13 @@ class Game:
                 self.screen.blit(overlay, (0, 0))
                 pause_font = pygame.font.Font(None, 48)
                 txt = pause_font.render("PAUSED", True, (220, 220, 220))
-                self.screen.blit(txt, (SCREEN_WIDTH // 2 - txt.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+                self.screen.blit(
+                    txt,
+                    (
+                        SCREEN_WIDTH // 2 - txt.get_width() // 2,
+                        SCREEN_HEIGHT // 2 - 20,
+                    ),
+                )
 
         elif self.state == "win":
             self.win_screen.render(self.screen, score=self.score.get_score())
