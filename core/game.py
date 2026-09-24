@@ -63,16 +63,20 @@ class Game:
         self.player = Player(100, 100)
         self.level_manager = LevelManager(self)
 
-        # Register levels – pass game so they can reach systems
+        self._register_levels()
+        self.level_manager.start("level1")
+        self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
+
+    def _register_levels(self):
+        """Create fresh level instances and register them. Called at
+        startup and again on every retry, so a level a player already
+        completed doesn't stay marked complete on the next run."""
         self.level_manager.register("level1", Level1(player=self.player, game=self))
         self.level_manager.register("level2", Level2(player=self.player, game=self))
         self.level_manager.register("level3", Level3LaserLoop(game=self))
         self.level_manager.register("level4", Level4MemoryVault(player=self.player, game=self))
         self.level_manager.register("level5", Level5ControlCenter(game=self))
         self.level_manager.register("final_vault", FinalVault(game=self))
-
-        self.level_manager.start("level1")
-        self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
 
     def run(self):
         while self.running:
@@ -181,9 +185,10 @@ class Game:
         self.paused = False
 
     def _start_new_run(self):
-        """Reset systems and go back to Level 1."""
+        """Reset systems, get fresh level instances, go back to Level 1."""
         self.score.reset()
         self.security.reset()
         self.timer = Timer()          # fresh timer
+        self._register_levels()       # fresh levels — undoes prior completion
         self.level_manager.start("level1")
         self.change_state("playing")
