@@ -78,6 +78,18 @@ class Level3LaserLoop:
             "break",
         ]
 
+        # -------------------------
+        # Fonts (created once, not every frame)
+        # -------------------------
+        self.title_font = pygame.font.Font(None, 34)
+        self.timer_font = pygame.font.Font(None, 28)
+        self.objective_font = pygame.font.Font(None, 23)
+        self.heading_font = pygame.font.Font(None, 26)
+        self.code_font = pygame.font.Font(None, 24)
+        self.option_font = pygame.font.Font(None, 24)
+        self.feedback_font = pygame.font.Font(None, 23)
+        self.instruction_font = pygame.font.Font(None, 21)
+
     # =========================================================
     # UPDATE
     # =========================================================
@@ -136,18 +148,6 @@ class Level3LaserLoop:
     def render(self, surface):
         """Draw the Level 3 room and puzzle."""
 
-        # -------------------------
-        # Fonts
-        # -------------------------
-        title_font = pygame.font.Font(None, 34)
-        timer_font = pygame.font.Font(None, 28)
-        objective_font = pygame.font.Font(None, 23)
-        heading_font = pygame.font.Font(None, 26)
-        code_font = pygame.font.Font(None, 24)
-        option_font = pygame.font.Font(None, 24)
-        feedback_font = pygame.font.Font(None, 23)
-        instruction_font = pygame.font.Font(None, 21)
-
         # =====================================================
         # ROOM
         # =====================================================
@@ -179,7 +179,7 @@ class Level3LaserLoop:
         # TITLE
         # =====================================================
 
-        title_text = title_font.render(
+        title_text = self.title_font.render(
             "LEVEL 3 - THE LASER LOOP",
             True,
             (255, 255, 255),
@@ -194,7 +194,7 @@ class Level3LaserLoop:
         # TIMER
         # =====================================================
 
-        timer_text = timer_font.render(
+        timer_text = self.timer_font.render(
             f"SECURITY TIMER: {self.time_left:.1f}s",
             True,
             (255, 210, 60),
@@ -216,7 +216,7 @@ class Level3LaserLoop:
         # OBJECTIVE
         # =====================================================
 
-        objective_text = objective_font.render(
+        objective_text = self.objective_font.render(
             "Objective: Identify the statement that stops the loop.",
             True,
             (190, 195, 205),
@@ -234,7 +234,7 @@ class Level3LaserLoop:
         # SECURITY SYSTEM HEADING
         # =====================================================
 
-        security_text = heading_font.render(
+        security_text = self.heading_font.render(
             "LASER SECURITY SYSTEM",
             True,
             (255, 90, 90),
@@ -320,7 +320,7 @@ class Level3LaserLoop:
         )
 
         # Panel title
-        code_heading = heading_font.render(
+        code_heading = self.heading_font.render(
             "SECURITY CODE",
             True,
             (240, 240, 240),
@@ -339,7 +339,7 @@ class Level3LaserLoop:
 
         for line in self.code_lines:
 
-            code_text = code_font.render(
+            code_text = self.code_font.render(
                 line,
                 True,
                 (90, 220, 255),
@@ -359,7 +359,7 @@ class Level3LaserLoop:
         # ANSWERS
         # =====================================================
 
-        options_heading = heading_font.render(
+        options_heading = self.heading_font.render(
             "SELECT THE CORRECT ANSWER",
             True,
             (245, 245, 245),
@@ -396,7 +396,7 @@ class Level3LaserLoop:
             elif self.selected_option == index + 1:
                 text_color = (255, 100, 100)
 
-            option_text = option_font.render(
+            option_text = self.option_font.render(
                 f"[{index + 1}]  {option}",
                 True,
                 text_color,
@@ -425,7 +425,7 @@ class Level3LaserLoop:
             else:
                 feedback_color = (255, 100, 100)
 
-            feedback_text = feedback_font.render(
+            feedback_text = self.feedback_font.render(
                 self.feedback,
                 True,
                 feedback_color,
@@ -447,7 +447,7 @@ class Level3LaserLoop:
         # INSTRUCTION
         # =====================================================
 
-        instruction_text = instruction_font.render(
+        instruction_text = self.instruction_font.render(
             "Press 1, 2 or 3 to choose an answer",
             True,
             (180, 180, 190),
