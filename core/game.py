@@ -31,6 +31,7 @@ SCREEN_HEIGHT = 640
 FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
+FADE_DURATION = 0.4  # seconds
 
 
 class Game:
@@ -66,6 +67,10 @@ class Game:
         self._register_levels()
         self.level_manager.start("level1")
         self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
+
+        # Level-transition fade
+        self._last_level_name = self.level_manager.current_name
+        self._fade_timer = 0.0
 
     def _register_levels(self):
         """Create fresh level instances and register them. Called at
@@ -112,6 +117,9 @@ class Game:
                 self.level_manager.handle_event(event)
 
     def update(self, dt):
+        if self._fade_timer > 0:
+            self._fade_timer = max(0.0, self._fade_timer - dt)
+
         if self.state != "playing" or self.paused:
             return
 
@@ -126,6 +134,11 @@ class Game:
 
         # Update current level
         self.level_manager.update(dt)
+
+        # Detect a level change and start a fade
+        if self.level_manager.current_name != self._last_level_name:
+            self._last_level_name = self.level_manager.current_name
+            self._fade_timer = FADE_DURATION
 
         # Update global timer
         self.timer.update(dt)
@@ -177,6 +190,14 @@ class Game:
         elif self.state == "lose":
             self.lose_screen.render(self.screen, score=self.score.get_score())
 
+        # Fade overlay: fades from black to transparent right after a level change
+        if self._fade_timer > 0:
+            alpha = int(255 * (self._fade_timer / FADE_DURATION))
+            fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            fade_surface.fill((0, 0, 0))
+            fade_surface.set_alpha(alpha)
+            self.screen.blit(fade_surface, (0, 0))
+
         pygame.display.flip()
 
     def change_state(self, new_state: str):
@@ -192,3 +213,5 @@ class Game:
         self._register_levels()       # fresh levels — undoes prior completion
         self.level_manager.start("level1")
         self.change_state("playing")
+        self._last_level_name = self.level_manager.current_name
+        self._fade_timer = 0.0
