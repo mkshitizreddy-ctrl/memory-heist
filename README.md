@@ -78,12 +78,13 @@ All 5 levels plus the Final Vault are complete and fully chained.
 - Lockdown / lose condition when security reaches 100, with retry
 - Live HUD showing level, score and security
 - Sound effects (correct / wrong / unlock / click)
-- Polished menu with an animated cyber-grid background and glowing title
-
-### In Progress
-
-- Applying the same visual theme to win/lose screens and Levels 3-5 / Final Vault
-- Level transition animations
 - Procedurally generated ambient background audio (no royalty-free music
-  file was sourced, so this is being generated in code rather than played
-  from an asset)
+  file was sourced, so a seamless ambient loop is synthesized in code)
+- Animated cyber-grid background and glowing text applied across the
+  menu, win/lose screens, and all gameplay levels (1-5 and Final Vault)
+- Fade transition between level changes
+
+### Possible Future Polish
+
+- Extra visual assets (sprites/icons instead of colored shapes)
+- More elaborate animations or particle effects
