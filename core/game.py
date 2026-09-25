@@ -16,6 +16,7 @@ from levels.level3_loops import Level3LaserLoop
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.final_vault import FinalVault
+from levels.common import draw_cyber_background
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
 from ui.hud import HUD
@@ -71,6 +72,9 @@ class Game:
         # Level-transition fade
         self._last_level_name = self.level_manager.current_name
         self._fade_timer = 0.0
+
+        # Animated background tick (for the cyber-grid effect)
+        self._bg_tick = 0
 
     def _register_levels(self):
         """Create fresh level instances and register them. Called at
@@ -148,7 +152,12 @@ class Game:
             self.change_state("lose")
 
     def render(self):
-        self.screen.fill(BG_COLOR)
+        self._bg_tick += 1
+
+        if self.state == "playing":
+            draw_cyber_background(self.screen, self._bg_tick)
+        else:
+            self.screen.fill(BG_COLOR)
 
         if self.state == "menu":
             self.menu.render(self.screen)
