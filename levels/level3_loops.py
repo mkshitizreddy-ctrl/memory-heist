@@ -77,6 +77,20 @@ class Level3LaserLoop:
         self.laser_direction = 1
 
         # -------------------------
+        # Security robot
+        # -------------------------
+        self.robot_x = 120
+        self.robot_y = 170
+        self.robot_width = 70
+        self.robot_height = 35
+
+        self.robot_speed = 120
+        self.robot_direction = 1
+
+        self.robot_left_boundary = 100
+        self.robot_right_boundary = 810
+
+        # -------------------------
         # Security code
         # -------------------------
         self.code_lines = [
@@ -97,7 +111,7 @@ class Level3LaserLoop:
         self.feedback_font = pygame.font.Font(None, 23)
         self.instruction_font = pygame.font.Font(None, 21)
 
-        # Load the first random questions
+        # Start the questions
         self.start_questions()
 
     # =========================================================
@@ -136,7 +150,7 @@ class Level3LaserLoop:
         self.load_current_question()
 
     def load_current_question(self):
-        """Load the current question and randomize its answer options."""
+        """Load the current question and randomize answer options."""
 
         if self.current_question_number >= len(self.selected_questions):
             self.complete_level()
@@ -148,7 +162,6 @@ class Level3LaserLoop:
 
         correct_answer = self.current_question["answer"]
 
-        # Create answer options from the question pool.
         possible_answers = list(
             {
                 question["answer"]
@@ -156,14 +169,12 @@ class Level3LaserLoop:
             }
         )
 
-        # Remove the correct answer first.
         wrong_answers = [
             answer
             for answer in possible_answers
             if answer != correct_answer
         ]
 
-        # Pick two wrong answers.
         if len(wrong_answers) >= 2:
             wrong_answers = random.sample(wrong_answers, 2)
         else:
@@ -171,15 +182,15 @@ class Level3LaserLoop:
 
         self.options = wrong_answers + [correct_answer]
 
-        # Randomize the position of the correct answer.
         random.shuffle(self.options)
 
-        self.correct_option_index = self.options.index(correct_answer)
+        self.correct_option_index = self.options.index(
+            correct_answer
+        )
 
         self.selected_option = None
         self.feedback = ""
 
-        # Reset timer for each question.
         self.time_left = self.time_limit
 
     def complete_level(self):
@@ -196,7 +207,7 @@ class Level3LaserLoop:
     # =========================================================
 
     def update(self, dt):
-        """Update the timer and moving laser."""
+        """Update timer, laser and security robot."""
 
         if self.complete:
             return
@@ -214,7 +225,6 @@ class Level3LaserLoop:
                 self.game.security.increase(25)
                 self.game.score.penalize(15)
 
-            # Give the player another attempt.
             self.time_left = self.time_limit
 
         # -------------------------
@@ -226,12 +236,10 @@ class Level3LaserLoop:
             * dt
         )
 
-        # Left boundary
         if self.laser_x <= self.track_x:
             self.laser_x = self.track_x
             self.laser_direction = 1
 
-        # Right boundary
         elif (
             self.laser_x + self.laser_width
             >= self.track_x + self.track_width
@@ -242,6 +250,141 @@ class Level3LaserLoop:
                 - self.laser_width
             )
             self.laser_direction = -1
+
+        # -------------------------
+        # Move security robot
+        # -------------------------
+        self.robot_x += (
+            self.robot_speed
+            * self.robot_direction
+            * dt
+        )
+
+        # Robot reaches right side
+        if self.robot_x >= self.robot_right_boundary:
+            self.robot_x = self.robot_right_boundary
+            self.robot_direction = -1
+
+        # Robot reaches left side
+        elif self.robot_x <= self.robot_left_boundary:
+            self.robot_x = self.robot_left_boundary
+            self.robot_direction = 1
+
+    # =========================================================
+    # ROBOT DRAWING
+    # =========================================================
+
+    def draw_robot(self, surface):
+        """Draw the patrolling security robot."""
+
+        # Robot body
+        robot_rect = pygame.Rect(
+            self.robot_x,
+            self.robot_y,
+            self.robot_width,
+            self.robot_height,
+        )
+
+        pygame.draw.rect(
+            surface,
+            (70, 75, 90),
+            robot_rect,
+            border_radius=6,
+        )
+
+        pygame.draw.rect(
+            surface,
+            (100, 110, 130),
+            robot_rect,
+            2,
+            border_radius=6,
+        )
+
+        # Robot screen / face
+        face_rect = pygame.Rect(
+            self.robot_x + 15,
+            self.robot_y + 8,
+            40,
+            14,
+        )
+
+        pygame.draw.rect(
+            surface,
+            (20, 25, 35),
+            face_rect,
+            border_radius=3,
+        )
+
+        # Robot eyes
+        pygame.draw.circle(
+            surface,
+            (255, 60, 60),
+            (
+                int(self.robot_x + 25),
+                int(self.robot_y + 15),
+            ),
+            3,
+        )
+
+        pygame.draw.circle(
+            surface,
+            (255, 60, 60),
+            (
+                int(self.robot_x + 45),
+                int(self.robot_y + 15),
+            ),
+            3,
+        )
+
+        # Robot antenna
+        pygame.draw.line(
+            surface,
+            (100, 110, 130),
+            (
+                int(self.robot_x + 35),
+                int(self.robot_y),
+            ),
+            (
+                int(self.robot_x + 35),
+                int(self.robot_y - 10),
+            ),
+            2,
+        )
+
+        pygame.draw.circle(
+            surface,
+            (255, 70, 70),
+            (
+                int(self.robot_x + 35),
+                int(self.robot_y - 12),
+            ),
+            4,
+        )
+
+        # Robot wheels
+        pygame.draw.circle(
+            surface,
+            (30, 32, 40),
+            (
+                int(self.robot_x + 15),
+                int(self.robot_y + self.robot_height),
+            ),
+            8,
+        )
+
+        pygame.draw.circle(
+            surface,
+            (30, 32, 40),
+            (
+                int(
+                    self.robot_x
+                    + self.robot_width
+                    - 15
+                ),
+                int(self.robot_y + self.robot_height),
+            ),
+            8,
+        )
 
     # =========================================================
     # RENDER
@@ -289,7 +432,10 @@ class Level3LaserLoop:
 
         surface.blit(
             title_text,
-            (self.room_x + 25, self.room_y + 50),
+            (
+                self.room_x + 25,
+                self.room_y + 50,
+            ),
         )
 
         # =====================================================
@@ -323,7 +469,9 @@ class Level3LaserLoop:
 
         timer_rect = timer_text.get_rect(
             topright=(
-                self.room_x + self.room_width - 25,
+                self.room_x
+                + self.room_width
+                - 25,
                 self.room_y + 25,
             )
         )
@@ -368,6 +516,26 @@ class Level3LaserLoop:
                 self.room_y + 105,
             ),
         )
+
+        # =====================================================
+        # SECURITY ROBOT
+        # =====================================================
+
+        robot_label = self.instruction_font.render(
+            "SECURITY ROBOT - PATROL",
+            True,
+            (255, 180, 80),
+        )
+
+        surface.blit(
+            robot_label,
+            (
+                self.robot_x - 10,
+                self.robot_y - 32,
+            ),
+        )
+
+        self.draw_robot(surface)
 
         # =====================================================
         # LASER TRACK
@@ -440,7 +608,6 @@ class Level3LaserLoop:
             2,
         )
 
-        # Panel title
         code_heading = self.heading_font.render(
             "SECURITY CODE",
             True,
@@ -455,7 +622,6 @@ class Level3LaserLoop:
             ),
         )
 
-        # Code lines
         code_y = panel_y + 50
 
         for line in self.code_lines:
@@ -489,7 +655,10 @@ class Level3LaserLoop:
             )
 
             question_rect = question_surface.get_rect(
-                centerx=self.room_x + self.room_width // 2,
+                centerx=(
+                    self.room_x
+                    + self.room_width // 2
+                ),
                 y=415,
             )
 
@@ -521,7 +690,10 @@ class Level3LaserLoop:
             )
 
             option_rect = option_text.get_rect(
-                centerx=self.room_x + self.room_width // 2,
+                centerx=(
+                    self.room_x
+                    + self.room_width // 2
+                ),
                 y=option_y,
             )
 
@@ -545,7 +717,8 @@ class Level3LaserLoop:
 
         progress_rect = progress_text.get_rect(
             center=(
-                self.room_x + self.room_width // 2,
+                self.room_x
+                + self.room_width // 2,
                 535,
             )
         )
@@ -576,7 +749,8 @@ class Level3LaserLoop:
 
             feedback_rect = feedback_text.get_rect(
                 center=(
-                    self.room_x + self.room_width // 2,
+                    self.room_x
+                    + self.room_width // 2,
                     565,
                 )
             )
@@ -598,7 +772,8 @@ class Level3LaserLoop:
 
         instruction_rect = instruction_text.get_rect(
             center=(
-                self.room_x + self.room_width // 2,
+                self.room_x
+                + self.room_width // 2,
                 590,
             )
         )
@@ -621,10 +796,6 @@ class Level3LaserLoop:
         if self.complete:
             return
 
-        # -------------------------
-        # Option 1, 2 or 3
-        # -------------------------
-
         if event.key == pygame.K_1:
             selected = 1
 
@@ -639,7 +810,6 @@ class Level3LaserLoop:
 
         self.selected_option = selected
 
-        # Convert option number to list index.
         selected_index = selected - 1
 
         # -------------------------
@@ -657,11 +827,12 @@ class Level3LaserLoop:
 
             self.current_question_number += 1
 
-            # If all questions are solved, complete the level.
-            if self.current_question_number >= self.total_questions:
+            if (
+                self.current_question_number
+                >= self.total_questions
+            ):
                 self.complete_level()
             else:
-                # Load next question.
                 self.load_current_question()
 
         # -------------------------
