@@ -75,5 +75,41 @@
     "prompt": "Which structure handles invalid integer input?",
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
+  },
+
+  "level3_loop_1": {
+    "prompt": "Which statement immediately stops a loop?",
+    "answer": "break",
+    "hint": "It exits the current loop."
+  },
+
+  "level3_loop_2": {
+    "prompt": "Which loop is commonly used when you know how many times to repeat?",
+    "answer": "for",
+    "hint": "It is commonly used together with range()."
+  },
+
+  "level3_loop_3": {
+    "prompt": "Which loop continues running while a condition is True?",
+    "answer": "while",
+    "hint": "The loop checks a condition before each iteration."
+  },
+
+  "level3_loop_4": {
+    "prompt": "Which function generates a sequence of numbers for a for loop?",
+    "answer": "range",
+    "hint": "Example: for i in range(5)."
+  },
+
+  "level3_loop_5": {
+    "prompt": "What does break do inside a loop?",
+    "answer": "stops the loop",
+    "hint": "It immediately exits the current loop."
+  },
+
+  "level3_loop_6": {
+    "prompt": "What type of loop can run indefinitely if its condition never becomes False?",
+    "answer": "while",
+    "hint": "Think about while True."
   }
 }
