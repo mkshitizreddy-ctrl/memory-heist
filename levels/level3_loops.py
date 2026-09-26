@@ -91,6 +91,17 @@ class Level3LaserLoop:
         self.robot_right_boundary = 810
 
         # -------------------------
+        # Robot scanning system
+        # -------------------------
+        # Actual player detection will be connected after
+        # Member 1 integrates player movement into Level 3.
+        self.robot_scan_radius = 180
+        self.robot_scan_phase = 0.0
+        self.robot_alert = False
+        self.robot_alert_timer = 0.0
+        self.robot_alert_duration = 2.5
+
+        # -------------------------
         # Security code
         # -------------------------
         self.code_lines = [
@@ -252,6 +263,20 @@ class Level3LaserLoop:
             self.laser_direction = -1
 
         # -------------------------
+        # Robot scanning animation
+        # -------------------------
+        self.robot_scan_phase += dt * 3.0
+
+        # -------------------------
+        # Robot alert countdown
+        # -------------------------
+        if self.robot_alert:
+            self.robot_alert_timer -= dt
+            if self.robot_alert_timer <= 0:
+                self.robot_alert = False
+                self.robot_alert_timer = 0
+
+        # -------------------------
         # Move security robot
         # -------------------------
         self.robot_x += (
@@ -385,6 +410,63 @@ class Level3LaserLoop:
             ),
             8,
         )
+
+    # =========================================================
+    # ROBOT SECURITY SYSTEM
+    # =========================================================
+
+    def trigger_robot_alert(self):
+        """Trigger the robot security alert.
+
+        This is a hook for Member 1's future player-detection integration.
+        It is not called automatically yet.
+        """
+        self.robot_alert = True
+        self.robot_alert_timer = self.robot_alert_duration
+        self.feedback = "SECURITY ALERT! ROBOT DETECTED INTRUSION!"
+
+        if self.game:
+            self.game.security.increase(25)
+            self.game.score.penalize(15)
+
+    def draw_robot_scan(self, surface):
+        """Draw an animated scanning field around the robot."""
+        center_x = int(self.robot_x + self.robot_width // 2)
+        center_y = int(self.robot_y + self.robot_height)
+
+        pulse = (pygame.math.Vector2(1, 0).rotate(
+            self.robot_scan_phase * 35
+        ).x + 1) * 0.5
+        radius = int(self.robot_scan_radius + pulse * 15)
+
+        scan_surface = pygame.Surface(
+            (surface.get_width(), surface.get_height()),
+            pygame.SRCALPHA,
+        )
+
+        pygame.draw.circle(
+            scan_surface,
+            (255, 80, 80, 22),
+            (center_x, center_y),
+            radius,
+            2,
+        )
+
+        scan_angle = self.robot_scan_phase * 35
+        scan_vector = pygame.math.Vector2(radius, 0).rotate(scan_angle)
+
+        pygame.draw.line(
+            scan_surface,
+            (255, 100, 100, 70),
+            (center_x, center_y),
+            (
+                int(center_x + scan_vector.x),
+                int(center_y + scan_vector.y),
+            ),
+            3,
+        )
+
+        surface.blit(scan_surface, (0, 0))
 
     # =========================================================
     # RENDER
@@ -521,6 +603,8 @@ class Level3LaserLoop:
         # SECURITY ROBOT
         # =====================================================
 
+        self.draw_robot_scan(surface)
+
         robot_label = self.instruction_font.render(
             "SECURITY ROBOT - PATROL",
             True,
@@ -642,11 +726,43 @@ class Level3LaserLoop:
             code_y += 23
 
         # =====================================================
+        # SECURITY ALERT
+        # =====================================================
+
+        if self.robot_alert:
+            alert_surface = pygame.Surface(
+                (self.room_width - 80, 38),
+                pygame.SRCALPHA,
+            )
+
+            pygame.draw.rect(
+                alert_surface,
+                (150, 20, 20, 210),
+                alert_surface.get_rect(),
+                border_radius=6,
+            )
+
+            alert_text = self.feedback_font.render(
+                "!! SECURITY ALERT - ROBOT DETECTION !!",
+                True,
+                (255, 240, 240),
+            )
+
+            alert_rect = alert_text.get_rect(
+                center=(
+                    alert_surface.get_width() // 2,
+                    alert_surface.get_height() // 2,
+                )
+            )
+            alert_surface.blit(alert_text, alert_rect)
+            surface.blit(alert_surface, (self.room_x + 40, 170))
+
+        # =====================================================
         # QUESTION
         # =====================================================
 
         if self.current_question:
-            question_text = self.current_question["prompt"]
+            question_text = self.current_question["question"]
 
             question_surface = self.option_font.render(
                 question_text,
@@ -738,6 +854,8 @@ class Level3LaserLoop:
                 feedback_color = (60, 230, 110)
             elif "CORRECT" in self.feedback:
                 feedback_color = (60, 230, 110)
+            elif "SECURITY ALERT" in self.feedback:
+                feedback_color = (255, 180, 60)
             else:
                 feedback_color = (255, 100, 100)
 
