@@ -28,12 +28,16 @@ from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
 
+
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
 FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4  # seconds
+
+# Levels where the player has direct spatial movement.
+SPATIAL_LEVELS = ("level3", "level4")
 
 
 class Game:
@@ -69,7 +73,9 @@ class Game:
 
         self._register_levels()
         self.level_manager.start("level1")
-        self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
+
+        # Only used by Level 4 as a specific collision obstacle.
+        self.wall = pygame.Rect(400, 200, 160, 40)
 
         # Level-transition fade
         self._last_level_name = self.level_manager.current_name
@@ -82,12 +88,30 @@ class Game:
         """Create fresh level instances and register them. Called at
         startup and again on every retry, so a level a player already
         completed doesn't stay marked complete on the next run."""
-        self.level_manager.register("level1", Level1(player=self.player, game=self))
-        self.level_manager.register("level2", Level2(player=self.player, game=self))
-        self.level_manager.register("level3", Level3LaserLoop(game=self))
-        self.level_manager.register("level4", Level4MemoryVault(player=self.player, game=self))
-        self.level_manager.register("level5", Level5ControlCenter(game=self))
-        self.level_manager.register("final_vault", FinalVault(game=self))
+        self.level_manager.register(
+            "level1",
+            Level1(player=self.player, game=self)
+        )
+        self.level_manager.register(
+            "level2",
+            Level2(player=self.player, game=self)
+        )
+        self.level_manager.register(
+            "level3",
+            Level3LaserLoop(game=self)
+        )
+        self.level_manager.register(
+            "level4",
+            Level4MemoryVault(player=self.player, game=self)
+        )
+        self.level_manager.register(
+            "level5",
+            Level5ControlCenter(game=self)
+        )
+        self.level_manager.register(
+            "final_vault",
+            FinalVault(game=self)
+        )
 
     def run(self):
         while self.running:
@@ -113,7 +137,9 @@ class Game:
 
                 elif event.key == pygame.K_RETURN:
                     if self.state == "menu":
-                        self.difficulty = get_difficulty(self.menu.selected_difficulty)
+                        self.difficulty = get_difficulty(
+                            self.menu.selected_difficulty
+                        )
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
@@ -133,13 +159,21 @@ class Game:
         if self.state != "playing" or self.paused:
             return
 
-        # Level 4 movement (unchanged)
-        if self.level_manager.current_name == "level4":
+        # Spatial movement for Level 3 and Level 4.
+        if self.level_manager.current_name in SPATIAL_LEVELS:
             keys = pygame.key.get_pressed()
             old_rect = self.player.rect.copy()
+
             self.player.handle_input(keys, dt)
-            if self.player.rect.colliderect(self.wall):
+
+            # Level 4 has a specific test wall.
+            # Level 3 handles its own laser/robot collision internally.
+            if (
+                self.level_manager.current_name == "level4"
+                and self.player.rect.colliderect(self.wall)
+            ):
                 self.player.rect = old_rect
+
             self.player.rect.clamp_ip(self.screen.get_rect())
 
         # Update current level
@@ -171,11 +205,17 @@ class Game:
         elif self.state == "playing":
             self.level_manager.render(self.screen)
 
-            if self.level_manager.current_name == "level4":
+            # Draw the player in spatial levels.
+            if self.level_manager.current_name in SPATIAL_LEVELS:
                 self.player.draw(self.screen)
 
             # HUD with live data
-            timer_val = self.timer.get_remaining() if self.timer.active else None
+            timer_val = (
+                self.timer.get_remaining()
+                if self.timer.active
+                else None
+            )
+
             self.hud.render(
                 self.screen,
                 self.level_manager.current_name,
@@ -186,11 +226,20 @@ class Game:
             )
 
             if self.paused:
-                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                overlay = pygame.Surface(
+                    (SCREEN_WIDTH, SCREEN_HEIGHT),
+                    pygame.SRCALPHA,
+                )
                 overlay.fill((0, 0, 0, 160))
                 self.screen.blit(overlay, (0, 0))
+
                 pause_font = pygame.font.Font(None, 48)
-                txt = pause_font.render("PAUSED", True, (220, 220, 220))
+                txt = pause_font.render(
+                    "PAUSED",
+                    True,
+                    (220, 220, 220),
+                )
+
                 self.screen.blit(
                     txt,
                     (
@@ -200,15 +249,27 @@ class Game:
                 )
 
         elif self.state == "win":
-            self.win_screen.render(self.screen, score=self.score.get_score())
+            self.win_screen.render(
+                self.screen,
+                score=self.score.get_score(),
+            )
 
         elif self.state == "lose":
-            self.lose_screen.render(self.screen, score=self.score.get_score())
+            self.lose_screen.render(
+                self.screen,
+                score=self.score.get_score(),
+            )
 
-        # Fade overlay: fades from black to transparent right after a level change
+        # Fade overlay: fades from black to transparent right after
+        # a level change.
         if self._fade_timer > 0:
-            alpha = int(255 * (self._fade_timer / FADE_DURATION))
-            fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            alpha = int(
+                255 * (self._fade_timer / FADE_DURATION)
+            )
+
+            fade_surface = pygame.Surface(
+                (SCREEN_WIDTH, SCREEN_HEIGHT)
+            )
             fade_surface.fill((0, 0, 0))
             fade_surface.set_alpha(alpha)
             self.screen.blit(fade_surface, (0, 0))
@@ -224,9 +285,12 @@ class Game:
         """Reset systems, get fresh level instances, go back to Level 1."""
         self.score.reset()
         self.security.reset()
-        self.timer = Timer()          # fresh timer
-        self._register_levels()       # fresh levels — undoes prior completion
+        self.timer = Timer()
+
+        # Fresh levels — undoes prior completion.
+        self._register_levels()
         self.level_manager.start("level1")
+
         self.change_state("playing")
         self._last_level_name = self.level_manager.current_name
         self._fade_timer = 0.0
