@@ -10,6 +10,7 @@ import pygame
 
 from core.player import Player
 from core.level_manager import LevelManager
+from core.difficulty import get_difficulty, DEFAULT_DIFFICULTY
 from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level3_loops import Level3LaserLoop
@@ -53,6 +54,7 @@ class Game:
         self.timer = Timer()
         self.security = SecurityMeter(max_level=100)
         self.hints = HintSystem()
+        self.difficulty = get_difficulty(DEFAULT_DIFFICULTY)
 
         # UI
         self.menu = MainMenu()
@@ -111,11 +113,15 @@ class Game:
 
                 elif event.key == pygame.K_RETURN:
                     if self.state == "menu":
+                        self.difficulty = get_difficulty(self.menu.selected_difficulty)
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
                     if self.state == "lose":
                         self._start_new_run()
+
+            if self.state == "menu":
+                self.menu.handle_event(event)
 
             if self.state == "playing" and not self.paused:
                 self.level_manager.handle_event(event)
