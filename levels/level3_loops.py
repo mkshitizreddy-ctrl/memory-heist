@@ -91,6 +91,15 @@ class Level3LaserLoop:
         self.robot_right_boundary = 810
 
         # -------------------------
+        # Robot detection system
+        # -------------------------
+        self.robot_scan_radius = 180
+        self.robot_alert = False
+        self.robot_alert_timer = 0
+        self.robot_alert_duration = 2.5
+        self.robot_detection_cooldown = 0
+
+        # -------------------------
         # Robot scanning system
         # -------------------------
         # Actual player detection will be connected after
@@ -294,6 +303,39 @@ class Level3LaserLoop:
         elif self.robot_x <= self.robot_left_boundary:
             self.robot_x = self.robot_left_boundary
             self.robot_direction = 1
+
+    # -------------------------
+    # Robot player detection
+    # -------------------------
+        if self.game and hasattr(self.game, "player"):
+            player_rect = self.game.player.rect
+
+            robot_center_x = self.robot_x + self.robot_width / 2
+            robot_center_y = self.robot_y + self.robot_height / 2
+
+            player_center_x = player_rect.centerx
+            player_center_y = player_rect.centery
+
+            distance = (
+                (player_center_x - robot_center_x) ** 2
+                + (player_center_y - robot_center_y) ** 2
+            ) ** 0.5
+
+            if self.robot_detection_cooldown > 0:
+                self.robot_detection_cooldown -= dt
+
+            if (
+                distance <= self.robot_scan_radius
+                and self.robot_detection_cooldown <= 0
+            ):
+                self.robot_alert = True
+                self.robot_alert_timer = self.robot_alert_duration
+                self.robot_detection_cooldown = 4
+
+                self.feedback = "SECURITY ROBOT DETECTED YOU!"
+
+                self.game.security.increase(20)
+                self.game.score.penalize(10)    
 
     # =========================================================
     # ROBOT DRAWING
