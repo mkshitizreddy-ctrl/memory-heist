@@ -37,9 +37,6 @@ BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4
 PLAYER_START_POS = (100, 100)
 
-# Levels where the player has direct spatial movement.
-SPATIAL_LEVELS = ("level3", "level4")
-
 
 class DifficultySecurityMeter(SecurityMeter):
     """Apply the selected difficulty multiplier to security increases."""
@@ -237,6 +234,18 @@ class Game:
 
         return None
 
+    def _uses_spatial_player(self):
+        """Return whether the active level provides spatial world geometry."""
+        level = self.level_manager.current
+        if level is None:
+            return False
+
+        return (
+            getattr(level, "room_map", None) is not None
+            or callable(getattr(level, "get_bounds", None))
+            or callable(getattr(level, "get_obstacles", None))
+        )
+
     def update(self, dt):
         if self._fade_timer > 0:
             self._fade_timer = max(
@@ -248,7 +257,7 @@ class Game:
             return
 
         # Spatial movement for levels that use direct player movement.
-        if self.level_manager.current_name in SPATIAL_LEVELS:
+        if self._uses_spatial_player():
             keys = pygame.key.get_pressed()
             blocked = self._get_spatial_blocked()
 
@@ -296,7 +305,7 @@ class Game:
             self.level_manager.render(self.screen)
 
             # Draw the player in spatial levels.
-            if self.level_manager.current_name in SPATIAL_LEVELS:
+            if self._uses_spatial_player():
                 self.player.draw(self.screen)
 
             # HUD with live data
