@@ -168,28 +168,43 @@ class RoomMap:
         """
         return self.current.blocked(rect)
 
+    def get_exit_gates(self, source, trigger_rect):
+        """Return the gates associated with an exit in a source room."""
+        trigger_rect = pygame.Rect(trigger_rect)
+        for (
+            exit_source,
+            trigger,
+            _destination,
+            _spawn,
+            required_gate,
+        ) in self.exits:
+            if exit_source != source or trigger != trigger_rect:
+                continue
+
+            if required_gate is not None:
+                return (required_gate,)
+
+            return tuple(
+                gate
+                for gate in self.rooms[source].gates
+                if gate.rect.colliderect(trigger)
+            )
+
+        return ()
+
     def check_exit(self, player_rect):
         """Switch rooms through an exit only when its gate is open.
 
         Returns True when a room transition occurs.
         """
-        for source, trigger, destination, spawn, required_gate in self.exits:
+        for source, trigger, destination, spawn, _required_gate in self.exits:
             if source != self.current_name:
                 continue
 
             if not player_rect.colliderect(trigger):
                 continue
 
-            source_room = self.rooms[source]
-            exit_gates = (
-                [required_gate]
-                if required_gate is not None
-                else [
-                    gate
-                    for gate in source_room.gates
-                    if gate.rect.colliderect(trigger)
-                ]
-            )
+            exit_gates = self.get_exit_gates(source, trigger)
             if any(not gate.is_open() for gate in exit_gates):
                 continue
 
