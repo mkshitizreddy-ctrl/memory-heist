@@ -75,5 +75,90 @@
     "prompt": "Which structure handles invalid integer input?",
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
-  }
+  },
+  "level3_loop_1": {
+    "id": "level3_loop_1",
+    "question": "Which statement immediately stops a loop?",
+    "options": ["break", "continue", "range", "return"],
+    "answer": "break"
+},
+
+"level3_loop_2": {
+    "id": "level3_loop_2",
+    "question": "Which loop is commonly used when you know how many times to repeat?",
+    "options": ["for", "while", "break", "if"],
+    "answer": "for"
+},
+
+"level3_loop_3": {
+    "id": "level3_loop_3",
+    "question": "Which loop continues running while a condition is True?",
+    "options": ["while", "for", "break", "range"],
+    "answer": "while"
+},
+
+"level3_loop_4": {
+    "id": "level3_loop_4",
+    "question": "Which function generates a sequence of numbers for a for loop?",
+    "options": ["range", "loop", "count", "numbers"],
+    "answer": "range"
+},
+
+"level3_loop_5": {
+    "id": "level3_loop_5",
+    "question": "What does break do inside a loop?",
+    "options": [
+        "Stops the loop",
+        "Restarts the loop",
+        "Skips the program",
+        "Repeats the loop"
+    ],
+    "answer": "Stops the loop"
+},
+
+"level3_loop_6": {
+    "id": "level3_loop_6",
+    "question": "What type of loop can run indefinitely if its condition never becomes False?",
+    "options": ["while", "for", "break", "range"],
+    "answer": "while"
+},
+
+"level3_loop_7": {
+    "id": "level3_loop_7",
+    "question": "What will this code print? for i in range(3): print(i)",
+    "options": ["0 1 2", "1 2 3", "0 1 2 3", "3 2 1"],
+    "answer": "0 1 2"
+},
+
+"level3_loop_8": {
+    "id": "level3_loop_8",
+    "question": "What will this code print? for i in range(1, 4): print(i)",
+    "options": ["1 2 3", "0 1 2", "1 2 3 4", "0 1 2 3"],
+    "answer": "1 2 3"
+},
+
+"level3_loop_9": {
+    "id": "level3_loop_9",
+    "question": "What happens when break is executed inside a loop?",
+    "options": [
+        "The loop ends immediately",
+        "The loop starts again",
+        "The next iteration always runs",
+        "The program crashes"
+    ],
+    "answer": "The loop ends immediately"
+},
+
+"level3_loop_10": {
+    "id": "level3_loop_10",
+    "question": "What is the output? for i in range(2): print('Python')",
+    "options": [
+        "Python printed 2 times",
+        "Python printed 1 time",
+        "Python printed 3 times",
+        "Nothing"
+    ],
+    "answer": "Python printed 2 times"
+}
+     
 }
