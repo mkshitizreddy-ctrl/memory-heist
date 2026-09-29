@@ -109,18 +109,29 @@ class RoomMap:
         return self.current.blocked(rect)
 
     def check_exit(self, player_rect):
-        """Switch rooms if the player touches an active exit.
+        """Switch rooms through an exit only when its gate is open.
 
         Returns True when a room transition occurs.
         """
         for source, trigger, destination, spawn in self.exits:
-            if (
-                source == self.current_name
-                and player_rect.colliderect(trigger)
-            ):
-                self.current_name = destination
-                player_rect.topleft = spawn
-                return True
+            if source != self.current_name:
+                continue
+
+            if not player_rect.colliderect(trigger):
+                continue
+
+            source_room = self.rooms[source]
+            exit_gates = [
+                gate
+                for gate in source_room.gates
+                if gate.rect.colliderect(trigger)
+            ]
+            if any(not gate.is_open() for gate in exit_gates):
+                continue
+
+            self.current_name = destination
+            player_rect.topleft = spawn
+            return True
 
         return False
 
