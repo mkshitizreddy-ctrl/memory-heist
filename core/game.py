@@ -74,9 +74,6 @@ class Game:
         self._register_levels()
         self.level_manager.start("level1")
 
-        # Only used by Level 4 as a specific collision obstacle.
-        self.wall = pygame.Rect(400, 200, 160, 40)
-
         # Level-transition fade
         self._last_level_name = self.level_manager.current_name
         self._fade_timer = 0.0
@@ -152,6 +149,24 @@ class Game:
             if self.state == "playing" and not self.paused:
                 self.level_manager.handle_event(event)
 
+    def _get_spatial_blocked(self):
+        """Return the current spatial level's collision callback.
+
+        Spatial levels can expose a RoomMap through `room_map`.
+        Core does not need to know the individual level's layout.
+        """
+        level = self.level_manager.current
+
+        if level is None:
+            return None
+
+        room_map = getattr(level, "room_map", None)
+
+        if room_map is None:
+            return None
+
+        return room_map.current.blocked
+
     def update(self, dt):
         if self._fade_timer > 0:
             self._fade_timer = max(0.0, self._fade_timer - dt)
@@ -159,20 +174,16 @@ class Game:
         if self.state != "playing" or self.paused:
             return
 
-        # Spatial movement for Level 3 and Level 4.
+        # Spatial movement for levels that use direct player movement.
         if self.level_manager.current_name in SPATIAL_LEVELS:
             keys = pygame.key.get_pressed()
-            old_rect = self.player.rect.copy()
+            blocked = self._get_spatial_blocked()
 
-            self.player.handle_input(keys, dt)
-
-            # Level 4 has a specific test wall.
-            # Level 3 handles its own laser/robot collision internally.
-            if (
-                self.level_manager.current_name == "level4"
-                and self.player.rect.colliderect(self.wall)
-            ):
-                self.player.rect = old_rect
+            self.player.handle_input(
+                keys,
+                dt,
+                blocked=blocked,
+            )
 
             self.player.rect.clamp_ip(self.screen.get_rect())
 
