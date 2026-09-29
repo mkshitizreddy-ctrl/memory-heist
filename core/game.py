@@ -115,6 +115,14 @@ class Game:
         """Reset the player to the configured starting position."""
         self.player.rect.topleft = PLAYER_START_POS
 
+    def _handle_level_change(self):
+        """Start the transition fade when the active level changes."""
+        current_name = self.level_manager.current_name
+
+        if current_name != self._last_level_name:
+            self._last_level_name = current_name
+            self._fade_timer = FADE_DURATION
+
     def run(self):
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
@@ -208,12 +216,8 @@ class Game:
         # Update current level
         self.level_manager.update(dt)
 
-        # Detect a level change and start a fade
-        if self.level_manager.current_name != self._last_level_name:
-            self._last_level_name = (
-                self.level_manager.current_name
-            )
-            self._fade_timer = FADE_DURATION
+        # Detect level changes
+        self._handle_level_change()
 
         # Update global timer
         self.timer.update(dt)
