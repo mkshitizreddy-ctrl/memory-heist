@@ -73,6 +73,9 @@ class Level4MemoryVault:
             "status": "LOCKED"
         }
 
+        # Playable area matches the room drawn in render().
+        self.room_bounds = pygame.Rect(45, 80, 870, 300)
+
         # Vault position
         self.vault_rect = pygame.Rect(
             770,
@@ -106,6 +109,10 @@ class Level4MemoryVault:
     # =========================================================
     # COLLISION
     # =========================================================
+
+    def get_bounds(self):
+        """Return the playable room bounds."""
+        return self.room_bounds
 
     def get_obstacles(self):
         """Return objects that block player movement."""
@@ -162,7 +169,7 @@ class Level4MemoryVault:
         # GAME ROOM
         # =====================================================
 
-        room_rect = pygame.Rect(45, 80, 870, 300)
+        room_rect = self.room_bounds
         pygame.draw.rect(surface, (25, 30, 43), room_rect)
         pygame.draw.rect(surface, (80, 90, 115), room_rect, 2)
 

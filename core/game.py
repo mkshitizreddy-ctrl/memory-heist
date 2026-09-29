@@ -41,6 +41,19 @@ PLAYER_START_POS = (100, 100)
 SPATIAL_LEVELS = ("level3", "level4")
 
 
+class DifficultySecurityMeter(SecurityMeter):
+    """Apply the selected difficulty multiplier to security increases."""
+
+    def __init__(self, max_level=100):
+        super().__init__(max_level=max_level)
+        self.penalty_multiplier = 1.0
+
+    def increase(self, amount=20):
+        """Scale a base security increase before applying it."""
+        adjusted_amount = round(amount * self.penalty_multiplier)
+        super().increase(adjusted_amount)
+
+
 class Game:
     """Owns the window, the clock, and the top-level game state."""
 
@@ -59,7 +72,7 @@ class Game:
         # Systems
         self.score = ScoreTracker()
         self.timer = Timer()
-        self.security = SecurityMeter(max_level=100)
+        self.security = DifficultySecurityMeter(max_level=100)
         self.hints = HintSystem()
         self.difficulty = get_difficulty(DEFAULT_DIFFICULTY)
 
@@ -94,9 +107,11 @@ class Game:
             "level2",
             Level2(player=self.player, game=self)
         )
+        level3 = Level3LaserLoop(game=self)
+        self._apply_difficulty_to_room_timer(level3)
         self.level_manager.register(
             "level3",
-            Level3LaserLoop(game=self)
+            level3
         )
         self.level_manager.register(
             "level4",
@@ -111,9 +126,29 @@ class Game:
             FinalVault(game=self)
         )
 
+    def _apply_difficulty_to_room_timer(self, level):
+        """Scale a level's room countdown using the selected difficulty."""
+        base_time = getattr(level, "base_time_limit", None)
+        if base_time is None:
+            return
+
+        multiplier = self.difficulty["timer_multiplier"]
+        level.base_time_limit = max(1, round(base_time * multiplier))
+
+        room_number = 1
+        get_room_number = getattr(level, "current_room_number", None)
+        if callable(get_room_number):
+            room_number = get_room_number()
+
+        level.time_limit = max(
+            1,
+            level.base_time_limit - (room_number - 1),
+        )
+        level.time_left = level.time_limit
+
     def _reset_player_position(self):
         """Reset the player to the configured starting position."""
-        self.player.rect.topleft = PLAYER_START_POS
+        self.player.reset_position(*PLAYER_START_POS)
 
     def _handle_level_change(self):
         """Start the transition fade when the active level changes."""
@@ -150,6 +185,9 @@ class Game:
                         self.difficulty = get_difficulty(
                             self.menu.selected_difficulty
                         )
+                        self.security.penalty_multiplier = self.difficulty[
+                            "security_penalty_multiplier"
+                        ]
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
@@ -174,14 +212,25 @@ class Game:
         if room_map is not None:
             return room_map.blocked
 
+        get_bounds = getattr(level, "get_bounds", None)
         get_obstacles = getattr(level, "get_obstacles", None)
 
-        if callable(get_obstacles):
+        if callable(get_bounds) or callable(get_obstacles):
 
             def blocked(rect):
+                bounds = get_bounds() if callable(get_bounds) else None
+
+                if bounds is not None and not bounds.contains(rect):
+                    return True
+
+                obstacles = (
+                    get_obstacles()
+                    if callable(get_obstacles)
+                    else []
+                )
                 return any(
                     rect.colliderect(obstacle)
-                    for obstacle in get_obstacles()
+                    for obstacle in obstacles
                 )
 
             return blocked
