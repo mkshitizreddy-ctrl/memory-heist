@@ -64,8 +64,9 @@ class Room:
 class RoomMap:
     """Holds several rooms and tracks the player's current room.
 
-    exits is a list of:
+    exits is a list of either:
         (from_room, trigger_rect, to_room, spawn_pos)
+        (from_room, trigger_rect, to_room, spawn_pos, gate)
 
     Each spawn position should be outside the destination room's
     exit trigger to prevent immediate bouncing back.
@@ -87,7 +88,17 @@ class RoomMap:
         self.current_name = rooms[0].name
 
         self.exits = []
-        for source, trigger, destination, spawn in (exits or []):
+        for exit_data in (exits or []):
+            if len(exit_data) == 4:
+                source, trigger, destination, spawn = exit_data
+                required_gate = None
+            elif len(exit_data) == 5:
+                source, trigger, destination, spawn, required_gate = exit_data
+            else:
+                raise ValueError(
+                    "RoomMap exits must contain four or five values."
+                )
+
             if source not in self.rooms:
                 raise ValueError(
                     f"RoomMap exit references unknown source room: {source!r}"
@@ -97,6 +108,13 @@ class RoomMap:
                     "RoomMap exit references unknown destination room: "
                     f"{destination!r}"
                 )
+            if (
+                required_gate is not None
+                and required_gate not in self.rooms[source].gates
+            ):
+                raise ValueError(
+                    f"RoomMap exit gate is not in source room {source!r}."
+                )
 
             self.exits.append(
                 (
@@ -104,6 +122,7 @@ class RoomMap:
                     pygame.Rect(trigger),
                     destination,
                     spawn,
+                    required_gate,
                 )
             )
 
@@ -130,7 +149,7 @@ class RoomMap:
 
         Returns True when a room transition occurs.
         """
-        for source, trigger, destination, spawn in self.exits:
+        for source, trigger, destination, spawn, required_gate in self.exits:
             if source != self.current_name:
                 continue
 
@@ -138,11 +157,15 @@ class RoomMap:
                 continue
 
             source_room = self.rooms[source]
-            exit_gates = [
-                gate
-                for gate in source_room.gates
-                if gate.rect.colliderect(trigger)
-            ]
+            exit_gates = (
+                [required_gate]
+                if required_gate is not None
+                else [
+                    gate
+                    for gate in source_room.gates
+                    if gate.rect.colliderect(trigger)
+                ]
+            )
             if any(not gate.is_open() for gate in exit_gates):
                 continue
 
