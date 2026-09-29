@@ -72,7 +72,7 @@ class RoomMap:
     exit trigger to prevent immediate bouncing back.
     """
 
-    def __init__(self, rooms, exits=None):
+    def __init__(self, rooms, exits=None, start_room=None):
         rooms = list(rooms)
         if not rooms:
             raise ValueError("RoomMap requires at least one room.")
@@ -85,7 +85,17 @@ class RoomMap:
                 )
             self.rooms[room.name] = room
 
-        self.current_name = rooms[0].name
+        self.start_name = (
+            rooms[0].name
+            if start_room is None
+            else start_room
+        )
+        if self.start_name not in self.rooms:
+            raise ValueError(
+                f"RoomMap start room does not exist: {self.start_name!r}"
+            )
+
+        self.current_name = self.start_name
 
         self.exits = []
         for exit_data in (exits or []):
