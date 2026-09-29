@@ -35,6 +35,7 @@ FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4  # seconds
+PLAYER_START_POS = (100, 100)
 
 # Levels where the player has direct spatial movement.
 SPATIAL_LEVELS = ("level3", "level4")
@@ -68,7 +69,7 @@ class Game:
         self.audio = Audio()
 
         # Player & levels
-        self.player = Player(100, 100)
+        self.player = Player(*PLAYER_START_POS)
         self.level_manager = LevelManager(self)
 
         self._register_levels()
@@ -306,10 +307,11 @@ class Game:
         self.paused = False
 
     def _start_new_run(self):
-        """Reset systems, get fresh level instances, go back to Level 1."""
+        """Reset systems, player position, fresh levels, and start Level 1."""
         self.score.reset()
         self.security.reset()
         self.timer = Timer()
+        self.player.rect.topleft = PLAYER_START_POS
 
         # Fresh levels — undoes prior completion.
         self._register_levels()
