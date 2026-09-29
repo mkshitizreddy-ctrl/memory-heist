@@ -107,9 +107,11 @@ class Game:
             "level2",
             Level2(player=self.player, game=self)
         )
+        level3 = Level3LaserLoop(game=self)
+        self._apply_difficulty_to_room_timer(level3)
         self.level_manager.register(
             "level3",
-            Level3LaserLoop(game=self)
+            level3
         )
         self.level_manager.register(
             "level4",
@@ -123,6 +125,26 @@ class Game:
             "final_vault",
             FinalVault(game=self)
         )
+
+    def _apply_difficulty_to_room_timer(self, level):
+        """Scale a level's room countdown using the selected difficulty."""
+        base_time = getattr(level, "base_time_limit", None)
+        if base_time is None:
+            return
+
+        multiplier = self.difficulty["timer_multiplier"]
+        level.base_time_limit = max(1, round(base_time * multiplier))
+
+        room_number = 1
+        get_room_number = getattr(level, "current_room_number", None)
+        if callable(get_room_number):
+            room_number = get_room_number()
+
+        level.time_limit = max(
+            1,
+            level.base_time_limit - (room_number - 1),
+        )
+        level.time_left = level.time_limit
 
     def _reset_player_position(self):
         """Reset the player to the configured starting position."""
