@@ -13,6 +13,10 @@ class Player:
         self.rect = pygame.Rect(x, y, 32, 32)
         self.speed = speed
 
+    def reset_position(self, x, y):
+        """Reset the player to the given position."""
+        self.rect.topleft = (x, y)
+
     def handle_input(self, keys, dt, blocked=None):
         dx = dy = 0
 
@@ -44,4 +48,8 @@ class Player:
             self.rect.y -= move_y
 
     def draw(self, surface):
-        pygame.draw.rect(surface, (0, 200, 255), self.rect)
+        pygame.draw.rect(
+            surface,
+            (0, 200, 255),
+            self.rect
+        )

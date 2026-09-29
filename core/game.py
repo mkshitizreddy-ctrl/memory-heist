@@ -113,7 +113,7 @@ class Game:
 
     def _reset_player_position(self):
         """Reset the player to the configured starting position."""
-        self.player.rect.topleft = PLAYER_START_POS
+        self.player.reset_position(*PLAYER_START_POS)
 
     def _handle_level_change(self):
         """Start the transition fade when the active level changes."""
@@ -174,14 +174,25 @@ class Game:
         if room_map is not None:
             return room_map.blocked
 
+        get_bounds = getattr(level, "get_bounds", None)
         get_obstacles = getattr(level, "get_obstacles", None)
 
-        if callable(get_obstacles):
+        if callable(get_bounds) or callable(get_obstacles):
 
             def blocked(rect):
+                bounds = get_bounds() if callable(get_bounds) else None
+
+                if bounds is not None and not bounds.contains(rect):
+                    return True
+
+                obstacles = (
+                    get_obstacles()
+                    if callable(get_obstacles)
+                    else []
+                )
                 return any(
                     rect.colliderect(obstacle)
-                    for obstacle in get_obstacles()
+                    for obstacle in obstacles
                 )
 
             return blocked
