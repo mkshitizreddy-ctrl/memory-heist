@@ -24,22 +24,41 @@ class Room:
             gate.update(dt)
 
     def blocked(self, rect):
-        """Return True if rect hits a wall or a closed gate."""
+        """Return True if rect is outside the room or hits an obstacle."""
+        if not self.bounds.contains(rect):
+            return True
+
         if any(rect.colliderect(wall) for wall in self.walls):
             return True
 
-        return any(gate.blocks(rect) for gate in self.gates)
+        return any(
+            gate.blocks(rect)
+            for gate in self.gates
+        )
 
     def draw(self, surface):
-        pygame.draw.rect(surface, FLOOR_COLOR, self.bounds)
+        pygame.draw.rect(
+            surface,
+            FLOOR_COLOR,
+            self.bounds
+        )
 
         for wall in self.walls:
-            pygame.draw.rect(surface, WALL_COLOR, wall)
+            pygame.draw.rect(
+                surface,
+                WALL_COLOR,
+                wall
+            )
 
         for gate in self.gates:
             gate.draw(surface)
 
-        pygame.draw.rect(surface, WALL_COLOR, self.bounds, 3)
+        pygame.draw.rect(
+            surface,
+            WALL_COLOR,
+            self.bounds,
+            3
+        )
 
 
 class RoomMap:
@@ -53,7 +72,11 @@ class RoomMap:
     """
 
     def __init__(self, rooms, exits=None):
-        self.rooms = {room.name: room for room in rooms}
+        self.rooms = {
+            room.name: room
+            for room in rooms
+        }
+
         self.current_name = rooms[0].name
 
         self.exits = [
