@@ -75,5 +75,71 @@
     "prompt": "Which structure handles invalid integer input?",
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
+  },
+
+  "advanced_function_parameter": {
+    "prompt": "In def authorize(level):, what is level?",
+    "answer": "parameter",
+    "hint": "The variable written inside a function definition is a parameter."
+  },
+
+  "advanced_function_argument": {
+    "prompt": "In authorize(5), what is 5?",
+    "answer": "argument",
+    "hint": "The actual value supplied during a function call is an argument."
+  },
+
+  "advanced_function_return": {
+    "prompt": "What does return level >= 5 send back?",
+    "answer": "boolean",
+    "hint": "The comparison level >= 5 evaluates to either True or False."
+  },
+
+  "advanced_exception": {
+    "prompt": "What exception can int('abc') raise?",
+    "answer": "ValueError",
+    "hint": "Python raises ValueError when a string cannot be converted to an integer."
+  },
+
+  "advanced_dictionary": {
+    "prompt": "What does vault['key'] return when key maps to 42?",
+    "answer": "42",
+    "hint": "Dictionary indexing retrieves the value stored under the requested key."
+  },
+
+  "advanced_loop": {
+    "prompt": "Which statement immediately exits the current loop?",
+    "answer": "break",
+    "hint": "break terminates the nearest enclosing loop."
+  },
+
+  "advanced_continue": {
+    "prompt": "Which statement skips the current loop iteration?",
+    "answer": "continue",
+    "hint": "continue skips the rest of the current iteration and moves to the next one."
+  },
+
+  "advanced_list_append": {
+    "prompt": "Which list method adds one item to the end of a list?",
+    "answer": "append",
+    "hint": "Use list.append(item) to add one element."
+  },
+
+  "advanced_list_remove": {
+    "prompt": "Which list method removes a matching item?",
+    "answer": "remove",
+    "hint": "Use list.remove(item) to remove the first matching value."
+  },
+
+  "advanced_type_check": {
+    "prompt": "What does type(5) identify?",
+    "answer": "int",
+    "hint": "5 is a whole-number integer."
+  },
+
+  "advanced_boolean": {
+    "prompt": "What data type is returned by 5 >= 5?",
+    "answer": "bool",
+    "hint": "Comparisons produce True or False."
   }
 }
