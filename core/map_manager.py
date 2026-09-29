@@ -193,8 +193,21 @@ class RoomMap:
             if any(not gate.is_open() for gate in exit_gates):
                 continue
 
+            spawn_rect = player_rect.copy()
+            spawn_rect.topleft = spawn
+            destination_room = self.rooms[destination]
+            if destination_room.blocked(spawn_rect):
+                continue
+
+            if any(
+                next_source == destination
+                and spawn_rect.colliderect(next_trigger)
+                for next_source, next_trigger, _, _, _ in self.exits
+            ):
+                continue
+
             self.current_name = destination
-            player_rect.topleft = spawn
+            player_rect.topleft = spawn_rect.topleft
             return True
 
         return False
