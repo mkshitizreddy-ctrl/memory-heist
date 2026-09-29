@@ -150,10 +150,12 @@ class Game:
                 self.level_manager.handle_event(event)
 
     def _get_spatial_blocked(self):
-        """Return the current spatial level's collision callback.
+        """Return the collision callback for the active spatial level.
 
-        Spatial levels can expose a RoomMap through `room_map`.
-        Core does not need to know the individual level's layout.
+        Core prefers the public RoomMap.blocked() interface when a level
+        exposes a RoomMap. For spatial levels that provide obstacles
+        directly, Core adapts those obstacle rectangles into the same
+        blocked(rect) callback expected by Player.
         """
         level = self.level_manager.current
 
@@ -162,10 +164,21 @@ class Game:
 
         room_map = getattr(level, "room_map", None)
 
-        if room_map is None:
-            return None
+        if room_map is not None:
+            return room_map.blocked
 
-        return room_map.current.blocked
+        get_obstacles = getattr(level, "get_obstacles", None)
+
+        if callable(get_obstacles):
+            def blocked(rect):
+                return any(
+                    rect.colliderect(obstacle)
+                    for obstacle in get_obstacles()
+                )
+
+            return blocked
+
+        return None
 
     def update(self, dt):
         if self._fade_timer > 0:
