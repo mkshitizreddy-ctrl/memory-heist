@@ -29,6 +29,11 @@ class Gate:
     def is_open(self):
         return self.state == "open"
 
+    def reset(self):
+        """Return the gate to its initial locked state."""
+        self.state = "locked"
+        self._timer = 0.0
+
     def blocks(self, player_rect):
         """True if the gate is still solid and the player is touching it."""
         return self.state != "open" and self.rect.colliderect(player_rect)
