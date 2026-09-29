@@ -41,6 +41,19 @@ PLAYER_START_POS = (100, 100)
 SPATIAL_LEVELS = ("level3", "level4")
 
 
+class DifficultySecurityMeter(SecurityMeter):
+    """Apply the selected difficulty multiplier to security increases."""
+
+    def __init__(self, max_level=100):
+        super().__init__(max_level=max_level)
+        self.penalty_multiplier = 1.0
+
+    def increase(self, amount=20):
+        """Scale a base security increase before applying it."""
+        adjusted_amount = round(amount * self.penalty_multiplier)
+        super().increase(adjusted_amount)
+
+
 class Game:
     """Owns the window, the clock, and the top-level game state."""
 
@@ -59,7 +72,7 @@ class Game:
         # Systems
         self.score = ScoreTracker()
         self.timer = Timer()
-        self.security = SecurityMeter(max_level=100)
+        self.security = DifficultySecurityMeter(max_level=100)
         self.hints = HintSystem()
         self.difficulty = get_difficulty(DEFAULT_DIFFICULTY)
 
@@ -150,6 +163,9 @@ class Game:
                         self.difficulty = get_difficulty(
                             self.menu.selected_difficulty
                         )
+                        self.security.penalty_multiplier = self.difficulty[
+                            "security_penalty_multiplier"
+                        ]
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
