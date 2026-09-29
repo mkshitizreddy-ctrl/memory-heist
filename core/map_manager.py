@@ -136,6 +136,20 @@ class RoomMap:
                 )
             )
 
+    def reset(self, start_room=None):
+        """Reset the map and its gates to the configured start room."""
+        if start_room is not None:
+            if start_room not in self.rooms:
+                raise ValueError(
+                    f"RoomMap start room does not exist: {start_room!r}"
+                )
+            self.start_name = start_room
+
+        self.current_name = self.start_name
+        for room in self.rooms.values():
+            for gate in room.gates:
+                gate.reset()
+
     @property
     def current(self):
         """Return the room currently occupied by the player."""
