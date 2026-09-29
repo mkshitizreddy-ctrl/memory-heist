@@ -72,23 +72,40 @@ class RoomMap:
     """
 
     def __init__(self, rooms, exits=None):
-        self.rooms = {
-            room.name: room
-            for room in rooms
-        }
+        rooms = list(rooms)
+        if not rooms:
+            raise ValueError("RoomMap requires at least one room.")
+
+        self.rooms = {}
+        for room in rooms:
+            if room.name in self.rooms:
+                raise ValueError(
+                    f"RoomMap contains duplicate room name: {room.name!r}"
+                )
+            self.rooms[room.name] = room
 
         self.current_name = rooms[0].name
 
-        self.exits = [
-            (
-                source,
-                pygame.Rect(trigger),
-                destination,
-                spawn,
+        self.exits = []
+        for source, trigger, destination, spawn in (exits or []):
+            if source not in self.rooms:
+                raise ValueError(
+                    f"RoomMap exit references unknown source room: {source!r}"
+                )
+            if destination not in self.rooms:
+                raise ValueError(
+                    "RoomMap exit references unknown destination room: "
+                    f"{destination!r}"
+                )
+
+            self.exits.append(
+                (
+                    source,
+                    pygame.Rect(trigger),
+                    destination,
+                    spawn,
+                )
             )
-            for source, trigger, destination, spawn
-            in (exits or [])
-        ]
 
     @property
     def current(self):
