@@ -17,58 +17,90 @@ class Room:
         self.name = name
         self.bounds = pygame.Rect(bounds)
         self.walls = [pygame.Rect(w) for w in (walls or [])]
-        self.gates = gates or []          # list of entities.gate.Gate
+        self.gates = gates or []
 
     def update(self, dt):
         for gate in self.gates:
             gate.update(dt)
 
     def blocked(self, rect):
-        """True if rect hits a wall or a gate that is not open."""
-        if any(rect.colliderect(w) for w in self.walls):
+        """Return True if rect hits a wall or a closed gate."""
+        if any(rect.colliderect(wall) for wall in self.walls):
             return True
-        return any(g.blocks(rect) for g in self.gates)
+
+        return any(gate.blocks(rect) for gate in self.gates)
 
     def draw(self, surface):
         pygame.draw.rect(surface, FLOOR_COLOR, self.bounds)
+
         for wall in self.walls:
             pygame.draw.rect(surface, WALL_COLOR, wall)
+
         for gate in self.gates:
             gate.draw(surface)
+
         pygame.draw.rect(surface, WALL_COLOR, self.bounds, 3)
 
 
 class RoomMap:
-    """Holds several rooms and tracks which one the player is in.
+    """Holds several rooms and tracks the player's current room.
 
-    exits is a list of (from_room, trigger_rect, to_room, spawn_pos).
-    Keep each spawn_pos outside the destination room's own exit
-    triggers, otherwise the player bounces straight back.
+    exits is a list of:
+        (from_room, trigger_rect, to_room, spawn_pos)
+
+    Each spawn position should be outside the destination room's
+    exit trigger to prevent immediate bouncing back.
     """
 
     def __init__(self, rooms, exits=None):
-        self.rooms = {r.name: r for r in rooms}
+        self.rooms = {room.name: room for room in rooms}
         self.current_name = rooms[0].name
+
         self.exits = [
-            (src, pygame.Rect(trigger), dest, spawn)
-            for src, trigger, dest, spawn in (exits or [])
+            (
+                source,
+                pygame.Rect(trigger),
+                destination,
+                spawn,
+            )
+            for source, trigger, destination, spawn
+            in (exits or [])
         ]
 
     @property
     def current(self):
+        """Return the room currently occupied by the player."""
         return self.rooms[self.current_name]
 
     def update(self, dt):
+        """Update the active room and its gates."""
         self.current.update(dt)
 
+    def blocked(self, rect):
+        """Return True when the active room blocks the given rectangle.
+
+        This is the public collision interface used by Core.
+        Core does not need to know how rooms implement their
+        individual walls and gates.
+        """
+        return self.current.blocked(rect)
+
     def check_exit(self, player_rect):
-        """Switch rooms if the player touches an exit. Returns True on a switch."""
-        for src, trigger, dest, spawn in self.exits:
-            if src == self.current_name and player_rect.colliderect(trigger):
-                self.current_name = dest
+        """Switch rooms if the player touches an active exit.
+
+        Returns True when a room transition occurs.
+        """
+        for source, trigger, destination, spawn in self.exits:
+            if (
+                source == self.current_name
+                and player_rect.colliderect(trigger)
+            ):
+                self.current_name = destination
                 player_rect.topleft = spawn
                 return True
+
         return False
 
     def draw(self, surface):
+        """Draw the currently active room."""
         self.current.draw(surface)
