@@ -13,6 +13,7 @@ Thumbs.db
 # Editors
 .vscode/
 .idea/
+.ipynb_checkpoints/
 *.swp
 
 # Local save data / logs, if added later
