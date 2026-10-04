@@ -1,10 +1,7 @@
-"""Shared helpers for Level 1 and Level 2 (JSON loading, drawing, clicks)."""
-import json
-import os
-
+"""Shared drawing helpers and the reusable multi-room, multi-gate level engine."""
 import pygame
 
-PUZZLE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "puzzles.json")
+from systems.questions import QuestionBank
 
 BG = (12, 16, 28)
 PANEL = (24, 32, 52)
@@ -16,21 +13,27 @@ GREY = (120, 130, 150)
 BLUE = (70, 120, 220)
 
 
-def load_level_data(key, default):
-    """Return puzzles.json[key], or `default` if the file/key is missing."""
-    try:
-        with open(PUZZLE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict) and key in data:
-            return data[key]
-    except (OSError, ValueError):
-        pass
-    return default
-
-
 def draw_text(surface, font, text, pos, color=WHITE):
     """Draw one line of text at pos (top-left)."""
     surface.blit(font.render(str(text), True, color), pos)
+
+
+def wrap_text(font, text, max_width):
+    """Split text into lines that each fit within max_width pixels for the given font."""
+    words = text.split(" ")
+    lines = []
+    current = ""
+    for word in words:
+        trial = (current + " " + word).strip()
+        if font.size(trial)[0] <= max_width:
+            current = trial
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
 
 
 def draw_button(surface, font, rect, text, hover=False, color=BLUE, disabled=False):

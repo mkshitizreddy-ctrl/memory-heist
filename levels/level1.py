@@ -1,26 +1,9 @@
-"""Level 1 - Security Gate: variables, data types, strings, integers, booleans."""
-import pygame
+"""Level 1 - Security Gate (2.0): 3 gated rooms, randomized variables/data-type questions."""
+from levels.common import MultiGateLevel
 
-from levels.common import (BG, PANEL, GREEN, RED, YELLOW, WHITE, GREY,
-                           ClickTracker, draw_button, draw_text, load_level_data)
 
-DEFAULT_DATA = {
-    "agent": {"agent_id": "A-4471", "clearance": 3, "is_active": True, "codename": "Ghost"},
-    "questions": [
-        {"prompt": "What is the data type of agent_id?",
-         "options": ["int", "str", "bool"], "answer": "str",
-         "hint": "It is text inside quotes."},
-        {"prompt": "What is the data type of clearance?",
-         "options": ["float", "str", "int"], "answer": "int",
-         "hint": "It is a whole number with no quotes."},
-        {"prompt": "Which variable holds a boolean?",
-         "options": ["codename", "is_active", "clearance"], "answer": "is_active",
-         "hint": "Booleans are only True or False."},
-        {"prompt": "What does type(codename) return?",
-         "options": ["<class 'str'>", "<class 'int'>", "<class 'bool'>"],
-         "answer": "<class 'str'>", "hint": "codename is written in quotes."},
-    ],
-}
+class Level1(MultiGateLevel):
+    """Security Gate: variables and data types, across 3 gated rooms."""
 
 
 class Level1:
