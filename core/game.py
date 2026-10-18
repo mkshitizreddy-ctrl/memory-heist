@@ -8,7 +8,7 @@ Sets up the Pygame window and runs the main game loop.
 import sys
 import pygame
 
-from core.player import Player
+from core.player import Player, ARROWS
 from core.level_manager import LevelManager
 from core.difficulty import get_difficulty, DEFAULT_DIFFICULTY
 from levels.level1 import Level1
@@ -36,6 +36,7 @@ TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4
 PLAYER_START_POS = (100, 100)
+PLAYER2_START_POS = (150, 100)
 
 
 class DifficultySecurityMeter(SecurityMeter):
@@ -82,6 +83,12 @@ class Game:
 
         # Player & levels
         self.player = Player(*PLAYER_START_POS)
+        self.player2 = Player(
+            *PLAYER2_START_POS,
+            controls=ARROWS,
+            color=(255, 150, 40),
+        )
+        self.coop = False
         self.level_manager = LevelManager(self)
 
         self._register_levels()
@@ -146,6 +153,7 @@ class Game:
     def _reset_player_position(self):
         """Reset the player to the configured starting position."""
         self.player.reset_position(*PLAYER_START_POS)
+        self.player2.reset_position(*PLAYER2_START_POS)
 
     def _handle_level_change(self):
         """Start the transition fade when the active level changes."""
@@ -185,6 +193,7 @@ class Game:
                         self.security.penalty_multiplier = self.difficulty[
                             "security_penalty_multiplier"
                         ]
+                        self.coop = self.menu.coop
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
@@ -271,6 +280,16 @@ class Game:
                 self.screen.get_rect()
             )
 
+            if self.coop:
+                self.player2.handle_input(
+                    keys,
+                    dt,
+                    blocked=blocked,
+                )
+                self.player2.rect.clamp_ip(
+                    self.screen.get_rect()
+                )
+
         # Update current level
         self.level_manager.update(dt)
 
@@ -307,6 +326,8 @@ class Game:
             # Draw the player in spatial levels.
             if self._uses_spatial_player():
                 self.player.draw(self.screen)
+                if self.coop:
+                    self.player2.draw(self.screen)
 
             # HUD with live data
             timer_val = (

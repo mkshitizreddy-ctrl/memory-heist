@@ -29,6 +29,7 @@ class MainMenu:
         self.prompt_font = pygame.font.Font(None, 32)
         self.tick = 0
         self.selected_difficulty = "medium"
+        self.coop = False
 
     def handle_event(self, event):
         """Let the player switch difficulty with 1/2/3 while at the menu."""
@@ -40,6 +41,8 @@ class MainMenu:
             self.selected_difficulty = "medium"
         elif event.key == pygame.K_3:
             self.selected_difficulty = "hard"
+        elif event.key == pygame.K_c:
+            self.coop = not self.coop
 
     def render(self, surface):
         self.tick += 1
@@ -80,9 +83,15 @@ class MainMenu:
         diff_text = self.control_font.render(diff_line, True, (100, 230, 140))
         surface.blit(diff_text, (width // 2 - diff_text.get_width() // 2, y))
 
+        mode = "ON (P2: arrow keys)" if self.coop else "OFF"
+        coop_text = self.control_font.render(
+            f"CO-OP (press C): {mode}", True, (255, 190, 110)
+        )
+        surface.blit(coop_text, (width // 2 - coop_text.get_width() // 2, y + 28))
+
         pulse = 150 + int(70 * abs((self.tick % 60) - 30) / 30)
         prompt = self.prompt_font.render("Press ENTER to start", True, (pulse, 220, pulse))
-        surface.blit(prompt, (width // 2 - prompt.get_width() // 2, y + 50))
+        surface.blit(prompt, (width // 2 - prompt.get_width() // 2, y + 66))
 
     def handle_click(self, pos):
         pass
