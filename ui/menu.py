@@ -13,7 +13,8 @@ from core.difficulty import DIFFICULTIES
 CONTROLS = [
     ("Level 1 & 2", "Mouse - click answers / tiles"),
     ("Level 3, 5 & Final Vault", "1-4 keys - select an answer"),
-    ("Level 4", "WASD to move, E to collect / interact"),
+    ("Level 3 & 4", "WASD to move, E to collect / interact"),
+    ("Co-op (C)", "Player 2: arrow keys to move, Right Shift to interact"),
     ("Any time", "ESC to pause or quit, R to retry after a loss"),
 ]
 
