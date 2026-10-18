@@ -76,7 +76,10 @@ class Level1:
                 self.message = "Correct! Lock opened."
             self.message_color = GREEN
         else:
-            self.message = "Wrong. Hint: " + question.get("hint", "Try again.")
+            if self.game and not self.game.hints.enabled:
+                self.message = "Wrong. Hints are off on this difficulty."
+            else:
+                self.message = "Wrong. Hint: " + question.get("hint", "Try again.")
             self.message_color = RED
             if self.game:
                 self.game.security.increase(20)  # raise security on wrong answer

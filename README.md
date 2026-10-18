@@ -94,6 +94,8 @@ the game flow. The team is now adding Memory Heist 2.0 features incrementally.
   or distracted. Sprites are drawn from character maps in code, so no image
   files are needed.
 - Gate unlock sparks use the shared particle system.
+- Hints follow the difficulty: Easy and Medium show a hint after a wrong
+  answer, Hard does not (currently used in Level 1).
 - Local leaderboard: the win screen asks for a name and shows the top five
   scores with difficulty and co-op tag. Scores are stored in
   `saves/leaderboard.json` on each machine.
@@ -118,4 +120,3 @@ the game flow. The team is now adding Memory Heist 2.0 features incrementally.
 - Easy / Medium / Hard effects for any additional timed challenges
 - Sprites for the remaining enemies and objects, and more particle effects
 - Additional backgrounds, music, and sound effects
-- Hints on/off by difficulty (the setting exists but is not applied yet)
