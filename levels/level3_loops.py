@@ -206,6 +206,23 @@ class Level3LaserLoop:
         # Start the questions.
         self.start_questions()
 
+    def _player_rects(self):
+        """Rects of every active player (second one only in co-op)."""
+        rects = [self.game.player.rect]
+        if getattr(self.game, "coop", False):
+            rects.append(self.game.player2.rect)
+        return rects
+
+    def _bring_partner(self, mover_rect):
+        """After a room change, put the other player next to the mover."""
+        if not getattr(self.game, "coop", False):
+            return
+        for rect in self._player_rects():
+            if rect is not mover_rect:
+                rect.topleft = (mover_rect.x + 36, mover_rect.y)
+                if self.room_map.blocked(rect):
+                    rect.topleft = mover_rect.topleft
+
     def check_laser_collision(self, dt):
         """Apply a small penalty when the player touches a laser.
 
@@ -230,7 +247,7 @@ class Level3LaserLoop:
         if self.laser_penalty_cooldown > 0:
             return
 
-        player_rect = self.game.player.rect
+        player_rects = self._player_rects()
 
         for laser in self.lasers:
             laser_rect = pygame.Rect(
@@ -240,7 +257,7 @@ class Level3LaserLoop:
                 self.laser_height,
             )
 
-            if player_rect.colliderect(laser_rect):
+            if any(r.colliderect(laser_rect) for r in player_rects):
                 self.laser_penalty_cooldown = self.laser_penalty_duration
                 self.laser_hit_feedback_timer = 1.0
                 self.feedback = "LASER HIT! SECURITY +10"
@@ -317,7 +334,7 @@ class Level3LaserLoop:
         if not self.game or not hasattr(self.game, "player"):
             return
 
-        player_rect = self.game.player.rect
+        player_rects = self._player_rects()
         room = self.current_room_number()
 
         # Keep the player from physically walking through a locked gate.
@@ -328,12 +345,17 @@ class Level3LaserLoop:
         else:
             gate = self.gate3
 
-        if not gate.is_open() and player_rect.colliderect(gate.rect):
-            if player_rect.centerx < gate.rect.centerx:
-                player_rect.right = gate.rect.left
-            else:
-                player_rect.left = gate.rect.right
-            return
+        if not gate.is_open():
+            pushed = False
+            for player_rect in player_rects:
+                if player_rect.colliderect(gate.rect):
+                    if player_rect.centerx < gate.rect.centerx:
+                        player_rect.right = gate.rect.left
+                    else:
+                        player_rect.left = gate.rect.right
+                    pushed = True
+            if pushed:
+                return
 
         # Room 1 -> Room 2
         if room == 1:
@@ -341,7 +363,13 @@ class Level3LaserLoop:
                 return
 
             old_room = self.room_map.current_name
-            if self.room_map.check_exit(player_rect):
+            mover = None
+            for player_rect in player_rects:
+                if self.room_map.check_exit(player_rect):
+                    mover = player_rect
+                    break
+            if mover is not None:
+                self._bring_partner(mover)
                 if self.room_map.current_name != old_room:
                     self.setup_room_hazards()
                     self.current_question_number = 1
@@ -357,7 +385,13 @@ class Level3LaserLoop:
                 return
 
             old_room = self.room_map.current_name
-            if self.room_map.check_exit(player_rect):
+            mover = None
+            for player_rect in player_rects:
+                if self.room_map.check_exit(player_rect):
+                    mover = player_rect
+                    break
+            if mover is not None:
+                self._bring_partner(mover)
                 if self.room_map.current_name != old_room:
                     self.setup_room_hazards()
                     self.current_question_number = 2
@@ -371,8 +405,8 @@ class Level3LaserLoop:
         # The final question only opens Gate 3. The player must
         # physically cross the final gate before Level 3 completes.
         if room == 3:
-            if self.gate3.is_open() and player_rect.colliderect(
-                self.final_exit_rect
+            if self.gate3.is_open() and any(
+                r.colliderect(self.final_exit_rect) for r in player_rects
             ):
                 self.complete_level()
 
@@ -633,8 +667,6 @@ class Level3LaserLoop:
         # Robot player detection
         # -------------------------
         if self.game and hasattr(self.game, "player"):
-            player_rect = self.game.player.rect
-
             robot_center_x = (
                 self.robot_x + self.robot_width / 2
             )
@@ -642,13 +674,14 @@ class Level3LaserLoop:
                 self.robot_y + self.robot_height / 2
             )
 
-            player_center_x = player_rect.centerx
-            player_center_y = player_rect.centery
-
-            distance = (
-                (player_center_x - robot_center_x) ** 2
-                + (player_center_y - robot_center_y) ** 2
-            ) ** 0.5
+            # Robot scans whichever player is closest.
+            distance = min(
+                (
+                    (r.centerx - robot_center_x) ** 2
+                    + (r.centery - robot_center_y) ** 2
+                ) ** 0.5
+                for r in self._player_rects()
+            )
 
             if self.robot_detection_cooldown > 0:
                 self.robot_detection_cooldown -= dt

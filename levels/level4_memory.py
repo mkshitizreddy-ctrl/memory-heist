@@ -672,6 +672,11 @@ class Level4MemoryVault:
             if self.player:
                 self.interact(self.player)
 
+        # Player 2 (co-op) interacts with Right Shift.
+        elif event.key == pygame.K_RSHIFT:
+            if self.game and getattr(self.game, "coop", False):
+                self.interact(self.game.player2)
+
         # -------------------------
         # Inventory selection
         # -------------------------
