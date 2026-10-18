@@ -86,7 +86,7 @@ class Game:
         self.player2 = Player(
             *PLAYER2_START_POS,
             controls=ARROWS,
-            color=(255, 150, 40),
+            palette="orange",
         )
         self.coop = False
         self.level_manager = LevelManager(self)
