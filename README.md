@@ -37,12 +37,13 @@ python main.py
 memory-heist/
 ├── main.py
 ├── core/                      # Game loop, player, maps, difficulty, progression
-├── entities/                  # Shared game entities, including gates
+├── entities/                  # Gates, particles, character and drone sprites
 ├── levels/                    # Level 1-5, Final Vault, shared drawing helpers
-├── systems/                   # Inventory, scoring, security, timer, audio, hints
+├── systems/                   # Inventory, scoring, security, timer, audio, hints, leaderboard
 ├── ui/                        # Menu, HUD, win/lose screens
 ├── data/                      # Puzzle content
 ├── assets/sounds/             # Sound effects
+├── saves/                     # Local leaderboard (created at runtime, not committed)
 └── docs/                      # Project report and team workflow
 ```
 
@@ -56,6 +57,11 @@ memory-heist/
 | 1 / 2 / 3 / 4 | Answer Level 3, Level 5, and Final Vault puzzles |
 | WASD | Move in spatial levels (currently Levels 3 and 4) |
 | E | Collect items / interact in Level 4 |
+| C (menu) | Toggle local co-op |
+| Arrow keys | Player 2 movement (co-op) |
+| Right Shift | Player 2 interact in Level 4 (co-op) |
+| Q / X (Level 4) | Ally drone scan / distract the security drone |
+| Type + ENTER (win screen) | Enter a name for the leaderboard |
 | ESC | Pause during gameplay; quit from the win/lose/menu screen |
 | R | Retry from the lose screen |
 
@@ -66,7 +72,7 @@ Close the window using its title bar (X) to quit from the menu or mid-level.
 The base game has five learning levels and a Final Vault, connected through
 the game flow. The team is now adding Memory Heist 2.0 features incrementally.
 
-### 2.0 work in the current core branch
+### 2.0 work merged into main
 
 - A reusable `Room` and `RoomMap` system supports named rooms, exits,
   gates, configurable start rooms, reset, and safe room transitions.
@@ -79,6 +85,18 @@ the game flow. The team is now adding Memory Heist 2.0 features incrementally.
   multiplier.
 - Level 3 currently has a three-room progression with gates, lasers, and a
   security robot. Other levels have not yet been converted to multi-room maps.
+- Local co-op: press C on the menu to add a second player (arrow keys,
+  Right Shift to interact). In Levels 3 and 4 either player can trigger
+  lasers, pass open gates, and interact; the robot scans whichever player
+  is closer.
+- Pixel-art player sprites (cyan and orange palettes) with a walk
+  animation, and sprite drones in Level 4 that change colour when alerted
+  or distracted. Sprites are drawn from character maps in code, so no image
+  files are needed.
+- Gate unlock sparks use the shared particle system.
+- Local leaderboard: the win screen asks for a name and shows the top five
+  scores with difficulty and co-op tag. Scores are stored in
+  `saves/leaderboard.json` on each machine.
 
 ### Features Working
 
@@ -97,7 +115,7 @@ the game flow. The team is now adding Memory Heist 2.0 features incrementally.
 
 - Multiple question pools and randomized question selection across levels
 - Multi-room layouts and gate progression for Levels 1, 2, 4, 5, and Final Vault
-- Easy / Medium / Hard effects for hints and any additional timed challenges
-- Character sprites, animations, and particle effects
+- Easy / Medium / Hard effects for any additional timed challenges
+- Sprites for the remaining enemies and objects, and more particle effects
 - Additional backgrounds, music, and sound effects
-- Leaderboard and local co-op if time permits
+- Hints on/off by difficulty (the setting exists but is not applied yet)
