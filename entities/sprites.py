@@ -94,3 +94,72 @@ def make_player_frames(palette_name="cyan"):
         "idle": frame("idle"),
         "walk": [frame("step_a"), frame("idle"), frame("step_b"), frame("idle")],
     }
+
+
+# ---------------------------------------------------------------------
+# Drones (Level 4)
+# Legend: O outline, B body, R rotor, E eye ring, e eye centre
+# ---------------------------------------------------------------------
+
+_DRONE_TOP = {
+    0: "..RRR......RRR..",
+    1: ".RRR........RRR.",
+}
+
+_DRONE_BODY = [
+    ".....OOOOOO.....",
+    "...OOBBBBBBOO...",
+    "..OBBBBBBBBBBO..",
+    "..OBBBEEEEBBBO..",
+    "..OBBBEeeEBBBO..",
+    "..OBBBBBBBBBBO..",
+    "...OOBBBBBBOO...",
+    ".....OOOOOO.....",
+    "......OOOO......",
+]
+
+DRONE_PALETTES = {
+    "ally": {
+        "O": (10, 40, 60), "B": (35, 205, 245), "R": (190, 245, 255),
+        "E": (255, 255, 255), "e": (20, 110, 160),
+    },
+    "enemy": {
+        "O": (60, 30, 10), "B": (230, 145, 65), "R": (255, 200, 140),
+        "E": (255, 230, 190), "e": (150, 60, 20),
+    },
+    "enemy_alert": {
+        "O": (70, 10, 10), "B": (255, 85, 75), "R": (255, 170, 160),
+        "E": (255, 240, 200), "e": (200, 20, 20),
+    },
+    "enemy_distracted": {
+        "O": (15, 40, 70), "B": (100, 190, 255), "R": (200, 230, 255),
+        "E": (255, 255, 255), "e": (40, 90, 170),
+    },
+}
+
+_drone_cache = {}
+
+
+def get_drone_frame(kind, tick):
+    """Return the drone surface for a kind; tick flips the rotors."""
+    phase = tick % 2
+    key = (kind, phase)
+    if key not in _drone_cache:
+        rows = [_DRONE_TOP[phase]] + _DRONE_BODY
+        surf = pygame.Surface((16, len(rows)), pygame.SRCALPHA)
+        palette = DRONE_PALETTES[kind]
+        for y, row in enumerate(rows):
+            for x, ch in enumerate(row):
+                color = palette.get(ch)
+                if color is not None:
+                    surf.set_at((x, y), color)
+        _drone_cache[key] = pygame.transform.scale(
+            surf, (16 * SCALE, len(rows) * SCALE)
+        )
+    return _drone_cache[key]
+
+
+def draw_drone(surface, center, kind, tick=0):
+    """Draw a drone sprite centred on the given point."""
+    image = get_drone_frame(kind, tick)
+    surface.blit(image, image.get_rect(center=center))

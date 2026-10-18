@@ -16,6 +16,7 @@ The level uses systems/inventory.py for inventory operations.
 
 import pygame
 
+from entities.sprites import draw_drone
 from systems.inventory import Inventory
 
 
@@ -361,17 +362,8 @@ class Level4MemoryVault:
         # =====================================================
 
         drone_center = (int(self.drone_x), int(self.drone_y))
-        pygame.draw.line(
-            surface, (55, 170, 205),
-            (drone_center[0] - 10, drone_center[1]),
-            (drone_center[0] + 10, drone_center[1]), 3
-        )
-        pygame.draw.circle(surface, (35, 205, 245), drone_center, 10)
-        pygame.draw.circle(surface, (190, 245, 255), drone_center, 4)
-        pygame.draw.circle(surface, (70, 190, 220),
-                           (drone_center[0] - 13, drone_center[1] - 5), 3)
-        pygame.draw.circle(surface, (70, 190, 220),
-                           (drone_center[0] + 13, drone_center[1] - 5), 3)
+        rotor_tick = pygame.time.get_ticks() // 90
+        draw_drone(surface, drone_center, "ally", rotor_tick)
 
         drone_hint = small_font.render(
             "ALLY DRONE | Q: Scan | X: Distract",
@@ -398,19 +390,14 @@ class Level4MemoryVault:
         enemy_center = (int(self.security_drone_x), int(self.security_drone_y))
         if self.security_drone_distracted:
             enemy_color = (100, 190, 255)
+            enemy_kind = "enemy_distracted"
+        elif self.security_drone_detecting:
+            enemy_color = (255, 85, 75)
+            enemy_kind = "enemy_alert"
         else:
-            enemy_color = (
-                (255, 85, 75)
-                if self.security_drone_detecting
-                else (230, 145, 65)
-            )
-        pygame.draw.line(
-            surface, enemy_color,
-            (enemy_center[0] - 13, enemy_center[1]),
-            (enemy_center[0] + 13, enemy_center[1]), 4
-        )
-        pygame.draw.circle(surface, enemy_color, enemy_center, 11)
-        pygame.draw.circle(surface, (255, 230, 190), enemy_center, 4)
+            enemy_color = (230, 145, 65)
+            enemy_kind = "enemy"
+        draw_drone(surface, enemy_center, enemy_kind, rotor_tick)
         enemy_label = small_font.render(
             (
                 "DISTRACTED"
