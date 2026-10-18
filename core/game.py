@@ -203,6 +203,9 @@ class Game:
             if self.state == "menu":
                 self.menu.handle_event(event)
 
+            if self.state == "win":
+                self.win_screen.handle_event(event)
+
             if self.state == "playing" and not self.paused:
                 self.level_manager.handle_event(event)
 
@@ -411,6 +414,13 @@ class Game:
         """Central place to switch between game states."""
         self.state = new_state
         self.paused = False
+
+        if new_state == "win":
+            self.win_screen.begin(
+                self.score.get_score(),
+                self.difficulty["label"].title(),
+                self.coop,
+            )
 
     def _start_new_run(self):
         """Reset systems, player position, fresh levels, and start Level 1."""
