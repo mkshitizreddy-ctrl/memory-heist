@@ -194,6 +194,7 @@ class Game:
                             "security_penalty_multiplier"
                         ]
                         self.coop = self.menu.coop
+                        self.hints.enabled = self.difficulty["hints_enabled"]
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
