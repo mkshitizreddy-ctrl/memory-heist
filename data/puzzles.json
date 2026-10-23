@@ -76,89 +76,164 @@
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
   },
+
   "level3_loop_1": {
     "id": "level3_loop_1",
+    "topic": "break statement",
     "question": "Which statement immediately stops a loop?",
-    "options": ["break", "continue", "range", "return"],
-    "answer": "break"
-},
+    "code": "while True:\n    if laser_detected:\n        break",
+    "options": [
+      "break",
+      "continue",
+      "range",
+      "return"
+    ],
+    "answer": "break",
+    "hint": "Look at the statement that exits the loop immediately when the laser is detected.",
+    "explanation": "The break statement immediately exits the current loop. In this example, the loop stops when laser_detected becomes True."
+  },
 
-"level3_loop_2": {
+  "level3_loop_2": {
     "id": "level3_loop_2",
+    "topic": "for loop",
     "question": "Which loop is commonly used when you know how many times to repeat?",
-    "options": ["for", "while", "break", "if"],
-    "answer": "for"
-},
+    "code": "for i in range(3):\n    print(i)",
+    "options": [
+      "for",
+      "while",
+      "break",
+      "if"
+    ],
+    "answer": "for",
+    "hint": "When you know the number of repetitions, think about a loop that works with a sequence such as range().",
+    "explanation": "A for loop is commonly used when iterating through a known sequence or repeating an action a known number of times."
+  },
 
-"level3_loop_3": {
+  "level3_loop_3": {
     "id": "level3_loop_3",
+    "topic": "while loop",
     "question": "Which loop continues running while a condition is True?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
+    "code": "while security_active:\n    scan_laser()",
+    "options": [
+      "while",
+      "for",
+      "break",
+      "range"
+    ],
+    "answer": "while",
+    "hint": "Look for the loop whose condition is checked before each repetition.",
+    "explanation": "A while loop continues executing as long as its condition evaluates to True. When the condition becomes False, the loop stops."
+  },
 
-"level3_loop_4": {
+  "level3_loop_4": {
     "id": "level3_loop_4",
+    "topic": "range()",
     "question": "Which function generates a sequence of numbers for a for loop?",
-    "options": ["range", "loop", "count", "numbers"],
-    "answer": "range"
-},
+    "code": "for i in range(5):\n    print(i)",
+    "options": [
+      "range",
+      "loop",
+      "count",
+      "numbers"
+    ],
+    "answer": "range",
+    "hint": "Think of the Python function that commonly appears after 'in' when a for loop needs a sequence of numbers.",
+    "explanation": "The range() function generates a sequence of numbers that can be used by a for loop. range(5) produces 0, 1, 2, 3 and 4."
+  },
 
-"level3_loop_5": {
+  "level3_loop_5": {
     "id": "level3_loop_5",
+    "topic": "break statement",
     "question": "What does break do inside a loop?",
+    "code": "for i in range(10):\n    if i == 3:\n        break",
     "options": [
-        "Stops the loop",
-        "Restarts the loop",
-        "Skips the program",
-        "Repeats the loop"
+      "Stops the loop",
+      "Restarts the loop",
+      "Skips the program",
+      "Repeats the loop"
     ],
-    "answer": "Stops the loop"
-},
+    "answer": "Stops the loop",
+    "hint": "When the condition becomes True, ask what happens to the loop itself.",
+    "explanation": "When Python executes break, it immediately stops the current loop. The program then continues with the code after the loop."
+  },
 
-"level3_loop_6": {
+  "level3_loop_6": {
     "id": "level3_loop_6",
+    "topic": "while loop",
     "question": "What type of loop can run indefinitely if its condition never becomes False?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
+    "code": "while True:\n    scan_laser()",
+    "options": [
+      "while",
+      "for",
+      "break",
+      "range"
+    ],
+    "answer": "while",
+    "hint": "Look at the loop that keeps checking a condition instead of having a fixed sequence.",
+    "explanation": "A while loop can run indefinitely if its condition never becomes False. In this example, while True creates a loop that would continue until something such as break stops it."
+  },
 
-"level3_loop_7": {
+  "level3_loop_7": {
     "id": "level3_loop_7",
-    "question": "What will this code print? for i in range(3): print(i)",
-    "options": ["0 1 2", "1 2 3", "0 1 2 3", "3 2 1"],
-    "answer": "0 1 2"
-},
+    "topic": "for loop with range()",
+    "question": "What will this code print?\n\nfor i in range(3):\n    print(i)",
+    "code": "for i in range(3):\n    print(i)",
+    "options": [
+      "0 1 2",
+      "1 2 3",
+      "0 1 2 3",
+      "3 2 1"
+    ],
+    "answer": "0 1 2",
+    "hint": "Remember that range(3) starts at 0 and stops before 3.",
+    "explanation": "range(3) produces the values 0, 1 and 2. The loop prints each value, so the output is 0, 1 and 2."
+  },
 
-"level3_loop_8": {
+  "level3_loop_8": {
     "id": "level3_loop_8",
-    "question": "What will this code print? for i in range(1, 4): print(i)",
-    "options": ["1 2 3", "0 1 2", "1 2 3 4", "0 1 2 3"],
-    "answer": "1 2 3"
-},
+    "topic": "range() start and stop",
+    "question": "What will this code print?\n\nfor i in range(1, 4):\n    print(i)",
+    "code": "for i in range(1, 4):\n    print(i)",
+    "options": [
+      "1 2 3",
+      "0 1 2",
+      "1 2 3 4",
+      "0 1 2 3"
+    ],
+    "answer": "1 2 3",
+    "hint": "range(1, 4) starts at 1 and stops before 4.",
+    "explanation": "With range(1, 4), Python starts at 1 and stops before reaching 4. Therefore, the values are 1, 2 and 3."
+  },
 
-"level3_loop_9": {
+  "level3_loop_9": {
     "id": "level3_loop_9",
+    "topic": "break statement",
     "question": "What happens when break is executed inside a loop?",
+    "code": "while True:\n    if vault_open:\n        break",
     "options": [
-        "The loop ends immediately",
-        "The loop starts again",
-        "The next iteration always runs",
-        "The program crashes"
+      "The loop ends immediately",
+      "The loop starts again",
+      "The next iteration always runs",
+      "The program crashes"
     ],
-    "answer": "The loop ends immediately"
-},
+    "answer": "The loop ends immediately",
+    "hint": "break is used when you want to leave the current loop before its normal ending.",
+    "explanation": "When break executes, Python immediately exits the current loop. In this example, the loop ends when vault_open becomes True."
+  },
 
-"level3_loop_10": {
+  "level3_loop_10": {
     "id": "level3_loop_10",
-    "question": "What is the output? for i in range(2): print('Python')",
+    "topic": "for loop repetition",
+    "question": "What is the output?\n\nfor i in range(2):\n    print('Python')",
+    "code": "for i in range(2):\n    print('Python')",
     "options": [
-        "Python printed 2 times",
-        "Python printed 1 time",
-        "Python printed 3 times",
-        "Nothing"
+      "Python printed 2 times",
+      "Python printed 1 time",
+      "Python printed 3 times",
+      "Nothing"
     ],
-    "answer": "Python printed 2 times"
-}
-     
+    "answer": "Python printed 2 times",
+    "hint": "range(2) gives two iterations: 0 and 1.",
+    "explanation": "range(2) produces two values, 0 and 1, so the for loop runs twice and prints Python two times."
+  }
 }

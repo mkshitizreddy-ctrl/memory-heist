@@ -48,6 +48,14 @@ class Level3LaserLoop:
         self.options = []
         self.correct_option_index = None
 
+        # Question support features
+        self.current_hint = ""
+        self.current_explanation = ""
+        self.show_hint = False
+        self.hint_used = False
+        self.question_points = 50
+        self.current_difficulty = "medium"
+
         self.load_questions()
 
         # -------------------------
@@ -431,16 +439,62 @@ class Level3LaserLoop:
             + self.room_question_pools[3]
         )
 
+    def get_selected_difficulty(self):
+        """Return the selected global difficulty safely."""
+
+        difficulty = getattr(self.game, "difficulty", None)
+
+        if isinstance(difficulty, dict):
+            value = difficulty.get(
+                "name",
+                difficulty.get("level", "medium")
+            )
+        else:
+            value = difficulty
+
+        if not isinstance(value, str):
+            return "medium"
+
+        value = value.lower()
+
+        if value not in {"easy", "medium", "hard"}:
+            return "medium"
+
+        return value
+
     def start_questions(self):
-        """Select one random question from each room's question pool."""
+        """Select one unique question for each room."""
+
+        difficulty = self.get_selected_difficulty()
+        self.current_difficulty = difficulty
 
         self.selected_questions = []
 
         for room_number in (1, 2, 3):
-            pool = self.room_question_pools.get(room_number, [])
+            room_pool = self.room_question_pools.get(
+                room_number,
+                []
+            )
+
+            # Prefer questions matching the selected difficulty, while
+            # keeping the room's topic intact.
+            filtered_pool = [
+                question
+                for question in room_pool
+                if question.get(
+                    "difficulty",
+                    "medium"
+                ).lower() == difficulty
+            ]
+
+            # If that difficulty has too few questions, use the complete
+            # room pool rather than making the level unplayable.
+            pool = filtered_pool if filtered_pool else room_pool
 
             if pool:
-                self.selected_questions.append(random.choice(pool))
+                self.selected_questions.append(
+                    random.choice(pool)
+                )
             else:
                 self.selected_questions.append(None)
 
@@ -448,7 +502,7 @@ class Level3LaserLoop:
         self.load_current_question()
 
     def load_current_question(self):
-        """Load the question assigned to the current room."""
+        """Load the current room question and prepare its options and hint."""
 
         room_number = self.current_room_number()
 
@@ -461,46 +515,96 @@ class Level3LaserLoop:
         ]
 
         if self.current_question is None:
-            self.feedback = "No question available for this room."
+            self.feedback = (
+                "No question available for this room."
+            )
             return
 
-        correct_answer = self.current_question["answer"]
-
-        # Generate wrong answers from the same room's question pool first,
-        # so the choices stay related to the current room's topic.
-        room_pool = self.room_question_pools.get(room_number, [])
-
-        possible_answers = list(
-            {
-                question["answer"]
-                for question in room_pool
-                if question.get("answer") != correct_answer
-            }
+        correct_answer = self.current_question.get(
+            "answer"
         )
 
-        # If a room has fewer than two different answers, use the
-        # complete Level 3 pool as a fallback.
-        if len(possible_answers) < 2:
-            possible_answers = list(
-                {
-                    question["answer"]
-                    for question in self.question_pool
-                    if question.get("answer") != correct_answer
-                }
+        # Prefer the options stored with the question. This keeps the
+        # question pool in data/puzzles.json authoritative.
+        stored_options = self.current_question.get(
+            "options",
+            []
+        )
+
+        if (
+            isinstance(stored_options, list)
+            and correct_answer in stored_options
+            and len(stored_options) >= 2
+        ):
+            self.options = list(stored_options)
+        else:
+            # Fallback: build choices from answers in this room first.
+            room_pool = self.room_question_pools.get(
+                room_number,
+                []
             )
 
-        if len(possible_answers) >= 2:
-            wrong_answers = random.sample(possible_answers, 2)
-        else:
-            wrong_answers = possible_answers[:2]
+            possible_answers = list({
+                question.get("answer")
+                for question in room_pool
+                if question.get("answer")
+                and question.get("answer") != correct_answer
+            })
 
-        self.options = wrong_answers + [correct_answer]
+            # Use the complete Level 3 pool if the room does not have
+            # enough distinct distractors.
+            if len(possible_answers) < 2:
+                possible_answers = list({
+                    question.get("answer")
+                    for question in self.question_pool
+                    if question.get("answer")
+                    and question.get("answer") != correct_answer
+                })
+
+            wrong_answers = (
+                random.sample(possible_answers, 2)
+                if len(possible_answers) >= 2
+                else possible_answers[:2]
+            )
+
+            self.options = wrong_answers + [correct_answer]
+
+        # Keep the UI to a maximum of four choices.
+        self.options = self.options[:4]
         random.shuffle(self.options)
+
+        # Safety check: never render a question whose answer is missing.
+        if correct_answer not in self.options:
+            self.options = [correct_answer] + self.options[:3]
 
         self.correct_option_index = self.options.index(
             correct_answer
         )
 
+        self.question_points = int(
+            self.current_question.get(
+                "points",
+                50
+            )
+        )
+
+        self.current_hint = self.current_question.get(
+            "hint",
+            "Think about the Python loop concept shown in the question."
+        )
+
+        self.current_explanation = self.current_question.get(
+            "explanation",
+            "Review the loop concept and try applying it to the example."
+        )
+
+        self.current_difficulty = self.current_question.get(
+            "difficulty",
+            self.current_difficulty
+        ).lower()
+
+        self.hint_used = False
+        self.show_hint = False
         self.selected_option = None
         self.feedback = ""
 
@@ -907,6 +1011,26 @@ class Level3LaserLoop:
         )
 
         # -------------------------
+        # Question difficulty / points
+        # -------------------------
+        difficulty_text = self.instruction_font.render(
+            f"DIFFICULTY: {self.current_difficulty.upper()}  |  "
+            f"POINTS: {self.question_points}",
+            True,
+            (210, 190, 120),
+        )
+
+        difficulty_rect = difficulty_text.get_rect(
+            top= self.room_y + 105,
+            right=self.room_x + self.room_width - 25,
+        )
+
+        surface.blit(
+            difficulty_text,
+            difficulty_rect,
+        )
+
+        # -------------------------
         # Room progression
         # -------------------------
         progression_text = self.instruction_font.render(
@@ -957,7 +1081,7 @@ class Level3LaserLoop:
             objective_text,
             (
                 self.room_x + 25,
-                self.room_y + 105,
+                self.room_y + 125,
             ),
         )
 
@@ -974,7 +1098,7 @@ class Level3LaserLoop:
             security_text,
             (
                 self.room_x + 25,
-                self.room_y + 135,
+                self.room_y + 150,
             ),
         )
 
@@ -1269,7 +1393,7 @@ class Level3LaserLoop:
                     self.room_x
                     + self.room_width // 2
                 ),
-                y=415,
+                y=405,
             )
 
             surface.blit(
@@ -1280,7 +1404,7 @@ class Level3LaserLoop:
         # -------------------------
         # Answers
         # -------------------------
-        option_y = 445
+        option_y = 430
 
         for index, option in enumerate(self.options):
             text_color = (240, 240, 240)
@@ -1313,6 +1437,29 @@ class Level3LaserLoop:
             option_y += 27
 
         # -------------------------
+        # Hint
+        # -------------------------
+        if self.show_hint:
+            hint_text = self.instruction_font.render(
+                f"HINT: {self.current_hint}",
+                True,
+                (255, 210, 80),
+            )
+
+            hint_rect = hint_text.get_rect(
+                centerx=(
+                    self.room_x
+                    + self.room_width // 2
+                ),
+                y=520,
+            )
+
+            surface.blit(
+                hint_text,
+                hint_rect,
+            )
+
+        # -------------------------
         # Progress
         # -------------------------
         progress_text = self.instruction_font.render(
@@ -1326,7 +1473,7 @@ class Level3LaserLoop:
             center=(
                 self.room_x
                 + self.room_width // 2,
-                535,
+                545,
             )
         )
 
@@ -1360,7 +1507,7 @@ class Level3LaserLoop:
                 center=(
                     self.room_x
                     + self.room_width // 2,
-                    565,
+                    570,
                 )
             )
 
@@ -1373,7 +1520,7 @@ class Level3LaserLoop:
         # Instruction
         # -------------------------
         instruction_text = self.instruction_font.render(
-            "Press 1, 2 or 3 to choose an answer",
+            "Press 1-4 to answer  |  H = hint",
             True,
             (180, 180, 190),
         )
@@ -1382,7 +1529,7 @@ class Level3LaserLoop:
             center=(
                 self.room_x
                 + self.room_width // 2,
-                590,
+                600,
             )
         )
 
@@ -1404,46 +1551,72 @@ class Level3LaserLoop:
         if self.complete:
             return
 
-        if event.key == pygame.K_1:
-            selected = 1
-        elif event.key == pygame.K_2:
-            selected = 2
-        elif event.key == pygame.K_3:
-            selected = 3
-        else:
+        # -------------------------
+        # Hint
+        # -------------------------
+        if event.key == pygame.K_h:
+            if not self.show_hint:
+                self.show_hint = True
+                self.hint_used = True
+                self.feedback = "Hint revealed. Final score for this question is reduced by 10."
+            return
+
+        answer_keys = {
+            pygame.K_1: 1,
+            pygame.K_2: 2,
+            pygame.K_3: 3,
+            pygame.K_4: 4,
+        }
+
+        if event.key not in answer_keys:
+            return
+
+        selected = answer_keys[event.key]
+
+        # Ignore choices that do not exist for the current question.
+        if selected > len(self.options):
             return
 
         self.selected_option = selected
-
         selected_index = selected - 1
 
         # -------------------------
         # Correct answer
         # -------------------------
         if selected_index == self.correct_option_index:
-            self.feedback = (
-                "CORRECT! Security bypassed."
-            )
+            earned_points = max(10, self.question_points)
+
+            if self.hint_used:
+                earned_points = max(10, earned_points - 10)
 
             if self.game:
-                self.game.score.add(50)
+                self.game.score.add(earned_points)
 
-            # One correct challenge opens the
-            # gate for the current room.
+            explanation = self.current_explanation
+
+            # One correct challenge opens the gate for the current room.
             self.unlock_current_gate()
 
-            # The correct answer only unlocks the gate.
-            # The question changes only after the player physically
-            # crosses the open gate into the next room.
             if self.current_room_number() == 3:
                 self.feedback = (
+                    f"CORRECT! +{earned_points} points. "
                     "GATE 3 UNLOCKED! REACH THE FINAL EXIT."
                 )
             else:
                 self.feedback = (
+                    f"CORRECT! +{earned_points} points. "
                     f"GATE {self.current_room_number()} UNLOCKED! "
                     "CROSS THE GATE TO CONTINUE."
                 )
+
+            # Keep the explanation visible as part of the feedback so the
+            # player learns why the answer was correct.
+            if explanation:
+                self.feedback += f"  {explanation}"
+
+            # Gate 3 must be physically crossed before Level 3 completes.
+            if self.current_room_number() == 3:
+                return
 
         # -------------------------
         # Wrong answer
