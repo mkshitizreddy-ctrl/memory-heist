@@ -15,6 +15,7 @@ The level uses systems/inventory.py for inventory operations.
 """
 
 import pygame
+import random
 
 from entities.sprites import draw_drone
 from systems.inventory import Inventory
@@ -93,23 +94,105 @@ class Level4MemoryVault:
         # -------------------------
         # Python hacking gates
         # -------------------------
+        # Each terminal has a small question pool. A new question is
+        # selected whenever the player opens that terminal.
         self.gates = [
             {
                 "name": "Memory Access",
                 "rect": pygame.Rect(280, 120, 125, 48),
                 "unlocked": False,
-
-                # Indexing question
-                "question": (
-                    "items = ['Chip', 'Card', 'Key'] | "
-                    "What does items[1] return?"
-                ),
-                "options": [
-                    "Card",
-                    "Chip",
-                    "Key",
-                    "Error"
+                "questions": [
+                    {
+                        "question": (
+                            "items = ['Chip', 'Card', 'Key'] | "
+                            "What does items[1] return?"
+                        ),
+                        "options": [
+                            "Card",
+                            "Chip",
+                            "Key",
+                            "Error"
+                        ],
+                        "answer": 0,
+                        "topic": "LIST INDEXING",
+                        "correct_text": (
+                            "Python indexing starts at 0, so index 1 is the second item."
+                        ),
+                        "correct_code": "items[1] -> 'Card'",
+                        "wrong_text": (
+                            "Remember: Python list indexes start at 0."
+                        ),
+                        "wrong_code": "items[0] = first item"
+                    },
+                    {
+                        "question": (
+                            "items = ['Chip', 'Card', 'Key'] | "
+                            "What does items[0] return?"
+                        ),
+                        "options": [
+                            "Chip",
+                            "Card",
+                            "Key",
+                            "Error"
+                        ],
+                        "answer": 0,
+                        "topic": "LIST INDEXING",
+                        "correct_text": (
+                            "Index 0 refers to the first item in a Python list."
+                        ),
+                        "correct_code": "items[0] -> 'Chip'",
+                        "wrong_text": (
+                            "The first list item is at index 0."
+                        ),
+                        "wrong_code": "items[0] = first item"
+                    },
+                    {
+                        "question": (
+                            "items = ['Chip', 'Card', 'Key'] | "
+                            "What does items[-1] return?"
+                        ),
+                        "options": [
+                            "Chip",
+                            "Card",
+                            "Key",
+                            "Error"
+                        ],
+                        "answer": 2,
+                        "topic": "LIST INDEXING",
+                        "correct_text": (
+                            "Index -1 refers to the last item in a Python list."
+                        ),
+                        "correct_code": "items[-1] -> 'Key'",
+                        "wrong_text": (
+                            "Negative indexing counts from the end of the list."
+                        ),
+                        "wrong_code": "items[-1] = last item"
+                    },
+                    {
+                        "question": (
+                            "items = ['Chip', 'Card', 'Key'] | "
+                            "Which item is at index 2?"
+                        ),
+                        "options": [
+                            "Chip",
+                            "Card",
+                            "Key",
+                            "Error"
+                        ],
+                        "answer": 2,
+                        "topic": "LIST INDEXING",
+                        "correct_text": (
+                            "Index 2 is the third position because indexing starts at 0."
+                        ),
+                        "correct_code": "items[2] -> 'Key'",
+                        "wrong_text": (
+                            "Count positions from 0: 0, 1, 2."
+                        ),
+                        "wrong_code": "items[2] = third item"
+                    }
                 ],
+                "question": "",
+                "options": [],
                 "answer": 0,
                 "topic": "LIST INDEXING"
             },
@@ -117,32 +200,145 @@ class Level4MemoryVault:
                 "name": "Credential Storage",
                 "rect": pygame.Rect(485, 120, 145, 48),
                 "unlocked": False,
-
-                # Dictionary question
-                "question": "How do you access the value of key 'access'?",
-                "options": [
-                    "data.access",
-                    "data['access']",
-                    "data[access()]",
-                    "data(0)"
+                "questions": [
+                    {
+                        "question": "How do you access the value of key 'access'?",
+                        "options": [
+                            "data.access",
+                            "data['access']",
+                            "data[access()]",
+                            "data(0)"
+                        ],
+                        "answer": 1,
+                        "topic": "DICTIONARIES",
+                        "correct_text": "Dictionaries use keys to access their values.",
+                        "correct_code": "data['access']",
+                        "wrong_text": "Use the key inside square brackets.",
+                        "wrong_code": "data['key']"
+                    },
+                    {
+                        "question": (
+                            "data = {'access': 'Memory Chip'} | "
+                            "What does data['access'] return?"
+                        ),
+                        "options": [
+                            "access",
+                            "Memory Chip",
+                            "data",
+                            "Error"
+                        ],
+                        "answer": 1,
+                        "topic": "KEY-VALUE PAIRS",
+                        "correct_text": "The key 'access' maps to the value 'Memory Chip'.",
+                        "correct_code": "data['access'] -> 'Memory Chip'",
+                        "wrong_text": "Square brackets use the key to retrieve its value.",
+                        "wrong_code": "data['key'] -> value"
+                    },
+                    {
+                        "question": "How do you add a new key 'code' with value 42?",
+                        "options": [
+                            "data['code'] = 42",
+                            "data.add('code', 42)",
+                            "data.append(42)",
+                            "data[42] = 'code'"
+                        ],
+                        "answer": 0,
+                        "topic": "DICTIONARIES",
+                        "correct_text": "Assigning to a new key adds a key-value pair.",
+                        "correct_code": "data['code'] = 42",
+                        "wrong_text": "Dictionaries add entries by assigning a value to a key.",
+                        "wrong_code": "data['new_key'] = value"
+                    },
+                    {
+                        "question": "In a dictionary, what does a key identify?",
+                        "options": [
+                            "A value",
+                            "A list index",
+                            "A value's name",
+                            "The whole program"
+                        ],
+                        "answer": 2,
+                        "topic": "KEY-VALUE PAIRS",
+                        "correct_text": "A key identifies the value stored in a dictionary entry.",
+                        "correct_code": "key -> value",
+                        "wrong_text": "Think of a dictionary as key-value pairs.",
+                        "wrong_code": "data[key] -> value"
+                    }
                 ],
-                "answer": 1,
+                "question": "",
+                "options": [],
+                "answer": 0,
                 "topic": "DICTIONARIES"
             },
             {
                 "name": "Security Override",
                 "rect": pygame.Rect(700, 120, 145, 48),
                 "unlocked": False,
-
-                # append question
-                "question": "What does inventory.append('Key') do?",
-                "options": [
-                    "Removes Key",
-                    "Sorts inventory",
-                    "Adds Key to the list",
-                    "Clears inventory"
+                "questions": [
+                    {
+                        "question": "What does inventory.append('Key') do?",
+                        "options": [
+                            "Removes Key",
+                            "Sorts inventory",
+                            "Adds Key to the list",
+                            "Clears inventory"
+                        ],
+                        "answer": 2,
+                        "topic": "LIST OPERATIONS",
+                        "correct_text": "append() adds a new item to a Python list.",
+                        "correct_code": "inventory.append('Key')",
+                        "wrong_text": "append() adds an item; it does not remove one.",
+                        "wrong_code": "inventory.append('item')"
+                    },
+                    {
+                        "question": "What does inventory.remove('Card') do?",
+                        "options": [
+                            "Adds Card",
+                            "Removes Card",
+                            "Sorts Card",
+                            "Copies Card"
+                        ],
+                        "answer": 1,
+                        "topic": "LIST OPERATIONS",
+                        "correct_text": "remove() deletes the matching item from the list.",
+                        "correct_code": "inventory.remove('Card')",
+                        "wrong_text": "remove() is used to delete a matching item.",
+                        "wrong_code": "list.remove(item)"
+                    },
+                    {
+                        "question": "What does inventory.pop() normally do?",
+                        "options": [
+                            "Adds an item",
+                            "Removes and returns an item",
+                            "Sorts the list",
+                            "Creates a dictionary"
+                        ],
+                        "answer": 1,
+                        "topic": "LIST OPERATIONS",
+                        "correct_text": "pop() removes and returns an item from a list.",
+                        "correct_code": "inventory.pop()",
+                        "wrong_text": "pop() removes an item; append() adds one.",
+                        "wrong_code": "append() -> add | pop() -> remove"
+                    },
+                    {
+                        "question": "What does len(inventory) tell you?",
+                        "options": [
+                            "Number of items",
+                            "First item",
+                            "Last item",
+                            "Dictionary key"
+                        ],
+                        "answer": 0,
+                        "topic": "LIST OPERATIONS",
+                        "correct_text": "len() tells you how many items are in a list.",
+                        "correct_code": "len(inventory) -> number of items",
+                        "wrong_text": "len() counts the items; it does not select one.",
+                        "wrong_code": "len(list) -> count"
+                    }
                 ],
-                "answer": 2,
+                "question": "",
+                "options": [],
+                "answer": 0,
                 "topic": "LIST OPERATIONS"
             }
         ]
@@ -1221,6 +1417,20 @@ class Level4MemoryVault:
                 )
             ):
 
+                # Pick a question from this terminal's pool.
+                question_data = random.choice(
+                    gate["questions"]
+                )
+
+                gate["question"] = question_data["question"]
+                gate["options"] = question_data["options"]
+                gate["answer"] = question_data["answer"]
+                gate["topic"] = question_data["topic"]
+                gate["correct_text"] = question_data["correct_text"]
+                gate["correct_code"] = question_data["correct_code"]
+                gate["wrong_text"] = question_data["wrong_text"]
+                gate["wrong_code"] = question_data["wrong_code"]
+
                 self.active_gate = index
                 self.hacking_active = True
 
@@ -1505,38 +1715,15 @@ class Level4MemoryVault:
                 gate["topic"]
             )
 
-            # Give a short explanation instead
-            # of only saying "correct".
-            if gate["topic"] == "LIST INDEXING":
+            self.concept_text = gate.get(
+                "correct_text",
+                "Correct! Apply the Python concept shown above."
+            )
 
-                self.concept_text = (
-                    "Python indexing starts at 0, "
-                    "so index 1 means the second item."
-                )
-
-                self.concept_code = (
-                    "items[1] -> 'Card'"
-                )
-
-            elif gate["topic"] == "DICTIONARIES":
-
-                self.concept_text = (
-                    "Dictionaries use keys to access values."
-                )
-
-                self.concept_code = (
-                    "data['access']"
-                )
-
-            else:
-
-                self.concept_text = (
-                    "append() adds a new item to a list."
-                )
-
-                self.concept_code = (
-                    "inventory.append('Key')"
-                )
+            self.concept_code = gate.get(
+                "correct_code",
+                "Review the example in the question."
+            )
 
             if self.game:
                 self.game.score.add(40)
@@ -1554,37 +1741,15 @@ class Level4MemoryVault:
                 gate["topic"]
             )
 
-            if gate["topic"] == "LIST INDEXING":
+            self.concept_text = gate.get(
+                "wrong_text",
+                "Review the Python concept shown above and try again."
+            )
 
-                self.concept_text = (
-                    "Remember: Python list indexes "
-                    "start from 0."
-                )
-
-                self.concept_code = (
-                    "items[0] = first item"
-                )
-
-            elif gate["topic"] == "DICTIONARIES":
-
-                self.concept_text = (
-                    "Use the key inside square brackets."
-                )
-
-                self.concept_code = (
-                    "data['key']"
-                )
-
-            else:
-
-                self.concept_text = (
-                    "append() adds an item; "
-                    "it does not remove one."
-                )
-
-                self.concept_code = (
-                    "inventory.append('item')"
-                )
+            self.concept_code = gate.get(
+                "wrong_code",
+                "Review the example in the question."
+            )
 
             if self.game:
 
