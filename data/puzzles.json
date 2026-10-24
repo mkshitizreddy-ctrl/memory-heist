@@ -279,5 +279,260 @@
     "hint": "It does not exit the loop; it jumps ahead to the next pass.",
     "explanation": "The continue statement skips the rest of the current iteration and moves on to the next iteration of the loop.",
     "points": 40
+  },
+
+  "level3_loop_13": {
+    "id": "level3_loop_13",
+    "room": 1,
+    "difficulty": "easy",
+    "question": "What is a loop used for in Python?",
+    "options": [
+      "To repeat code several times",
+      "To store a value",
+      "To print only once",
+      "To end the program"
+    ],
+    "answer": "To repeat code several times",
+    "hint": "Think about doing the same steps again and again.",
+    "explanation": "A loop repeats a block of code, so you do not have to write the same instructions many times.",
+    "points": 40
+  },
+
+  "level3_loop_14": {
+    "id": "level3_loop_14",
+    "room": 1,
+    "difficulty": "medium",
+    "question": "What is one full run through the body of a loop called?",
+    "options": [
+      "An iteration",
+      "A condition",
+      "A function",
+      "An index"
+    ],
+    "answer": "An iteration",
+    "hint": "Each time the loop body runs once, that is one of these.",
+    "explanation": "Every single pass through the body of a loop is called an iteration.",
+    "points": 50
+  },
+
+  "level3_loop_15": {
+    "id": "level3_loop_15",
+    "room": 1,
+    "difficulty": "medium",
+    "question": "What happens if a while loop's condition is False the first time it is checked?",
+    "options": [
+      "The loop body never runs",
+      "The loop body runs once",
+      "The loop runs forever",
+      "Python raises an error"
+    ],
+    "answer": "The loop body never runs",
+    "hint": "A while loop checks its condition before running the body.",
+    "explanation": "A while loop tests its condition first, so if it is False at the start the body is skipped completely.",
+    "points": 50
+  },
+
+  "level3_loop_16": {
+    "id": "level3_loop_16",
+    "room": 1,
+    "difficulty": "hard",
+    "question": "Start with i = 3. What does this print? while i > 0: print(i); i -= 1",
+    "options": [
+      "3 2 1",
+      "3 2 1 0",
+      "2 1 0",
+      "1 2 3"
+    ],
+    "answer": "3 2 1",
+    "hint": "i goes down by 1 after every print, and the loop stops when i is no longer greater than 0.",
+    "explanation": "i takes the values 3, 2 and 1. When i becomes 0 the condition i > 0 is False, so 0 is not printed.",
+    "points": 60
+  },
+
+  "level3_loop_17": {
+    "id": "level3_loop_17",
+    "room": 1,
+    "difficulty": "hard",
+    "question": "What will this code print? for ch in 'cat': print(ch)",
+    "options": [
+      "c a t",
+      "cat",
+      "t a c",
+      "c a"
+    ],
+    "answer": "c a t",
+    "hint": "A for loop over a string visits one character per iteration.",
+    "explanation": "The loop runs once for each character, printing c, then a, then t.",
+    "points": 60
+  },
+
+  "level3_loop_18": {
+    "id": "level3_loop_18",
+    "room": 2,
+    "difficulty": "easy",
+    "question": "What is the first number produced by range(5)?",
+    "options": [
+      "0",
+      "1",
+      "5",
+      "4"
+    ],
+    "answer": "0",
+    "hint": "range() starts at 0 unless you tell it to start somewhere else.",
+    "explanation": "range(5) produces 0, 1, 2, 3 and 4, so it starts at 0.",
+    "points": 40
+  },
+
+  "level3_loop_19": {
+    "id": "level3_loop_19",
+    "room": 2,
+    "difficulty": "easy",
+    "question": "In range(2, 6), which of these numbers is NOT produced?",
+    "options": [
+      "6",
+      "2",
+      "3",
+      "5"
+    ],
+    "answer": "6",
+    "hint": "The stop value is never included.",
+    "explanation": "range(2, 6) produces 2, 3, 4 and 5. The stop value 6 is excluded.",
+    "points": 40
+  },
+
+  "level3_loop_20": {
+    "id": "level3_loop_20",
+    "room": 2,
+    "difficulty": "medium",
+    "question": "Which call produces the numbers 0, 2, 4, 6, 8?",
+    "options": [
+      "range(0, 10, 2)",
+      "range(0, 8, 2)",
+      "range(2, 10, 2)",
+      "range(10, 2)"
+    ],
+    "answer": "range(0, 10, 2)",
+    "hint": "The third value is the step, and the stop value is not included.",
+    "explanation": "range(0, 10, 2) starts at 0 and adds 2 until it reaches 10, giving 0, 2, 4, 6 and 8.",
+    "points": 50
+  },
+
+  "level3_loop_21": {
+    "id": "level3_loop_21",
+    "room": 2,
+    "difficulty": "hard",
+    "question": "What is the value of sum(range(4))?",
+    "options": [
+      "6",
+      "10",
+      "4",
+      "3"
+    ],
+    "answer": "6",
+    "hint": "range(4) gives 0, 1, 2 and 3. Add them together.",
+    "explanation": "range(4) produces 0, 1, 2 and 3, and 0 + 1 + 2 + 3 = 6.",
+    "points": 60
+  },
+
+  "level3_loop_22": {
+    "id": "level3_loop_22",
+    "room": 2,
+    "difficulty": "hard",
+    "question": "What will this code print? for i in range(5, 0, -2): print(i)",
+    "options": [
+      "5 3 1",
+      "5 3 1 -1",
+      "5 4 3 2 1",
+      "4 2 0"
+    ],
+    "answer": "5 3 1",
+    "hint": "A negative step counts down, and the stop value 0 is not included.",
+    "explanation": "range(5, 0, -2) starts at 5 and subtracts 2 each time: 5, 3, 1. The next value, -1, is past the stop value 0.",
+    "points": 60
+  },
+
+  "level3_loop_23": {
+    "id": "level3_loop_23",
+    "room": 3,
+    "difficulty": "easy",
+    "question": "Which statement can stop a while True loop?",
+    "options": [
+      "break",
+      "continue",
+      "range",
+      "else"
+    ],
+    "answer": "break",
+    "hint": "A while True loop never ends by itself.",
+    "explanation": "The break statement exits the loop immediately, even when the condition is always True.",
+    "points": 40
+  },
+
+  "level3_loop_24": {
+    "id": "level3_loop_24",
+    "room": 3,
+    "difficulty": "easy",
+    "question": "Which pair of statements controls the flow inside a loop?",
+    "options": [
+      "break and continue",
+      "for and range",
+      "print and input",
+      "if and else"
+    ],
+    "answer": "break and continue",
+    "hint": "One of them stops the loop, and the other skips to the next iteration.",
+    "explanation": "break ends the loop, and continue skips the rest of the current iteration.",
+    "points": 40
+  },
+
+  "level3_loop_25": {
+    "id": "level3_loop_25",
+    "room": 3,
+    "difficulty": "medium",
+    "question": "for i in range(5): continue if i == 2, else print(i). What is printed?",
+    "options": [
+      "0 1 3 4",
+      "0 1 2 3 4",
+      "0 1",
+      "3 4"
+    ],
+    "answer": "0 1 3 4",
+    "hint": "continue skips only the current iteration, and the loop keeps going.",
+    "explanation": "When i is 2, continue skips the print. The loop then carries on, so 0, 1, 3 and 4 are printed.",
+    "points": 50
+  },
+
+  "level3_loop_26": {
+    "id": "level3_loop_26",
+    "room": 3,
+    "difficulty": "medium",
+    "question": "What is the difference between break and continue?",
+    "options": [
+      "break ends the loop; continue skips one iteration",
+      "break skips one iteration; continue ends the loop",
+      "They do exactly the same thing",
+      "Both restart the loop from 0"
+    ],
+    "answer": "break ends the loop; continue skips one iteration",
+    "hint": "One leaves the loop completely, and the other only jumps to the next pass.",
+    "explanation": "break exits the whole loop, while continue only skips the rest of the current iteration.",
+    "points": 50
+  },
+
+  "level3_loop_27": {
+    "id": "level3_loop_27",
+    "room": 3,
+    "difficulty": "hard",
+    "question": "What is printed? for i in range(6): continue if i is odd, break if i == 4, else print(i)",
+    "options": [
+      "0 2",
+      "0 2 4",
+      "2 4",
+      "0 1 2 3"
+    ],
+    "answer": "0 2",
+    "hint": "Check the odd numbers first, then the break, and only then the print.",
+    "explanation": "0 and 2 are printed. Odd numbers are skipped, and when i reaches 4 the loop breaks before printing it.",
+    "points": 60
   }
 }
