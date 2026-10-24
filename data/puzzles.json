@@ -489,7 +489,7 @@
     "id": "level3_loop_25",
     "room": 3,
     "difficulty": "medium",
-    "question": "for i in range(5): continue if i == 2, else print(i). What is printed?",
+    "question": "Pseudocode: for i in range(5). If i is 2, continue. Else print i. Output?",
     "options": [
       "0 1 3 4",
       "0 1 2 3 4",
@@ -523,7 +523,7 @@
     "id": "level3_loop_27",
     "room": 3,
     "difficulty": "hard",
-    "question": "What is printed? for i in range(6): continue if i is odd, break if i == 4, else print(i)",
+    "question": "Pseudocode: for i in range(6). If odd, continue. If i is 4, break. Else print i. Output?",
     "options": [
       "0 2",
       "0 2 4",
