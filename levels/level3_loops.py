@@ -1854,6 +1854,21 @@ class Level3LaserLoop:
         )
 
     # =========================================================
+    # HINT PENALTY
+    # =========================================================
+
+    HINT_PENALTY = 10
+    HINT_PENALTY_HARD = 15
+
+    def hint_penalty(self):
+        """Points deducted for using a hint (higher on Hard)."""
+
+        if self.current_difficulty == "hard":
+            return self.HINT_PENALTY_HARD
+
+        return self.HINT_PENALTY
+
+    # =========================================================
     # EVENT HANDLING
     # =========================================================
 
@@ -1879,7 +1894,8 @@ class Level3LaserLoop:
 
                 self.feedback = (
                     "Hint revealed. Final score "
-                    "for this question is reduced by 10."
+                    "for this question is reduced by "
+                    f"{self.hint_penalty()}."
                 )
 
             return
@@ -1918,7 +1934,7 @@ class Level3LaserLoop:
 
                 earned_points = max(
                     10,
-                    earned_points - 10,
+                    earned_points - self.hint_penalty(),
                 )
 
             if self.game:
