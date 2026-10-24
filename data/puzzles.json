@@ -76,89 +76,208 @@
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
   },
+
   "level3_loop_1": {
     "id": "level3_loop_1",
+    "room": 1,
+    "difficulty": "easy",
     "question": "Which statement immediately stops a loop?",
-    "options": ["break", "continue", "range", "return"],
-    "answer": "break"
-},
+    "options": [
+      "break",
+      "continue",
+      "range",
+      "return"
+    ],
+    "answer": "break",
+    "hint": "Think about the statement that completely exits the current loop.",
+    "explanation": "The break statement immediately terminates the current loop.",
+    "points": 40
+  },
 
-"level3_loop_2": {
+  "level3_loop_2": {
     "id": "level3_loop_2",
+    "room": 1,
+    "difficulty": "easy",
     "question": "Which loop is commonly used when you know how many times to repeat?",
-    "options": ["for", "while", "break", "if"],
-    "answer": "for"
-},
+    "options": [
+      "for",
+      "while",
+      "break",
+      "if"
+    ],
+    "answer": "for",
+    "hint": "This loop is commonly combined with range().",
+    "explanation": "A for loop is commonly used when iterating over a known sequence or range of values.",
+    "points": 40
+  },
 
-"level3_loop_3": {
+  "level3_loop_3": {
     "id": "level3_loop_3",
+    "room": 1,
+    "difficulty": "medium",
     "question": "Which loop continues running while a condition is True?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
+    "options": [
+      "while",
+      "for",
+      "break",
+      "range"
+    ],
+    "answer": "while",
+    "hint": "Its name describes the condition under which it keeps running.",
+    "explanation": "A while loop continues executing as long as its condition evaluates to True.",
+    "points": 50
+  },
 
-"level3_loop_4": {
+  "level3_loop_4": {
     "id": "level3_loop_4",
+    "room": 2,
+    "difficulty": "easy",
     "question": "Which function generates a sequence of numbers for a for loop?",
-    "options": ["range", "loop", "count", "numbers"],
-    "answer": "range"
-},
+    "options": [
+      "range",
+      "loop",
+      "count",
+      "numbers"
+    ],
+    "answer": "range",
+    "hint": "You often see it written like range(5).",
+    "explanation": "The range() function generates a sequence of numbers commonly used with for loops.",
+    "points": 40
+  },
 
-"level3_loop_5": {
+  "level3_loop_5": {
     "id": "level3_loop_5",
+    "room": 2,
+    "difficulty": "medium",
     "question": "What does break do inside a loop?",
     "options": [
-        "Stops the loop",
-        "Restarts the loop",
-        "Skips the program",
-        "Repeats the loop"
+      "Stops the loop",
+      "Restarts the loop",
+      "Skips the program",
+      "Repeats the loop"
     ],
-    "answer": "Stops the loop"
-},
+    "answer": "Stops the loop",
+    "hint": "break does not start another iteration.",
+    "explanation": "The break statement immediately stops the loop in which it is executed.",
+    "points": 50
+  },
 
-"level3_loop_6": {
+  "level3_loop_6": {
     "id": "level3_loop_6",
+    "room": 2,
+    "difficulty": "medium",
     "question": "What type of loop can run indefinitely if its condition never becomes False?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
+    "options": [
+      "while",
+      "for",
+      "break",
+      "range"
+    ],
+    "answer": "while",
+    "hint": "Think about a loop controlled by a condition.",
+    "explanation": "A while loop can continue indefinitely if its condition never becomes False.",
+    "points": 50
+  },
 
-"level3_loop_7": {
+  "level3_loop_7": {
     "id": "level3_loop_7",
+    "room": 2,
+    "difficulty": "hard",
     "question": "What will this code print? for i in range(3): print(i)",
-    "options": ["0 1 2", "1 2 3", "0 1 2 3", "3 2 1"],
-    "answer": "0 1 2"
-},
+    "options": [
+      "0 1 2",
+      "1 2 3",
+      "0 1 2 3",
+      "3 2 1"
+    ],
+    "answer": "0 1 2",
+    "hint": "range(3) starts at 0 and stops before 3.",
+    "explanation": "range(3) produces 0, 1, and 2, so those are the values printed.",
+    "points": 60
+  },
 
-"level3_loop_8": {
+  "level3_loop_8": {
     "id": "level3_loop_8",
+    "room": 3,
+    "difficulty": "hard",
     "question": "What will this code print? for i in range(1, 4): print(i)",
-    "options": ["1 2 3", "0 1 2", "1 2 3 4", "0 1 2 3"],
-    "answer": "1 2 3"
-},
+    "options": [
+      "1 2 3",
+      "0 1 2",
+      "1 2 3 4",
+      "0 1 2 3"
+    ],
+    "answer": "1 2 3",
+    "hint": "The starting value is 1, but the ending value 4 is excluded.",
+    "explanation": "range(1, 4) generates 1, 2, and 3.",
+    "points": 60
+  },
 
-"level3_loop_9": {
+  "level3_loop_9": {
     "id": "level3_loop_9",
+    "room": 3,
+    "difficulty": "medium",
     "question": "What happens when break is executed inside a loop?",
     "options": [
-        "The loop ends immediately",
-        "The loop starts again",
-        "The next iteration always runs",
-        "The program crashes"
+      "The loop ends immediately",
+      "The loop starts again",
+      "The next iteration always runs",
+      "The program crashes"
     ],
-    "answer": "The loop ends immediately"
-},
+    "answer": "The loop ends immediately",
+    "hint": "break exits the current loop.",
+    "explanation": "When Python executes break, it immediately exits the nearest enclosing loop.",
+    "points": 50
+  },
 
-"level3_loop_10": {
+  "level3_loop_10": {
     "id": "level3_loop_10",
+    "room": 3,
+    "difficulty": "hard",
     "question": "What is the output? for i in range(2): print('Python')",
     "options": [
-        "Python printed 2 times",
-        "Python printed 1 time",
-        "Python printed 3 times",
-        "Nothing"
+      "Python printed 2 times",
+      "Python printed 1 time",
+      "Python printed 3 times",
+      "Nothing"
     ],
-    "answer": "Python printed 2 times"
-}
-     
+    "answer": "Python printed 2 times",
+    "hint": "range(2) produces two iterations.",
+    "explanation": "The loop runs twice because range(2) produces 0 and 1.",
+    "points": 60
+  },
+
+  "level3_loop_11": {
+    "id": "level3_loop_11",
+    "room": 1,
+    "difficulty": "hard",
+    "question": "What will this code print? for i in range(2, 10, 3): print(i)",
+    "options": [
+      "2 5 8",
+      "2 5 8 10",
+      "3 6 9",
+      "2 4 6 8"
+    ],
+    "answer": "2 5 8",
+    "hint": "The third value in range() is the step between numbers.",
+    "explanation": "range(2, 10, 3) starts at 2 and adds 3 each time: 2, 5, 8. The next value, 11, is past the stop value 10.",
+    "points": 60
+  },
+
+  "level3_loop_12": {
+    "id": "level3_loop_12",
+    "room": 3,
+    "difficulty": "easy",
+    "question": "Which statement skips the rest of the current loop iteration?",
+    "options": [
+      "continue",
+      "break",
+      "range",
+      "while"
+    ],
+    "answer": "continue",
+    "hint": "It does not exit the loop; it jumps ahead to the next pass.",
+    "explanation": "The continue statement skips the rest of the current iteration and moves on to the next iteration of the loop.",
+    "points": 40
+  }
 }
