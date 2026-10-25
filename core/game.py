@@ -8,8 +8,9 @@ Sets up the Pygame window and runs the main game loop.
 import sys
 import pygame
 
-from core.player import Player
+from core.player import Player, ARROWS
 from core.level_manager import LevelManager
+from core.difficulty import get_difficulty, DEFAULT_DIFFICULTY
 from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level3_loops import Level3LaserLoop
@@ -27,12 +28,28 @@ from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
 
+
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
 FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
-FADE_DURATION = 0.4  # seconds
+FADE_DURATION = 0.4
+PLAYER_START_POS = (100, 100)
+PLAYER2_START_POS = (150, 100)
+
+
+class DifficultySecurityMeter(SecurityMeter):
+    """Apply the selected difficulty multiplier to security increases."""
+
+    def __init__(self, max_level=100):
+        super().__init__(max_level=max_level)
+        self.penalty_multiplier = 1.0
+
+    def increase(self, amount=20):
+        """Scale a base security increase before applying it."""
+        adjusted_amount = round(amount * self.penalty_multiplier)
+        super().increase(adjusted_amount)
 
 
 class Game:
@@ -40,19 +57,22 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode(
+            (SCREEN_WIDTH, SCREEN_HEIGHT)
+        )
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.state = "menu"          # "menu" | "playing" | "win" | "lose"
+        self.state = "menu"
         self.paused = False
 
-        # Systems (now live)
+        # Systems
         self.score = ScoreTracker()
         self.timer = Timer()
-        self.security = SecurityMeter(max_level=100)
+        self.security = DifficultySecurityMeter(max_level=100)
         self.hints = HintSystem()
+        self.difficulty = get_difficulty(DEFAULT_DIFFICULTY)
 
         # UI
         self.menu = MainMenu()
@@ -62,30 +82,86 @@ class Game:
         self.audio = Audio()
 
         # Player & levels
-        self.player = Player(100, 100)
+        self.player = Player(*PLAYER_START_POS)
+        self.player2 = Player(
+            *PLAYER2_START_POS,
+            controls=ARROWS,
+            palette="orange",
+        )
+        self.coop = False
         self.level_manager = LevelManager(self)
 
         self._register_levels()
         self.level_manager.start("level1")
-        self.wall = pygame.Rect(400, 200, 160, 40)   # only used by Level 4
 
         # Level-transition fade
         self._last_level_name = self.level_manager.current_name
         self._fade_timer = 0.0
 
-        # Animated background tick (for the cyber-grid effect)
+        # Animated background tick
         self._bg_tick = 0
 
     def _register_levels(self):
-        """Create fresh level instances and register them. Called at
-        startup and again on every retry, so a level a player already
-        completed doesn't stay marked complete on the next run."""
-        self.level_manager.register("level1", Level1(player=self.player, game=self))
-        self.level_manager.register("level2", Level2(player=self.player, game=self))
-        self.level_manager.register("level3", Level3LaserLoop(game=self))
-        self.level_manager.register("level4", Level4MemoryVault(player=self.player, game=self))
-        self.level_manager.register("level5", Level5ControlCenter(game=self))
-        self.level_manager.register("final_vault", FinalVault(game=self))
+        """Create fresh level instances and register them."""
+        self.level_manager.register(
+            "level1",
+            Level1(player=self.player, game=self)
+        )
+        self.level_manager.register(
+            "level2",
+            Level2(player=self.player, game=self)
+        )
+        level3 = Level3LaserLoop(game=self)
+        self._apply_difficulty_to_room_timer(level3)
+        self.level_manager.register(
+            "level3",
+            level3
+        )
+        self.level_manager.register(
+            "level4",
+            Level4MemoryVault(player=self.player, game=self)
+        )
+        self.level_manager.register(
+            "level5",
+            Level5ControlCenter(game=self)
+        )
+        self.level_manager.register(
+            "final_vault",
+            FinalVault(game=self)
+        )
+
+    def _apply_difficulty_to_room_timer(self, level):
+        """Scale a level's room countdown using the selected difficulty."""
+        base_time = getattr(level, "base_time_limit", None)
+        if base_time is None:
+            return
+
+        multiplier = self.difficulty["timer_multiplier"]
+        level.base_time_limit = max(1, round(base_time * multiplier))
+
+        room_number = 1
+        get_room_number = getattr(level, "current_room_number", None)
+        if callable(get_room_number):
+            room_number = get_room_number()
+
+        level.time_limit = max(
+            1,
+            level.base_time_limit - (room_number - 1),
+        )
+        level.time_left = level.time_limit
+
+    def _reset_player_position(self):
+        """Reset the player to the configured starting position."""
+        self.player.reset_position(*PLAYER_START_POS)
+        self.player2.reset_position(*PLAYER2_START_POS)
+
+    def _handle_level_change(self):
+        """Start the transition fade when the active level changes."""
+        current_name = self.level_manager.current_name
+
+        if current_name != self._last_level_name:
+            self._last_level_name = current_name
+            self._fade_timer = FADE_DURATION
 
     def run(self):
         while self.running:
@@ -111,51 +187,137 @@ class Game:
 
                 elif event.key == pygame.K_RETURN:
                     if self.state == "menu":
+                        self.difficulty = get_difficulty(
+                            self.menu.selected_difficulty
+                        )
+                        self.security.penalty_multiplier = self.difficulty[
+                            "security_penalty_multiplier"
+                        ]
+                        self.coop = self.menu.coop
+                        self.hints.enabled = self.difficulty["hints_enabled"]
                         self._start_new_run()
 
                 elif event.key == pygame.K_r:
                     if self.state == "lose":
                         self._start_new_run()
 
+            if self.state == "menu":
+                self.menu.handle_event(event)
+
+            if self.state == "win":
+                self.win_screen.handle_event(event)
+
             if self.state == "playing" and not self.paused:
                 self.level_manager.handle_event(event)
 
+    def _get_spatial_blocked(self):
+        """Return the collision callback for the active spatial level."""
+        level = self.level_manager.current
+
+        if level is None:
+            return None
+
+        room_map = getattr(level, "room_map", None)
+
+        if room_map is not None:
+            return room_map.blocked
+
+        get_bounds = getattr(level, "get_bounds", None)
+        get_obstacles = getattr(level, "get_obstacles", None)
+
+        if callable(get_bounds) or callable(get_obstacles):
+
+            def blocked(rect):
+                bounds = get_bounds() if callable(get_bounds) else None
+
+                if bounds is not None and not bounds.contains(rect):
+                    return True
+
+                obstacles = (
+                    get_obstacles()
+                    if callable(get_obstacles)
+                    else []
+                )
+                return any(
+                    rect.colliderect(obstacle)
+                    for obstacle in obstacles
+                )
+
+            return blocked
+
+        return None
+
+    def _uses_spatial_player(self):
+        """Return whether the active level provides spatial world geometry."""
+        level = self.level_manager.current
+        if level is None:
+            return False
+
+        return (
+            getattr(level, "room_map", None) is not None
+            or callable(getattr(level, "get_bounds", None))
+            or callable(getattr(level, "get_obstacles", None))
+        )
+
     def update(self, dt):
         if self._fade_timer > 0:
-            self._fade_timer = max(0.0, self._fade_timer - dt)
+            self._fade_timer = max(
+                0.0,
+                self._fade_timer - dt
+            )
 
         if self.state != "playing" or self.paused:
             return
 
-        # Level 4 movement (unchanged)
-        if self.level_manager.current_name == "level4":
+        # Spatial movement for levels that use direct player movement.
+        if self._uses_spatial_player():
             keys = pygame.key.get_pressed()
-            old_rect = self.player.rect.copy()
-            self.player.handle_input(keys, dt)
-            if self.player.rect.colliderect(self.wall):
-                self.player.rect = old_rect
-            self.player.rect.clamp_ip(self.screen.get_rect())
+            blocked = self._get_spatial_blocked()
+
+            self.player.handle_input(
+                keys,
+                dt,
+                blocked=blocked,
+            )
+
+            self.player.rect.clamp_ip(
+                self.screen.get_rect()
+            )
+
+            if self.coop:
+                self.player2.handle_input(
+                    keys,
+                    dt,
+                    blocked=blocked,
+                )
+                self.player2.rect.clamp_ip(
+                    self.screen.get_rect()
+                )
 
         # Update current level
         self.level_manager.update(dt)
 
-        # Detect a level change and start a fade
-        if self.level_manager.current_name != self._last_level_name:
-            self._last_level_name = self.level_manager.current_name
-            self._fade_timer = FADE_DURATION
+        # Detect level changes
+        self._handle_level_change()
 
         # Update global timer
         self.timer.update(dt)
 
         # Lose conditions
-        if self.security.is_lockdown() or self.timer.expired():
+        if (
+            self.security.is_lockdown()
+            or self.timer.expired()
+        ):
             self.change_state("lose")
 
     def render(self):
         self._bg_tick += 1
 
         if self.state == "playing":
-            draw_cyber_background(self.screen, self._bg_tick)
+            draw_cyber_background(
+                self.screen,
+                self._bg_tick
+            )
         else:
             self.screen.fill(BG_COLOR)
 
@@ -165,11 +327,19 @@ class Game:
         elif self.state == "playing":
             self.level_manager.render(self.screen)
 
-            if self.level_manager.current_name == "level4":
+            # Draw the player in spatial levels.
+            if self._uses_spatial_player():
                 self.player.draw(self.screen)
+                if self.coop:
+                    self.player2.draw(self.screen)
 
             # HUD with live data
-            timer_val = self.timer.get_remaining() if self.timer.active else None
+            timer_val = (
+                self.timer.get_remaining()
+                if self.timer.active
+                else None
+            )
+
             self.hud.render(
                 self.screen,
                 self.level_manager.current_name,
@@ -180,47 +350,90 @@ class Game:
             )
 
             if self.paused:
-                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                overlay = pygame.Surface(
+                    (SCREEN_WIDTH, SCREEN_HEIGHT),
+                    pygame.SRCALPHA,
+                )
                 overlay.fill((0, 0, 0, 160))
-                self.screen.blit(overlay, (0, 0))
-                pause_font = pygame.font.Font(None, 48)
-                txt = pause_font.render("PAUSED", True, (220, 220, 220))
+                self.screen.blit(
+                    overlay,
+                    (0, 0)
+                )
+
+                pause_font = pygame.font.Font(
+                    None,
+                    48
+                )
+                txt = pause_font.render(
+                    "PAUSED",
+                    True,
+                    (220, 220, 220),
+                )
+
                 self.screen.blit(
                     txt,
                     (
-                        SCREEN_WIDTH // 2 - txt.get_width() // 2,
+                        SCREEN_WIDTH // 2
+                        - txt.get_width() // 2,
                         SCREEN_HEIGHT // 2 - 20,
                     ),
                 )
 
         elif self.state == "win":
-            self.win_screen.render(self.screen, score=self.score.get_score())
+            self.win_screen.render(
+                self.screen,
+                score=self.score.get_score(),
+            )
 
         elif self.state == "lose":
-            self.lose_screen.render(self.screen, score=self.score.get_score())
+            self.lose_screen.render(
+                self.screen,
+                score=self.score.get_score(),
+            )
 
-        # Fade overlay: fades from black to transparent right after a level change
+        # Fade overlay after a level change.
         if self._fade_timer > 0:
-            alpha = int(255 * (self._fade_timer / FADE_DURATION))
-            fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            alpha = int(
+                255 * (
+                    self._fade_timer / FADE_DURATION
+                )
+            )
+
+            fade_surface = pygame.Surface(
+                (SCREEN_WIDTH, SCREEN_HEIGHT)
+            )
             fade_surface.fill((0, 0, 0))
             fade_surface.set_alpha(alpha)
-            self.screen.blit(fade_surface, (0, 0))
+            self.screen.blit(
+                fade_surface,
+                (0, 0)
+            )
 
         pygame.display.flip()
 
     def change_state(self, new_state: str):
-        """Central place to switch between menu / playing / win / lose."""
+        """Central place to switch between game states."""
         self.state = new_state
         self.paused = False
 
+        if new_state == "win":
+            self.win_screen.begin(
+                self.score.get_score(),
+                self.difficulty["label"].title(),
+                self.coop,
+            )
+
     def _start_new_run(self):
-        """Reset systems, get fresh level instances, go back to Level 1."""
+        """Reset systems, player position, fresh levels, and start Level 1."""
         self.score.reset()
         self.security.reset()
-        self.timer = Timer()          # fresh timer
-        self._register_levels()       # fresh levels — undoes prior completion
+        self.timer = Timer()
+        self._reset_player_position()
+
+        # Fresh levels — undoes prior completion.
+        self._register_levels()
         self.level_manager.start("level1")
+
         self.change_state("playing")
         self._last_level_name = self.level_manager.current_name
         self._fade_timer = 0.0
