@@ -40,6 +40,7 @@ class Level5ControlCenter:
 
         self.current_step = 1
         self.total_steps = 4
+        self.concepts_done = False
 
         self.room_x = 40
         self.room_y = 30
@@ -244,7 +245,8 @@ class Level5ControlCenter:
             pygame.K_4: 4,
         }
 
-        if event.key in option_keys:
+        # Once all concept steps are solved, 1-4 become terminal digits.
+        if event.key in option_keys and not self.concepts_done:
             selected = option_keys[event.key]
             self.selected_option = selected
 
@@ -260,6 +262,7 @@ class Level5ControlCenter:
                     self.current_step += 1
                     self.selected_option = None
                 else:
+                    self.concepts_done = True
                     self.feedback = (
                         "Function concepts repaired! "
                         "Now test the control terminal."
@@ -283,33 +286,7 @@ class Level5ControlCenter:
             return
 
         if event.key == pygame.K_RETURN:
-            try:
-                level = int(self.command)
-                result = self._unlock_vault(level)
-                self.command_result = result
-
-                if level == 5 and self.current_step == self.total_steps:
-                    self.complete = True
-                    self.feedback = (
-                        "CONTROL CENTER RESTORED! "
-                        "Master Vault access granted."
-                    )
-                    if self.game:
-                        self.game.score.add(50)
-                        self.game.score.add(100)   # level completion bonus
-                elif level < 5:
-                    self.feedback = "Access denied (level too low)."
-                    if self.game:
-                        self.game.security.increase(15)
-                        self.game.score.penalize(5)
-
-            except ValueError:
-                self.command_result = "ERROR: Enter an integer."
-                self.feedback = "Exception handled with try/except."
-                if self.game:
-                    self.game.security.increase(10)
-
-            self.command = ""
+            self._submit_terminal()
             return
 
         # -----------------------------------------------------
@@ -318,6 +295,49 @@ class Level5ControlCenter:
         if event.unicode.isdigit():
             if len(self.command) < 3:
                 self.command += event.unicode
+
+    def _submit_terminal(self):
+        """Process the terminal command (try/except demo).
+
+        Two separate try blocks keep the two failure modes apart:
+        bad typing (int() fails) vs. access denied (_unlock_vault raises).
+        """
+        try:
+            level = int(self.command)
+        except ValueError:
+            self.command_result = "ERROR: Enter an integer."
+            self.feedback = "Exception handled with try/except."
+            if self.game:
+                self.game.security.increase(10)
+            self.command = ""
+            return
+
+        try:
+            result = self._unlock_vault(level)
+        except ValueError:
+            self.command_result = "ERROR: Access denied"
+            self.feedback = "Access denied (level too low)."
+            if self.game:
+                self.game.security.increase(15)
+                self.game.score.penalize(5)
+            self.command = ""
+            return
+
+        self.command_result = result
+
+        if not self.concepts_done:
+            self.feedback = "Finish the concept steps first."
+        else:
+            self.complete = True
+            self.feedback = (
+                "CONTROL CENTER RESTORED! "
+                "Master Vault access granted."
+            )
+            if self.game:
+                self.game.score.add(50)
+                self.game.score.add(100)   # level completion bonus
+
+        self.command = ""
 
     def _unlock_vault(self, level):
         """Return the access result for a supplied security level."""
