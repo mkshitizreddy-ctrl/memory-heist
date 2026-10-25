@@ -4,79 +4,121 @@
     "answer": "5",
     "hint": "Clearance levels are stored as integers, not strings."
   },
-
   "level2_grid_code": {
     "prompt": "Combine the two numbers with the correct operator to reach 42.",
     "answer": "6*7",
     "hint": "Multiplication uses the * operator in Python."
   },
-
   "level5_function_parameter": {
     "prompt": "In def unlock_vault(level), what is level?",
     "answer": "parameter",
     "hint": "A parameter is the variable listed in a function definition."
   },
-
   "level5_function_argument": {
     "prompt": "In unlock_vault(5), what is 5?",
     "answer": "argument",
     "hint": "An argument is the value passed when calling a function."
   },
-
   "level5_return_value": {
     "prompt": "What sends a result back from a function?",
     "answer": "return",
     "hint": "Python uses the return statement to send a value back."
   },
-
   "level5_exception_handling": {
     "prompt": "Which structure can safely handle a ValueError?",
     "answer": "try/except",
     "hint": "Put risky code inside try and handle the error in except."
   },
-
   "level5_terminal": {
     "prompt": "Enter the required clearance level.",
     "answer": "5",
     "hint": "The unlock function requires a level of at least 5."
   },
-
   "final_vault_data_type": {
     "prompt": "What data type should store the clearance value 5?",
     "answer": "integer",
     "hint": "Whole numbers are integers."
   },
-
   "final_vault_operator": {
     "prompt": "Which operator generates 42 from 6 and 7?",
     "answer": "*",
     "hint": "The multiplication operator is *."
   },
-
   "final_vault_loop": {
     "prompt": "Which statement stops a loop immediately?",
     "answer": "break",
     "hint": "break exits the current loop."
   },
-
   "final_vault_dictionary": {
     "prompt": "How do you retrieve the value associated with key 'key'?",
     "answer": "vault['key']",
     "hint": "Dictionary values are accessed using their keys."
   },
-
   "final_vault_function": {
     "prompt": "What sends a result from authorize() back to the caller?",
     "answer": "return",
     "hint": "A return statement sends a value back."
   },
-
   "final_vault_exception": {
     "prompt": "Which structure handles invalid integer input?",
     "answer": "try/except",
     "hint": "int() can raise ValueError, which can be handled with except."
   },
-
+  "advanced_function_parameter": {
+    "prompt": "In def authorize(level):, what is level?",
+    "answer": "parameter",
+    "hint": "The variable written inside a function definition is a parameter."
+  },
+  "advanced_function_argument": {
+    "prompt": "In authorize(5), what is 5?",
+    "answer": "argument",
+    "hint": "The actual value supplied during a function call is an argument."
+  },
+  "advanced_function_return": {
+    "prompt": "What does return level >= 5 send back?",
+    "answer": "boolean",
+    "hint": "The comparison level >= 5 evaluates to either True or False."
+  },
+  "advanced_exception": {
+    "prompt": "What exception can int('abc') raise?",
+    "answer": "ValueError",
+    "hint": "Python raises ValueError when a string cannot be converted to an integer."
+  },
+  "advanced_dictionary": {
+    "prompt": "What does vault['key'] return when key maps to 42?",
+    "answer": "42",
+    "hint": "Dictionary indexing retrieves the value stored under the requested key."
+  },
+  "advanced_loop": {
+    "prompt": "Which statement immediately exits the current loop?",
+    "answer": "break",
+    "hint": "break terminates the nearest enclosing loop."
+  },
+  "advanced_continue": {
+    "prompt": "Which statement skips the current loop iteration?",
+    "answer": "continue",
+    "hint": "continue skips the rest of the current iteration and moves to the next one."
+  },
+  "advanced_list_append": {
+    "prompt": "Which list method adds one item to the end of a list?",
+    "answer": "append",
+    "hint": "Use list.append(item) to add one element."
+  },
+  "advanced_list_remove": {
+    "prompt": "Which list method removes a matching item?",
+    "answer": "remove",
+    "hint": "Use list.remove(item) to remove the first matching value."
+  },
+  "advanced_type_check": {
+    "prompt": "What does type(5) identify?",
+    "answer": "int",
+    "hint": "5 is a whole-number integer."
+  },
+  "advanced_boolean": {
+    "prompt": "What data type is returned by 5 >= 5?",
+    "answer": "bool",
+    "hint": "Comparisons produce True or False."
+  },
   "level3_loop_1": {
     "id": "level3_loop_1",
     "room": 1,
@@ -93,7 +135,6 @@
     "explanation": "The break statement immediately terminates the current loop.",
     "points": 40
   },
-
   "level3_loop_2": {
     "id": "level3_loop_2",
     "room": 1,
@@ -110,7 +151,6 @@
     "explanation": "A for loop is commonly used when iterating over a known sequence or range of values.",
     "points": 40
   },
-
   "level3_loop_3": {
     "id": "level3_loop_3",
     "room": 1,
@@ -127,7 +167,6 @@
     "explanation": "A while loop continues executing as long as its condition evaluates to True.",
     "points": 50
   },
-
   "level3_loop_4": {
     "id": "level3_loop_4",
     "room": 2,
@@ -144,7 +183,6 @@
     "explanation": "The range() function generates a sequence of numbers commonly used with for loops.",
     "points": 40
   },
-
   "level3_loop_5": {
     "id": "level3_loop_5",
     "room": 2,
@@ -161,7 +199,6 @@
     "explanation": "The break statement immediately stops the loop in which it is executed.",
     "points": 50
   },
-
   "level3_loop_6": {
     "id": "level3_loop_6",
     "room": 2,
@@ -178,7 +215,6 @@
     "explanation": "A while loop can continue indefinitely if its condition never becomes False.",
     "points": 50
   },
-
   "level3_loop_7": {
     "id": "level3_loop_7",
     "room": 2,
@@ -195,7 +231,6 @@
     "explanation": "range(3) produces 0, 1, and 2, so those are the values printed.",
     "points": 60
   },
-
   "level3_loop_8": {
     "id": "level3_loop_8",
     "room": 3,
@@ -212,7 +247,6 @@
     "explanation": "range(1, 4) generates 1, 2, and 3.",
     "points": 60
   },
-
   "level3_loop_9": {
     "id": "level3_loop_9",
     "room": 3,
@@ -229,7 +263,6 @@
     "explanation": "When Python executes break, it immediately exits the nearest enclosing loop.",
     "points": 50
   },
-
   "level3_loop_10": {
     "id": "level3_loop_10",
     "room": 3,
@@ -246,7 +279,6 @@
     "explanation": "The loop runs twice because range(2) produces 0 and 1.",
     "points": 60
   },
-
   "level3_loop_11": {
     "id": "level3_loop_11",
     "room": 1,
@@ -263,7 +295,6 @@
     "explanation": "range(2, 10, 3) starts at 2 and adds 3 each time: 2, 5, 8. The next value, 11, is past the stop value 10.",
     "points": 60
   },
-
   "level3_loop_12": {
     "id": "level3_loop_12",
     "room": 3,
@@ -280,7 +311,6 @@
     "explanation": "The continue statement skips the rest of the current iteration and moves on to the next iteration of the loop.",
     "points": 40
   },
-
   "level3_loop_13": {
     "id": "level3_loop_13",
     "room": 1,
@@ -297,7 +327,6 @@
     "explanation": "A loop repeats a block of code, so you do not have to write the same instructions many times.",
     "points": 40
   },
-
   "level3_loop_14": {
     "id": "level3_loop_14",
     "room": 1,
@@ -314,7 +343,6 @@
     "explanation": "Every single pass through the body of a loop is called an iteration.",
     "points": 50
   },
-
   "level3_loop_15": {
     "id": "level3_loop_15",
     "room": 1,
@@ -331,7 +359,6 @@
     "explanation": "A while loop tests its condition first, so if it is False at the start the body is skipped completely.",
     "points": 50
   },
-
   "level3_loop_16": {
     "id": "level3_loop_16",
     "room": 1,
@@ -348,7 +375,6 @@
     "explanation": "i takes the values 3, 2 and 1. When i becomes 0 the condition i > 0 is False, so 0 is not printed.",
     "points": 60
   },
-
   "level3_loop_17": {
     "id": "level3_loop_17",
     "room": 1,
@@ -365,7 +391,6 @@
     "explanation": "The loop runs once for each character, printing c, then a, then t.",
     "points": 60
   },
-
   "level3_loop_18": {
     "id": "level3_loop_18",
     "room": 2,
@@ -382,7 +407,6 @@
     "explanation": "range(5) produces 0, 1, 2, 3 and 4, so it starts at 0.",
     "points": 40
   },
-
   "level3_loop_19": {
     "id": "level3_loop_19",
     "room": 2,
@@ -399,7 +423,6 @@
     "explanation": "range(2, 6) produces 2, 3, 4 and 5. The stop value 6 is excluded.",
     "points": 40
   },
-
   "level3_loop_20": {
     "id": "level3_loop_20",
     "room": 2,
@@ -416,7 +439,6 @@
     "explanation": "range(0, 10, 2) starts at 0 and adds 2 until it reaches 10, giving 0, 2, 4, 6 and 8.",
     "points": 50
   },
-
   "level3_loop_21": {
     "id": "level3_loop_21",
     "room": 2,
@@ -433,7 +455,6 @@
     "explanation": "range(4) produces 0, 1, 2 and 3, and 0 + 1 + 2 + 3 = 6.",
     "points": 60
   },
-
   "level3_loop_22": {
     "id": "level3_loop_22",
     "room": 2,
@@ -450,7 +471,6 @@
     "explanation": "range(5, 0, -2) starts at 5 and subtracts 2 each time: 5, 3, 1. The next value, -1, is past the stop value 0.",
     "points": 60
   },
-
   "level3_loop_23": {
     "id": "level3_loop_23",
     "room": 3,
@@ -467,7 +487,6 @@
     "explanation": "The break statement exits the loop immediately, even when the condition is always True.",
     "points": 40
   },
-
   "level3_loop_24": {
     "id": "level3_loop_24",
     "room": 3,
@@ -484,7 +503,6 @@
     "explanation": "break ends the loop, and continue skips the rest of the current iteration.",
     "points": 40
   },
-
   "level3_loop_25": {
     "id": "level3_loop_25",
     "room": 3,
@@ -501,7 +519,6 @@
     "explanation": "When i is 2, continue skips the print. The loop then carries on, so 0, 1, 3 and 4 are printed.",
     "points": 50
   },
-
   "level3_loop_26": {
     "id": "level3_loop_26",
     "room": 3,
@@ -518,7 +535,6 @@
     "explanation": "break exits the whole loop, while continue only skips the rest of the current iteration.",
     "points": 50
   },
-
   "level3_loop_27": {
     "id": "level3_loop_27",
     "room": 3,
