@@ -52,7 +52,7 @@ class Level5ControlCenter:
         self.room_height = 560
 
         # Terminal becomes available after all concepts are solved.
-        self.terminal_unlocked = False
+        self.concepts_done = False
 
         # Number of successful concept answers.
         self.correct_answers = 0
@@ -214,7 +214,7 @@ class Level5ControlCenter:
             4: "What handles errors safely?",
         }
 
-        if self.terminal_unlocked:
+        if self.concepts_done:
             task_message = "Concepts repaired. Test the terminal."
         else:
             task_message = task_messages.get(
@@ -286,7 +286,7 @@ class Level5ControlCenter:
 
         terminal_color = (
             (80, 100, 125)
-            if self.terminal_unlocked
+            if self.concepts_done
             else (55, 60, 70)
         )
 
@@ -303,7 +303,7 @@ class Level5ControlCenter:
             2,
         )
 
-        if self.terminal_unlocked:
+        if self.concepts_done:
             placeholder = "Enter access level..."
         else:
             placeholder = "LOCKED - repair concepts first"
@@ -319,7 +319,7 @@ class Level5ControlCenter:
             (512, 374),
         )
 
-        if self.terminal_unlocked:
+        if self.concepts_done:
             instruction_text = (
                 "ENTER: submit | Correct access level: 5"
             )
@@ -415,7 +415,8 @@ class Level5ControlCenter:
         if self.complete:
             return
 
-        # Answer selection
+        # 1-4 answer the concept questions until every concept is solved;
+        # afterwards they are ordinary digits for the terminal.
         option_keys = {
             pygame.K_1: 1,
             pygame.K_2: 2,
@@ -423,17 +424,7 @@ class Level5ControlCenter:
             pygame.K_4: 4,
         }
 
-        if event.key in option_keys:
-
-            # Do not allow concept selection after concepts
-            # have already been completed.
-            if self.terminal_unlocked:
-                self.feedback = (
-                    "Concepts already repaired. "
-                    "Use the terminal."
-                )
-                return
-
+        if event.key in option_keys and not self.concepts_done:
             selected = option_keys[event.key]
             self.selected_option = selected
 
@@ -462,7 +453,7 @@ class Level5ControlCenter:
 
                 else:
 
-                    self.terminal_unlocked = True
+                    self.concepts_done = True
                     self.selected_option = None
 
                     self.feedback = (
@@ -481,8 +472,11 @@ class Level5ControlCenter:
                     self.game.score.penalize(10)
 
             return
+
         # Terminal is locked until concepts are solved.
-        if not self.terminal_unlocked:
+        if not self.concepts_done:
+            if event.key == pygame.K_RETURN:
+                self.feedback = "Finish the concept steps first."
             return
 
         # Backspace
@@ -502,75 +496,54 @@ class Level5ControlCenter:
 
     # TERMINAL
     def _submit_terminal(self):
-        """Validate terminal input using exception handling."""
+        """Process the terminal command (try/except demo).
 
-        if not self.terminal_unlocked:
-            self.feedback = (
-                "Terminal locked. Repair the function concepts first."
-            )
-            return
-
-        if not self.command:
-            self.feedback = "Enter an access level first."
+        Two separate try blocks keep the two failure modes apart:
+        bad typing (int() fails) vs. access denied (_unlock_vault raises).
+        """
+        try:
+            level = int(self.command)
+        except ValueError:
+            self.command_result = "ERROR: Enter an integer."
+            self.feedback = "Exception handled with try/except."
+            if self.game:
+                self.game.security.increase(10)
+            self.command = ""
             return
 
         try:
-            level = int(self.command)
-
             result = self._unlock_vault(level)
-            self.command_result = result
-
-            if level >= 5:
-
-                self.complete = True
-
-                self.feedback = (
-                    "CONTROL CENTER RESTORED! "
-                    "Master Vault access granted."
-                )
-
-                if self.game and not self._completion_awarded:
-                    self.game.score.add(50)
-                    self.game.score.add(100)
-                    self._completion_awarded = True
-
-            else:
-
-                self.feedback = (
-                    "Access denied. "
-                    "Security clearance must be 5 or higher."
-                )
-
-                if self.game:
-                    self.game.security.increase(15)
-                    self.game.score.penalize(5)
-
         except ValueError:
-
-            self.command_result = (
-                "ValueError caught: invalid integer input."
-            )
-
-            self.feedback = (
-                "Exception handled safely with try/except."
-            )
-
+            self.command_result = "ERROR: Access denied"
+            self.feedback = "Access denied (level too low)."
             if self.game:
-                self.game.security.increase(10)
-
-        finally:
+                self.game.security.increase(15)
+                self.game.score.penalize(5)
             self.command = ""
+            return
+
+        self.command_result = result
+        self.complete = True
+        self.feedback = (
+            "CONTROL CENTER RESTORED! "
+            "Master Vault access granted."
+        )
+
+        if self.game and not self._completion_awarded:
+            self.game.score.add(50)
+            self.game.score.add(100)
+            self._completion_awarded = True
+
+        self.command = ""
 
     # FUNCTION DEMONSTRATION
     def _unlock_vault(self, level):
-        """
-        Demonstrate a function parameter, conditional,
-        exception, and return value.
-        """
+        """Return the access result for a supplied security level.
 
+        Raises ValueError when the level is below 5 (access denied).
+        """
         if level < 5:
-            return "RETURN VALUE: ACCESS DENIED"
-
+            raise ValueError("Access denied")
         return "RETURN VALUE: MASTER ACCESS"
 
     # COMPLETION

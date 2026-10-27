@@ -533,10 +533,11 @@ class FinalVault:
 
             return
 
-        # Numeric input
-        if event.unicode.isdigit():
+        # Terminal input. The final stage also accepts text so the
+        # player can trigger (and see) the ValueError being caught.
+        if self._terminal_required():
 
-            if self._terminal_required():
+            if event.unicode and event.unicode.isprintable():
                 if len(self.command) < 4:
                     self.command += event.unicode
 
