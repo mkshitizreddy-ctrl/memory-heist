@@ -182,6 +182,8 @@ class Game:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "playing":
                         self.paused = not self.paused
+                        # The toggle is consumed here, never forwarded.
+                        continue
                     elif self.state in ("win", "lose", "menu"):
                         self.running = False
 
@@ -196,10 +198,14 @@ class Game:
                         self.coop = self.menu.coop
                         self.hints.enabled = self.difficulty["hints_enabled"]
                         self._start_new_run()
+                        # The key that starts a run must not reach Level 1.
+                        continue
 
                 elif event.key == pygame.K_r:
                     if self.state == "lose":
                         self._start_new_run()
+                        # Same for retry: consume the key.
+                        continue
 
             if self.state == "menu":
                 self.menu.handle_event(event)
@@ -299,6 +305,11 @@ class Game:
 
         # Detect level changes
         self._handle_level_change()
+
+        # The level may have just ended the run (win). Do not let the
+        # timer or security checks below overwrite that this frame.
+        if self.state != "playing":
+            return
 
         # Update global timer
         self.timer.update(dt)
