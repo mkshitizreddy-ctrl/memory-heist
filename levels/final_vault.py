@@ -76,16 +76,35 @@ class FinalVault:
         if self.complete:
             return
 
+    def _get_render_fonts(self):
+        """Return this screen's fonts, creating them only once.
+
+        pygame.font.Font() costs about 2 ms per call, so creating fonts
+        inside render() used up most of a 16.7 ms frame.
+        """
+        if getattr(self, "_render_fonts", None) is None:
+            self._render_fonts = (
+                pygame.font.Font(None, 36),
+                pygame.font.Font(None, 27),
+                pygame.font.Font(None, 22),
+                pygame.font.Font(None, 22),
+                pygame.font.Font(None, 22),
+                pygame.font.Font(None, 23),
+            )
+        return self._render_fonts
+
     # RENDER
     def render(self, surface):
         """Draw the Master Vault and current challenge."""
 
-        title_font = pygame.font.Font(None, 36)
-        heading_font = pygame.font.Font(None, 27)
-        text_font = pygame.font.Font(None, 22)
-        code_font = pygame.font.Font(None, 22)
-        option_font = pygame.font.Font(None, 22)
-        feedback_font = pygame.font.Font(None, 23)
+        (
+            title_font,
+            heading_font,
+            text_font,
+            code_font,
+            option_font,
+            feedback_font,
+        ) = self._get_render_fonts()
 
         # Room
         pygame.draw.rect(
