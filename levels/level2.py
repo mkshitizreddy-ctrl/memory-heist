@@ -1,186 +1,241 @@
-"""Level 2 - Security Grid: arithmetic, comparison and logical operators."""
-import ast
-import operator
+"""
+levels/level2.py
+Owner: Member 2 - Paranthama Selvan
+
+Level 2 - Security Grid
+
+Topics: arithmetic, comparison, and logical operators.
+
+Progression: 3 gates. Each gate draws one random question from the
+level's question pool, filtered to that gate's room and the globally
+selected Easy/Medium/Hard difficulty (same pattern as Level 1 and
+Level 3).
+"""
+
+import json
+import random
+from pathlib import Path
 
 import pygame
 
 from levels.common import (BG, PANEL, GREEN, RED, YELLOW, WHITE, GREY,
-                           ClickTracker, draw_button, draw_text, load_level_data)
+                           ClickTracker, draw_button, draw_text)
 
-DEFAULT_DATA = {
-    "puzzles": [
-        {"type": "number", "goal": 42, "tiles": [6, 7, "*"],
-         "prompt": "Build an expression that equals 42 (use every tile)."},
-        {"type": "number", "goal": 19, "tiles": [4, 3, 5, "+", "*"],
-         "prompt": "Make 19. Remember: * happens before +."},
-        {"type": "bool", "tiles": [3, ">=", 2, "and", 5, "<", 9],
-         "prompt": "clearance = 3. Build a condition that is True (use every tile)."},
-        {"type": "bool", "tiles": [1, ">", 2, "or", 4, "==", 4],
-         "prompt": "Build a condition that is True using 'or'."},
-    ]
+GATES_PER_LEVEL = 3
+POINTS_FALLBACK = 50
+
+# Used only if data/puzzles.json is missing or unreadable.
+FALLBACK_QUESTIONS = {
+    1: [{"prompt": "What does 6 * 7 evaluate to?",
+         "options": ["42", "13", "67"], "answer": "42",
+         "hint": "* means multiply.", "explanation": "6 multiplied by 7 is 42.",
+         "points": POINTS_FALLBACK, "difficulty": "medium", "room": 1}],
+    2: [{"prompt": "What does 5 > 3 evaluate to?",
+         "options": ["True", "False", "5"], "answer": "True",
+         "hint": "Is 5 actually greater than 3?", "explanation": "5 is greater than 3.",
+         "points": POINTS_FALLBACK, "difficulty": "medium", "room": 2}],
+    3: [{"prompt": "What does True and False evaluate to?",
+         "options": ["False", "True"], "answer": "False",
+         "hint": "'and' needs both sides to be True.", "explanation": "One side is False.",
+         "points": POINTS_FALLBACK, "difficulty": "medium", "room": 3}],
 }
-
-_BIN = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul}
-_CMP = {ast.Gt: operator.gt, ast.Lt: operator.lt, ast.GtE: operator.ge,
-        ast.LtE: operator.le, ast.Eq: operator.eq, ast.NotEq: operator.ne}
-
-
-def safe_eval(expr):
-    """Evaluate a tiny arithmetic/comparison/logic expression; None if invalid."""
-    def ev(node):
-        """Recursively evaluate a whitelisted AST node."""
-        if isinstance(node, ast.Expression):
-            return ev(node.body)
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, bool)):
-            return node.value
-        if isinstance(node, ast.BinOp):
-            return _BIN[type(node.op)](ev(node.left), ev(node.right))
-        if isinstance(node, ast.BoolOp):
-            values = [ev(v) for v in node.values]
-            return all(values) if isinstance(node.op, ast.And) else any(values)
-        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            return not ev(node.operand)
-        if isinstance(node, ast.Compare):
-            left = ev(node.left)
-            for op, comp in zip(node.ops, node.comparators):
-                right = ev(comp)
-                if not _CMP[type(op)](left, right):
-                    return False
-                left = right
-            return True
-        raise ValueError("not allowed")
-
-    try:
-        return ev(ast.parse(expr, mode="eval"))
-    except (SyntaxError, ValueError, KeyError, TypeError):
-        return None
 
 
 class Level2:
-    """Security Grid: click tiles to build an expression that matches the goal."""
+    """Security Grid: answer 3 randomized questions (one per gate) to unlock the grid."""
 
     def __init__(self, player=None, game=None):
-        """Load puzzle data and set up level state."""
+        """Load the question pool, pick the first gate's question, and set up state."""
         self.player = player
         self.game = game
-        data = load_level_data("level2", DEFAULT_DATA)
-        self.puzzles = data.get("puzzles", DEFAULT_DATA["puzzles"])
-        self.index = 0
+
         self.complete = False
-        self.expr = []          # tile indices in the order clicked
-        self.message = "Click tiles to build the expression, then press SUBMIT."
+        self.gates_passed = 0
+        self.message = "Read the question, then answer to open each gate."
         self.message_color = WHITE
+
+        self.room_question_pools = self._load_questions()
+        self.current_difficulty = self._get_selected_difficulty()
+
+        # Difficulty-scaled per-question timer, same pattern as Level 3.
+        self.base_time_limit = 25
+        multiplier = self._get_timer_multiplier()
+        self.time_limit = max(1, round(self.base_time_limit * multiplier))
+        self.time_left = self.time_limit
+
+        self.current_question = None
+        self._load_question_for_gate(self.gates_passed + 1)
+
         self.clicks = ClickTracker()
-        self.font = pygame.font.SysFont("consolas", 26)
-        self.big = pygame.font.SysFont("consolas", 36, bold=True)
+        self.font = pygame.font.SysFont("consolas", 24)
+        self.big = pygame.font.SysFont("consolas", 34, bold=True)
 
-    def _tiles(self):
-        """Return the current puzzle's tiles."""
-        return self.puzzles[self.index]["tiles"]
+    # =========================================================
+    # QUESTION LOADING (same pattern as levels/level3_loops.py)
+    # =========================================================
 
-    def _tile_rects(self):
-        """Return one clickable rect per tile."""
-        return [pygame.Rect(60 + i * 90, 300, 80, 60) for i in range(len(self._tiles()))]
+    def _load_questions(self):
+        """Load this level's questions from data/puzzles.json, grouped by room."""
+        pools = {1: [], 2: [], 3: []}
+        try:
+            base_path = Path(__file__).resolve().parent.parent
+            puzzle_path = base_path / "data" / "puzzles.json"
+            with open(puzzle_path, "r", encoding="utf-8") as f:
+                puzzles = json.load(f)
+            for key, puzzle in puzzles.items():
+                if not key.startswith("level2_gate_") or key == "level2_grid_code":
+                    continue
+                room = puzzle.get("room")
+                if room in (1, 2, 3):
+                    pools[room].append(puzzle)
+        except (OSError, ValueError):
+            pass
 
-    def _buttons(self):
-        """Return the Undo / Clear / Submit button rects."""
-        return {"UNDO": pygame.Rect(60, 470, 140, 55),
-                "CLEAR": pygame.Rect(220, 470, 140, 55),
-                "SUBMIT": pygame.Rect(380, 470, 180, 55)}
+        if not any(pools.values()):
+            pools = {k: list(v) for k, v in FALLBACK_QUESTIONS.items()}
+        return pools
 
-    def _expression_text(self):
-        """Return the built expression as a string."""
-        tiles = self._tiles()
-        return " ".join(str(tiles[i]) for i in self.expr)
+    def _get_selected_difficulty(self):
+        """Safely read the game's global difficulty, same logic as Level 3."""
+        difficulty = getattr(self.game, "difficulty", None)
+        if isinstance(difficulty, dict):
+            value = difficulty.get("name", difficulty.get("level"))
+            if value is None:
+                try:
+                    from core.difficulty import DIFFICULTIES
+                    value = next((k for k, preset in DIFFICULTIES.items()
+                                  if preset == difficulty), None)
+                except ImportError:
+                    value = None
+        else:
+            value = difficulty
+
+        if not isinstance(value, str):
+            return "medium"
+        value = value.lower().strip()
+        return value if value in {"easy", "medium", "hard"} else "medium"
+
+    def _get_timer_multiplier(self):
+        """Read the global timer multiplier for the current difficulty, if available."""
+        try:
+            from core.difficulty import DIFFICULTIES
+            return DIFFICULTIES.get(self.current_difficulty, {}).get("timer_multiplier", 1.0)
+        except ImportError:
+            return 1.0
+
+    def _load_question_for_gate(self, gate_number):
+        """Pick a random question for this gate, matching the global difficulty."""
+        pool = self.room_question_pools.get(gate_number, [])
+        filtered = [q for q in pool if q.get("difficulty", "medium") == self.current_difficulty]
+        chosen_pool = filtered if filtered else pool
+        if chosen_pool:
+            self.current_question = random.choice(chosen_pool)
+        else:
+            self.current_question = FALLBACK_QUESTIONS[gate_number][0]
+
+    # =========================================================
+    # INPUT
+    # =========================================================
+
+    def _option_rects(self, count):
+        """Return one clickable rect per answer option."""
+        return [pygame.Rect(60, 400 + i * 62, 500, 50) for i in range(count)]
 
     def handle_event(self, event):
-        """No keyboard interaction needed — this level is mouse-driven."""
+        """No keyboard interaction needed - this level is mouse-driven."""
         pass
 
     def update(self, dt):
-        """Handle clicks on tiles and buttons."""
-        clicked = self.clicks.clicked()
-        if self.complete or not clicked:
+        """Count down the per-question timer and handle mouse clicks on options."""
+        if self.complete:
+            return
+
+        self.time_left -= dt
+        if self.time_left <= 0:
+            self.time_left = self.time_limit
+            self.message = "TIME'S UP! Security increased. Try this gate again."
+            self.message_color = RED
+            if self.game:
+                self.game.security.increase(25)
+                self.game.score.penalize(15)
+            return
+
+        if not self.clicks.clicked():
             return
         pos = pygame.mouse.get_pos()
-        for i, rect in enumerate(self._tile_rects()):
-            if rect.collidepoint(pos) and i not in self.expr:
-                self.expr.append(i)
-                return
-        for name, rect in self._buttons().items():
+        question = self.current_question
+        for i, rect in enumerate(self._option_rects(len(question["options"]))):
             if rect.collidepoint(pos):
-                if name == "UNDO" and self.expr:
-                    self.expr.pop()
-                elif name == "CLEAR":
-                    self.expr.clear()
-                elif name == "SUBMIT":
-                    self._submit()
-                return
+                self._check_answer(question, question["options"][i])
+                break
 
-    def _submit(self):
-        """Check the expression against the current puzzle's goal."""
-        puzzle = self.puzzles[self.index]
-        if len(self.expr) != len(self._tiles()):
-            self._fail("Use every tile before submitting.")
-            return
-        result = safe_eval(self._expression_text())
-        if result is None:
-            self._fail("Invalid expression - check the order of tiles.")
-            return
-        if puzzle["type"] == "number":
-            ok = isinstance(result, int) and not isinstance(result, bool) and result == puzzle["goal"]
-        else:
-            ok = result is True
-        if ok:
-            self.index += 1
-            self.expr = []
+    # =========================================================
+    # ANSWER CHECKING
+    # Mirrors Level 1's tested contract exactly for consistency.
+    # =========================================================
+
+    def _check_answer(self, question, choice):
+        """Open a gate on a correct answer, otherwise raise security and show hint."""
+        if choice == question["answer"]:
+            points = question.get("points", POINTS_FALLBACK)
+            self.gates_passed += 1
             if self.game:
-                self.game.score.add(50)
-            if self.index >= len(self.puzzles):
+                self.game.score.add(points)          # points for correct answer
+            if self.gates_passed >= GATES_PER_LEVEL:
                 self.complete = True
                 self.message = "SECURITY CODE ACCEPTED - grid unlocked!"
                 if self.game:
-                    self.game.score.add(100)     # level completion bonus
+                    self.game.score.add(100)     # bonus for finishing the level
             else:
-                self.message = "Correct! Next panel."
+                self.message = f"Correct! Gate {self.gates_passed} open."
+                self.time_left = self.time_limit
+                self._load_question_for_gate(self.gates_passed + 1)
             self.message_color = GREEN
         else:
-            self._fail(f"That evaluates to {result}. Try again.")
+            if self.game and not self.game.hints.enabled:
+                self.message = "Wrong. Hints are off on this difficulty."
+            else:
+                self.message = "Wrong. Hint: " + question.get("hint", "Try again.")
+            self.message_color = RED
+            if self.game:
+                self.game.security.increase(20)  # raise security on wrong answer
+                self.game.score.penalize(10)     # small score penalty
 
-    def _fail(self, text):
-        """Show an error message and raise security."""
-        self.message = text
-        self.message_color = RED
-        if self.game:
-            self.game.security.increase(20)
-            self.game.score.penalize(10)
+    # =========================================================
+    # RENDER
+    # =========================================================
 
     def render(self, surface):
-        """Draw the prompt, tiles, current expression and buttons."""
+        """Draw the question, options, gate progress, difficulty and timer."""
         surface.fill(BG)
-        draw_text(surface, self.big, "LEVEL 2 - SECURITY GRID", (60, 60), YELLOW)
-        if self.complete:
-            draw_text(surface, self.big, "GRID UNLOCKED", (60, 200), GREEN)
-            draw_text(surface, self.font, self.message, (60, 590), self.message_color)
-            return
+        draw_text(surface, self.big, "LEVEL 2 - SECURITY GRID", (60, 30), YELLOW)
+        draw_text(surface, self.font,
+                  f"Gate {min(self.gates_passed + 1, GATES_PER_LEVEL)} of {GATES_PER_LEVEL}  |  "
+                  f"Difficulty: {self.current_difficulty.upper()}  |  "
+                  f"Time: {max(0, int(self.time_left))}s",
+                  (60, 70), GREY)
 
-        puzzle = self.puzzles[self.index]
-        draw_text(surface, self.font, f"Panel {self.index + 1}/{len(self.puzzles)}", (60, 100), GREY)
-        draw_text(surface, self.font, puzzle["prompt"], (60, 140), WHITE)
-        goal = f"GOAL: {puzzle['goal']}" if puzzle["type"] == "number" else "GOAL: True"
-        draw_text(surface, self.big, goal, (60, 190), GREEN)
+        for i in range(GATES_PER_LEVEL):
+            rect = pygame.Rect(620 + i * 65, 95, 50, 50)
+            open_ = i < self.gates_passed
+            pygame.draw.rect(surface, GREEN if open_ else RED, rect, border_radius=8)
+            draw_text(surface, self.font, "OK" if open_ else "X", (rect.x + 12, rect.y + 13))
+        draw_text(surface, self.font, "GATES", (620, 65), GREY)
 
-        pygame.draw.rect(surface, PANEL, pygame.Rect(60, 380, 840, 60), border_radius=8)
-        draw_text(surface, self.font, self._expression_text() or "(empty)", (75, 395))
+        if not self.complete:
+            q = self.current_question
+            panel = pygame.Rect(60, 140, 840, 90)
+            pygame.draw.rect(surface, PANEL, panel, border_radius=10)
+            draw_text(surface, self.font, q["prompt"], (80, 170), WHITE)
 
-        mouse = pygame.mouse.get_pos()
-        for i, (rect, tile) in enumerate(zip(self._tile_rects(), self._tiles())):
-            draw_button(surface, self.font, rect, tile, rect.collidepoint(mouse),
-                        disabled=i in self.expr)
-        for name, rect in self._buttons().items():
-            draw_button(surface, self.font, rect, name, rect.collidepoint(mouse))
+            mouse = pygame.mouse.get_pos()
+            for rect, option in zip(self._option_rects(len(q["options"])), q["options"]):
+                draw_button(surface, self.font, rect, option, rect.collidepoint(mouse))
+        else:
+            draw_text(surface, self.big, "GRID UNLOCKED", (60, 250), GREEN)
+
         draw_text(surface, self.font, self.message, (60, 590), self.message_color)
 
     def is_complete(self) -> bool:
-        """Return True when every panel has been solved."""
+        """Return True when every gate is open."""
         return self.complete
