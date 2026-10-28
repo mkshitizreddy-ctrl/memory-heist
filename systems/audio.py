@@ -10,6 +10,11 @@ to synthesize a few low sine tones with a slow volume swell.
 import os
 import pygame
 
+# Resolved relative to the repo, not the current working directory.
+SOUNDS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "assets", "sounds"
+)
+
 try:
     import numpy as np
     NUMPY_AVAILABLE = True
@@ -29,7 +34,7 @@ class Audio:
             return
 
         self.sounds = {}
-        base = os.path.join("assets", "sounds")
+        base = SOUNDS_DIR
 
         print("Looking for sounds in:", os.path.abspath(base))
 
