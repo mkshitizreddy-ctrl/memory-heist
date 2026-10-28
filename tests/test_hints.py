@@ -59,3 +59,12 @@ def test_hints_can_be_disabled(tmp_path):
 
     assert hints.enabled is False
     assert hints.get_hint("unknown_puzzle") == "No hint available."
+
+
+def test_default_path_works_from_any_working_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    hints = HintSystem()
+
+    assert hints.puzzles
+    assert hints.get_hint("level1_gate_code") != "No hint available."
