@@ -35,6 +35,9 @@ FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4
+# Longest frame time (seconds) the game will simulate. Below 20 FPS the game
+# slows down instead of taking one huge step.
+MAX_DT = 0.05
 PLAYER_START_POS = (100, 100)
 PLAYER2_START_POS = (150, 100)
 
@@ -163,9 +166,18 @@ class Game:
             self._last_level_name = current_name
             self._fade_timer = FADE_DURATION
 
+    def _frame_dt(self):
+        """Seconds since the previous frame, capped at MAX_DT.
+
+        A stalled frame (dragging the window, a slow load) would otherwise
+        give every update a huge dt: timers would jump and a movement step
+        could carry the player through a wall.
+        """
+        return min(self.clock.tick(FPS) / 1000.0, MAX_DT)
+
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS) / 1000.0
+            dt = self._frame_dt()
             self.handle_events()
             self.update(dt)
             self.render()
