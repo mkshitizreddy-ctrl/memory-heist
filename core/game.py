@@ -5,7 +5,6 @@ Owner: Member 1 - Core Game System
 Sets up the Pygame window and runs the main game loop.
 """
 
-import sys
 import pygame
 
 from core.player import Player, ARROWS
@@ -183,9 +182,6 @@ class Game:
             self.handle_events()
             self.update(dt)
             self.render()
-
-        pygame.quit()
-        sys.exit()
 
     def handle_events(self):
         for event in pygame.event.get():
