@@ -170,6 +170,9 @@ class Game:
         if current_name != self._last_level_name:
             self._last_level_name = current_name
             self._fade_timer = FADE_DURATION
+            # No level places the players itself, so without this a level
+            # starts wherever the previous one left them.
+            self._reset_player_position()
 
     def _frame_dt(self):
         """Seconds since the previous frame, capped at MAX_DT.
