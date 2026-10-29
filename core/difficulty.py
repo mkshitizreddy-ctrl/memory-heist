@@ -30,7 +30,16 @@ DIFFICULTIES = {
 
 DEFAULT_DIFFICULTY = "medium"
 
+# Length of the whole-run countdown on MEDIUM, in seconds. EASY and HARD
+# scale it with the preset's timer_multiplier.
+BASE_RUN_SECONDS = 900
+
 
 def get_difficulty(name):
     """Return the difficulty config dict, or the default if name is invalid."""
     return DIFFICULTIES.get(name, DIFFICULTIES[DEFAULT_DIFFICULTY])
+
+
+def run_time_seconds(difficulty):
+    """Seconds on the whole-run countdown for a difficulty config dict."""
+    return round(BASE_RUN_SECONDS * difficulty["timer_multiplier"])

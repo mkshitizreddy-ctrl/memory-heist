@@ -9,7 +9,11 @@ import pygame
 
 from core.player import Player, ARROWS
 from core.level_manager import LevelManager
-from core.difficulty import get_difficulty, DEFAULT_DIFFICULTY
+from core.difficulty import (
+    get_difficulty,
+    DEFAULT_DIFFICULTY,
+    run_time_seconds,
+)
 from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level3_loops import Level3LaserLoop
@@ -455,6 +459,7 @@ class Game:
         self.score.reset()
         self.security.reset()
         self.timer = Timer()
+        self.timer.start(run_time_seconds(self.difficulty))
         self._reset_player_position()
 
         # Fresh levels — undoes prior completion.
