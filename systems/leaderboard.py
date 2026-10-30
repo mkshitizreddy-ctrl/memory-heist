@@ -38,6 +38,7 @@ class Leaderboard:
                 isinstance(item, dict)
                 and isinstance(item.get("name"), str)
                 and isinstance(item.get("score"), int)
+                and not isinstance(item.get("score"), bool)
             ):
                 entries.append(item)
         return self._sorted(entries)

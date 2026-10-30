@@ -26,7 +26,7 @@ from ui.screens import WinScreen, LoseScreen
 from ui.hud import HUD
 from systems.audio import Audio
 
-from systems.scoring import ScoreTracker
+from systems.scoring import ScoreTracker, final_score
 from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
@@ -420,7 +420,7 @@ class Game:
         elif self.state == "win":
             self.win_screen.render(
                 self.screen,
-                score=self.score.get_score(),
+                score=self.win_screen.score,
             )
 
         elif self.state == "lose":
@@ -469,10 +469,17 @@ class Game:
         self.paused = False
 
         if new_state == "win":
-            self.win_screen.begin(
+            # Time left and difficulty turn the run score into the final one.
+            result = final_score(
                 self.score.get_score(),
+                self.timer.get_remaining() if self.timer.active else 0,
+                self.difficulty["score_multiplier"],
+            )
+            self.win_screen.begin(
+                result["total"],
                 self.difficulty["label"].title(),
                 self.coop,
+                result,
             )
 
     def _start_new_run(self):
