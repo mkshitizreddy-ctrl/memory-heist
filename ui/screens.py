@@ -19,9 +19,10 @@ class WinScreen:
         self.tick = 0
         self.begin(0, "Medium", False)
 
-    def begin(self, score, difficulty, coop):
+    def begin(self, score, difficulty, coop, breakdown=None):
         """Start a fresh win screen: ask for a name, then show the table."""
         self.score = score
+        self.breakdown = breakdown
         self.difficulty = difficulty
         self.coop = coop
         self.name = ""
@@ -69,6 +70,15 @@ class WinScreen:
 
         score_text = self.subtitle_font.render(f"Final Score: {score}", True, (200, 220, 255))
         surface.blit(score_text, (width // 2 - score_text.get_width() // 2, 205))
+
+        if self.breakdown:
+            parts = self.breakdown
+            detail = self.row_font.render(
+                f"Base {parts['base']}  +  Time bonus {parts['time_bonus']}"
+                f"  x{parts['multiplier']:g}",
+                True, (150, 165, 190),
+            )
+            surface.blit(detail, (width // 2 - detail.get_width() // 2, 240))
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
 

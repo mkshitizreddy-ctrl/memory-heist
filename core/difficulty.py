@@ -11,18 +11,21 @@ DIFFICULTIES = {
     "easy": {
         "label": "EASY",
         "timer_multiplier": 1.5,
+        "score_multiplier": 0.8,
         "security_penalty_multiplier": 0.5,
         "hints_enabled": True,
     },
     "medium": {
         "label": "MEDIUM",
         "timer_multiplier": 1.0,
+        "score_multiplier": 1.0,
         "security_penalty_multiplier": 1.0,
         "hints_enabled": True,
     },
     "hard": {
         "label": "HARD",
         "timer_multiplier": 0.7,
+        "score_multiplier": 1.25,
         "security_penalty_multiplier": 1.5,
         "hints_enabled": False,
     },
