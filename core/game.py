@@ -190,6 +190,13 @@ class Game:
             self.update(dt)
             self.render()
 
+    def _win_screen_is_done(self):
+        """True on the win screen once the name is saved and the table shows.
+
+        While a name is being typed, R and M are ordinary letters.
+        """
+        return self.state == "win" and not self.win_screen.entering
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -219,9 +226,15 @@ class Game:
                         continue
 
                 elif event.key == pygame.K_r:
-                    if self.state == "lose":
+                    if self.state == "lose" or self._win_screen_is_done():
                         self._start_new_run()
                         # Same for retry: consume the key.
+                        continue
+
+                elif event.key == pygame.K_m:
+                    if self.state == "lose" or self._win_screen_is_done():
+                        self.change_state("menu")
+                        # The key must not reach the menu it opens.
                         continue
 
             if self.state == "menu":
