@@ -1,82 +1,84 @@
-# Team Workflow & Precautions (5 Members)
+# Team Workflow & Precautions
 
-## 1. Branching Strategy
+## 1. Who owns what
 
-Do NOT all push directly to `main`. Use one branch per member:
+| Area | Owner |
+|---|---|
+| `main.py`, `core/` (game loop, player, level manager, maps, difficulty), repo, CI, integration | Kshitiz Reddy |
+| `levels/level1.py`, `levels/level2.py` | Paranthama Selvan |
+| `levels/level3_loops.py`, `levels/level4_memory.py` | Yashovardhan Kushva |
+| `levels/level5_control.py`, `levels/level5_questions.py`, `levels/final_vault.py` | Apporov Sahu |
+| `ui/`, `systems/`, `entities/` | Divyash |
 
-```
-main                 -> always playable, protected
-  member1-core
-  member2-levels12
-  member3-levels34
-  member4-level5
-  member5-ui
-```
+Edit only your own files. If you find a problem in someone else's file, do not
+fix it there: message the owner with what you saw (file, line, what happens,
+how to reproduce) and let them change it.
 
-Workflow for everyone:
+Shared files (`main.py`, `core/game.py`, `core/level_manager.py`,
+`data/puzzles.json`, `requirements.txt`): ask in the group chat before
+changing them. Core changes go through Kshitiz.
+
+## 2. Branches and pull requests
+
+`main` is always playable and is only changed through pull requests.
+
+- One short-lived branch per change, named `<type>/<what>`:
+  `fix/hints-default-path`, `feat/run-timer`, `perf/pause-assets`.
+- Keep a PR to one change. Small PRs are reviewed and merged faster.
+- Start from a fresh `main`:
+
 ```bash
-git checkout main
-git pull origin main
-git checkout -b member2-levels12   # once, then reuse
-# ...work...
-git add .
-git commit -m "Level 1: variable puzzle logic"
-git push origin member2-levels12
+git switch main
+git pull
+git switch -c fix/short-description
 ```
-Then open a Pull Request into `main`. At least one other teammate should
-glance at it before merging (even a 2-minute read) — this is what makes
-Rubric 2 "understanding of code" credible later.
 
-## 2. Merge Conflict Prevention
+- Open the PR on GitHub. CI must be green before it is merged. Kshitiz merges.
+- After merging, pull `main` and delete the branch.
 
-Conflicts almost always happen in **shared** files, not in the level files
-that belong to one person. Watch these specifically:
-- `main.py`, `core/game.py`, `core/level_manager.py` — only Member 1 edits
-  these directly; others request changes via PR comment instead of editing
-  live.
-- `data/puzzles.json` — agree on who adds entries and when; consider each
-  person adding only their own puzzle keys in a single commit.
-- `requirements.txt` — announce in chat before adding a new dependency.
+## 3. Before you open a PR
 
-Pull `main` before starting each session (`git pull origin main`) so your
-branch doesn't drift too far and conflicts stay small.
+1. `python -m pytest tests -q` passes (CI runs the same command).
+2. `python main.py` starts, and you have played the part you changed.
+3. `git status --short` lists only the files you meant to change.
+4. A bug fix comes with a test that fails without the fix and passes with it.
 
-## 3. Module Contracts (so work can happen in parallel)
+## 4. Module contract
 
-Each level class must expose exactly:
+Each level class exposes:
+
 ```python
 update(dt)
 render(surface)
+handle_event(event)
 is_complete() -> bool
 ```
-Each systems module should have no dependency on Pygame's `screen` object
-directly (pass data in, get data out) so it can be unit-tested without
-running the whole game. This lets Member 5 build the HUD against level 1's
-interface before level 3 is even finished.
 
-## 4. Communication Precautions
+Systems modules take data in and return data out. They should not need the
+Pygame screen, so they can be unit-tested without opening a window.
 
-- Short daily or every-other-day check-in (15 min): what did you finish,
-  what are you touching next, anything blocking you.
-- Before touching a shared file, say so in the group chat.
-- If you're stuck for more than ~30-45 minutes, ask — don't silently lose
-  a day.
+## 5. Rules learned from bugs in this codebase
 
-## 5. Code Quality Precautions
+- Never call `sys.exit()` inside game code. `Game.run()` returns, and `main.py`
+  quits Pygame and exits.
+- Build fonts and surfaces once, not every frame. `pygame.font.Font()` costs
+  about 2 ms per call, and a frame has 16.7 ms. Create them in a helper and
+  reuse them.
+- Do not use paths relative to the working directory. Build them from the
+  repo root, so the game works when started from any folder.
+- Movement uses `dt`. `Game` caps `dt` at 0.05 s, so a stalled frame cannot
+  jump timers or push the player through a wall.
+- The run has one countdown (`BASE_RUN_SECONDS` in `core/difficulty.py`, scaled
+  by difficulty). Do not assume a level has unlimited time.
+- The players are reset to their start positions whenever the level changes.
+  Levels do not place the player themselves.
+- A key that triggers a state change (starting a run, retrying) must be consumed
+  and must not reach the next screen or level.
 
-- Every function/class gets a one-line docstring (already started in the
-  stubs) — this is what makes Rubric 2 easy to demonstrate live.
-- Keep puzzle content in `data/puzzles.json`, not hardcoded in level files,
-  so a design change doesn't need a code change.
-- Run the game after merging your branch into a local `main` copy before
-  actually pushing to shared `main` — catch import errors early.
-- Add a `# TODO(name):` comment instead of leaving silent unfinished logic.
+## 6. Communication
 
-## 6. Timeline Risk Precautions
-
-- Don't start Optional Features (sound, animations, save system) until
-  the Minimum Viable Product list in the report is fully working end to
-  end (menu -> 5 levels -> final vault -> win/lose).
-- If a level is behind schedule by Day 10, simplify its puzzle rather than
-  cutting scope elsewhere — the report's five-level structure is core to
-  the grading rubric.
+- Short check-in every day or two: what you finished, what you touch next,
+  what is blocking you.
+- Say in the group chat before touching a shared file.
+- If you are stuck for more than 30 to 45 minutes, ask.
+- Put `# TODO(name):` in the code instead of leaving unfinished logic silent.
