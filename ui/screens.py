@@ -28,6 +28,10 @@ class WinScreen:
         self.entering = True
         self.rank = None
 
+    def skip_entry(self):
+        """Leave name entry without saving a leaderboard entry."""
+        self.entering = False
+
     def handle_event(self, event):
         """Type a name, then ENTER saves it to the leaderboard."""
         if event.type != pygame.KEYDOWN or not self.entering:
@@ -76,7 +80,10 @@ class WinScreen:
             name_text = self.subtitle_font.render(self.name + cursor, True, (255, 230, 150))
             surface.blit(name_text, (width // 2 - name_text.get_width() // 2, 335))
 
-            hint = self.prompt_font.render("Press ENTER to save", True, (pulse, pulse, pulse + 10))
+            hint = self.prompt_font.render(
+                "Press ENTER to save   |   ESC to skip",
+                True, (pulse, pulse, pulse + 10)
+            )
             surface.blit(hint, (width // 2 - hint.get_width() // 2, 395))
         else:
             heading = self.prompt_font.render("TOP SCORES", True, (140, 200, 255))

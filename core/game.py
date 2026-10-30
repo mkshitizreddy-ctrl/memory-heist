@@ -209,6 +209,11 @@ class Game:
                         # The toggle is consumed here, never forwarded.
                         continue
                     elif self.state in ("win", "lose", "menu"):
+                        if self.state == "win" and self.win_screen.entering:
+                            # Skip the leaderboard entry instead of quitting,
+                            # so a score being named is not thrown away.
+                            self.win_screen.skip_entry()
+                            continue
                         self.running = False
 
                 elif event.key == pygame.K_RETURN:
