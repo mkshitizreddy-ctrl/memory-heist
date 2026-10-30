@@ -96,7 +96,10 @@ class WinScreen:
                 surface.blit(self.row_font.render(extra, True, color), (left + 310, y))
                 y += 30
 
-            prompt = self.prompt_font.render("Press ESC to quit", True, (pulse, pulse, pulse + 10))
+            prompt = self.prompt_font.render(
+                "R: play again   |   M: menu   |   ESC: quit",
+                True, (pulse, pulse, pulse + 10)
+            )
             surface.blit(prompt, (width // 2 - prompt.get_width() // 2, height - 70))
 
 
@@ -125,7 +128,7 @@ class LoseScreen:
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
         prompt = self.prompt_font.render(
-            "Press R to retry   |   ESC to quit",
+            "R: retry   |   M: menu   |   ESC: quit",
             True, (pulse, 155, 165)
         )
         surface.blit(prompt, (width // 2 - prompt.get_width() // 2, height - 80))
