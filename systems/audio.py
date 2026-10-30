@@ -27,10 +27,13 @@ class Audio:
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
             self.enabled = True
+            self.mixer_ready = True
         except pygame.error as e:
             print("Audio init failed:", e)
             self.enabled = False
+            self.mixer_ready = False
             self.sounds = {}
+            self.ambient_channel = None
             return
 
         self.sounds = {}
@@ -97,6 +100,8 @@ class Audio:
             self.sounds[name].play()
 
     def toggle(self):
+        if not self.mixer_ready:
+            return  # No sound device: nothing to switch on.
         self.enabled = not self.enabled
         if self.ambient_channel:
             if self.enabled:
