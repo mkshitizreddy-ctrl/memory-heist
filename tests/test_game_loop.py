@@ -62,6 +62,7 @@ def test_paused_game_does_not_advance_the_timer(game):
 # --- keys that trigger a transition must not leak into the new screen ------
 
 def test_enter_on_menu_does_not_leak_into_level1(game, received, monkeypatch):
+    game.story_enabled = False  # with the story on, ENTER opens the intro
     feed(monkeypatch, key_event(pygame.K_RETURN))
     game.handle_events()
     assert game.state == "playing"

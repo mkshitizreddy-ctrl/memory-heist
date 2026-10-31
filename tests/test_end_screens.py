@@ -96,6 +96,7 @@ def test_menu_then_enter_starts_a_fresh_run(game):
 
     press(game, pygame.K_m, "m")
     press(game, pygame.K_RETURN)
+    press(game, pygame.K_ESCAPE)  # skip the intro scene
 
     assert game.state == "playing"
     assert game.timer.active

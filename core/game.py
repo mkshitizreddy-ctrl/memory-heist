@@ -23,6 +23,8 @@ from levels.final_vault import FinalVault
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
+from ui.story_screens import StoryScreen
+from core.story import beat_for
 from ui.hud import HUD
 from systems.audio import Audio
 
@@ -81,6 +83,9 @@ class Game:
         # UI
         self.menu = MainMenu()
         self.win_screen = WinScreen()
+        self.story_screen = StoryScreen()
+        # Switch for the story scenes; off goes straight from menu to Level 1.
+        self.story_enabled = True
         self.lose_screen = LoseScreen()
         self.hud = HUD()
         self.audio = Audio()
@@ -232,6 +237,11 @@ class Game:
                         self.paused = not self.paused
                         # The toggle is consumed here, never forwarded.
                         continue
+                    elif self.state == "intro":
+                        # Skip the story instead of quitting.
+                        self.story_screen.skip()
+                        self._start_new_run()
+                        continue
                     elif self.state in ("win", "lose", "menu"):
                         if self.state == "win" and self.win_screen.entering:
                             # Skip the leaderboard entry instead of quitting,
@@ -250,7 +260,7 @@ class Game:
                         ]
                         self.coop = self.menu.coop
                         self.hints.enabled = self.difficulty["hints_enabled"]
-                        self._start_new_run()
+                        self._begin_run()
                         # The key that starts a run must not reach Level 1.
                         continue
 
@@ -265,6 +275,13 @@ class Game:
                         self.change_state("menu")
                         # The key must not reach the menu it opens.
                         continue
+
+            if self.state == "intro":
+                self.story_screen.handle_event(event)
+                if self.story_screen.done:
+                    self._start_new_run()
+                # The key that ends the story must not reach Level 1.
+                continue
 
             if self.state == "menu":
                 self.menu.handle_event(event)
@@ -331,6 +348,12 @@ class Game:
                 self._fade_timer - dt
             )
 
+        if self.state == "intro":
+            self.story_screen.update(dt)
+            if self.story_screen.done:
+                self._start_new_run()
+            return
+
         if self.state != "playing" or self.paused:
             return
 
@@ -393,6 +416,9 @@ class Game:
 
         if self.state == "menu":
             self.menu.render(self.screen)
+
+        elif self.state == "intro":
+            self.story_screen.render(self.screen)
 
         elif self.state == "playing":
             self.level_manager.render(self.screen)
@@ -505,6 +531,16 @@ class Game:
                 self.coop,
                 result,
             )
+
+    def _begin_run(self):
+        """Start from the menu: the intro scene first, or straight to Level 1."""
+        if not self.story_enabled:
+            self._start_new_run()
+            return
+        # The run clock stays off until the intro is over.
+        self.timer = Timer()
+        self.story_screen.begin(beat_for("intro"), coop=self.coop)
+        self.change_state("intro")
 
     def _start_new_run(self):
         """Reset systems, player position, fresh levels, and start Level 1."""

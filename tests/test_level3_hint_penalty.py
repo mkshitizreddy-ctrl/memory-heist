@@ -159,6 +159,7 @@ def test_penalty_through_real_game_selection(key):
     from core.game import Game
 
     game = Game()
+    game.story_enabled = False  # this test is about Level 3, not the intro
     game.menu.selected_difficulty = key
     pygame.event.post(
         pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
