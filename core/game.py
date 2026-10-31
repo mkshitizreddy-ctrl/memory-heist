@@ -63,9 +63,7 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(
-            (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        self.screen = self._create_window()
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -197,13 +195,39 @@ class Game:
         """
         return self.state == "win" and not self.win_screen.entering
 
+    @staticmethod
+    def _create_window():
+        """Open the 960x640 window, scaled when the machine supports it.
+
+        SCALED keeps the drawing surface at 960x640 and lets F11 stretch it
+        to the screen, with mouse positions mapped back automatically. Setups
+        without a renderer (headless test runs) get a plain window instead.
+        """
+        size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        try:
+            return pygame.display.set_mode(size, pygame.SCALED)
+        except pygame.error:
+            return pygame.display.set_mode(size)
+
+    def _toggle_fullscreen(self):
+        """Switch between the window and fullscreen; ignore unsupported setups."""
+        try:
+            pygame.display.toggle_fullscreen()
+        except pygame.error:
+            pass
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_F11:
+                    # Works on every screen and is never forwarded.
+                    self._toggle_fullscreen()
+                    continue
+
+                elif event.key == pygame.K_ESCAPE:
                     if self.state == "playing":
                         self.paused = not self.paused
                         # The toggle is consumed here, never forwarded.
