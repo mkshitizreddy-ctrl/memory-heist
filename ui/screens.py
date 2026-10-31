@@ -97,9 +97,9 @@ class WinScreen:
             surface.blit(hint, (width // 2 - hint.get_width() // 2, 395))
         else:
             heading = self.prompt_font.render("TOP SCORES", True, (140, 200, 255))
-            surface.blit(heading, (width // 2 - heading.get_width() // 2, 260))
+            surface.blit(heading, (width // 2 - heading.get_width() // 2, 278))
 
-            y = 295
+            y = 312
             for position, entry in enumerate(self.leaderboard.top(5), start=1):
                 tag = " (co-op)" if entry.get("coop") else ""
                 mine = position == self.rank
