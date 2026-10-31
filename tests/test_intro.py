@@ -64,13 +64,13 @@ def test_the_clock_does_not_run_during_the_intro(at_intro):
     assert at_intro.state == "intro"
 
 
-def test_first_key_finishes_typing_and_second_starts_the_run(at_intro):
+def test_first_key_finishes_typing_and_second_opens_the_level_1_briefing(at_intro):
     press(at_intro, pygame.K_SPACE, " ")
     assert at_intro.state == "intro"
 
     press(at_intro, pygame.K_SPACE, " ")
 
-    assert at_intro.state == "playing"
+    assert at_intro.state == "briefing"
 
 
 def test_the_run_timer_starts_full_when_the_intro_ends(at_intro):
@@ -94,7 +94,7 @@ def test_the_key_that_ends_the_intro_does_not_reach_level_one(at_intro, monkeypa
     monkeypatch.setattr(at_intro.level_manager, "handle_event", seen.append)
     press(at_intro, pygame.K_SPACE, " ")
 
-    assert at_intro.state == "playing"
+    assert at_intro.state == "briefing"
     assert seen == []
 
 

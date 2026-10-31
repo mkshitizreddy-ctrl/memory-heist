@@ -114,3 +114,22 @@ def test_render_works_in_coop_mode(screen):
     screen.begin(BEAT, coop=True)
 
     screen.render(pygame.Surface((960, 640)))
+
+
+def test_progress_defaults_to_none_and_is_remembered(screen):
+    assert screen.progress is None
+
+    screen.begin(STORY["level2"], progress=(1, 6))
+
+    assert screen.progress == (1, 6)
+
+
+def test_route_map_is_drawn_only_when_there_is_progress(screen):
+    screen.map_font = RecordingFont(screen.map_font)
+    screen.render(pygame.Surface((960, 640)))
+    assert screen.map_font.texts == []
+
+    screen.begin(STORY["level3"], progress=(2, 6))
+    screen.render(pygame.Surface((960, 640)))
+
+    assert screen.map_font.texts == ["1", "2", "3", "4", "5", "F"]
