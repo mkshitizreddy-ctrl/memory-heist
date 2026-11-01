@@ -27,6 +27,7 @@ from ui.story_screens import StoryScreen
 from core.story import beat_for
 from core.level_manager import LEVEL_ORDER
 from ui.hud import HUD
+from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
 from systems.sound_events import SoundEvents
 
@@ -90,6 +91,7 @@ class Game:
         self.story_enabled = True
         self.lose_screen = LoseScreen()
         self.hud = HUD()
+        self.atmosphere = Atmosphere((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.audio = Audio()
         self.sounds = SoundEvents(self.audio)
 
@@ -480,6 +482,16 @@ class Game:
         ):
             self.change_state("lose")
 
+    def _apply_mood(self):
+        """Grade the screen: deeper levels get warmer, mistakes get redder."""
+        depth, alert = mood_for(
+            self.state,
+            self.level_manager.current_name,
+            self.security.level,
+            self.security.max_level,
+        )
+        self.atmosphere.apply(self.screen, depth, alert, self._bg_tick)
+
     def render(self):
         self._bg_tick += 1
 
@@ -505,6 +517,9 @@ class Game:
                 self.player.draw(self.screen)
                 if self.coop:
                     self.player2.draw(self.screen)
+
+            # Colour grade first, so the HUD stays crisp on top of it.
+            self._apply_mood()
 
             # HUD with live data
             timer_val = (
@@ -557,6 +572,9 @@ class Game:
                 self.screen,
                 score=self.score.get_score(),
             )
+
+        if self.state != "playing":
+            self._apply_mood()
 
         # Fade overlay after a level change.
         if self._fade_timer > 0:
