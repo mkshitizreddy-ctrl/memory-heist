@@ -29,6 +29,8 @@ from ui.story_screens import StoryScreen
 from core.story import beat_for
 from core.level_manager import LEVEL_ORDER
 from ui.hud import HUD
+from ui.overlays import PauseOverlay
+from ui.transitions import ElevatorWipe
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
 from systems.music import MusicPlayer
@@ -47,7 +49,7 @@ SCREEN_HEIGHT = 640
 FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
-FADE_DURATION = 0.4
+FADE_DURATION = 0.7
 # Longest frame time (seconds) the game will simulate. Below 20 FPS the game
 # slows down instead of taking one huge step.
 MAX_DT = 0.05
@@ -124,6 +126,7 @@ class Game:
         self._bg_tick = 0
         # Built on the first paused frame (see _get_pause_assets).
         self._pause_assets = None
+        self._wipe = ElevatorWipe()
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -570,25 +573,14 @@ class Game:
             self.comms.draw(self.screen, *self._comms_fonts)
 
             if self.paused:
-                overlay, pause_font = self._get_pause_assets()
-                self.screen.blit(
-                    overlay,
-                    (0, 0)
-                )
-
-                txt = pause_font.render(
-                    "PAUSED",
-                    True,
-                    (220, 220, 220),
-                )
-
-                self.screen.blit(
-                    txt,
-                    (
-                        SCREEN_WIDTH // 2
-                        - txt.get_width() // 2,
-                        SCREEN_HEIGHT // 2 - 20,
-                    ),
+                self._get_pause_assets().draw(
+                    self.screen,
+                    self.level_manager.current_name,
+                    score=self.score.get_score(),
+                    security=self.security.level,
+                    security_max=self.security.max_level,
+                    remaining=timer_val,
+                    tick=self._bg_tick,
                 )
 
         elif self.state == "win":
@@ -606,38 +598,23 @@ class Game:
         if self.state != "playing":
             self._apply_mood()
 
-        # Fade overlay after a level change.
+        # Elevator doors open after a level change.
         if self._fade_timer > 0:
-            alpha = int(
-                255 * (
-                    self._fade_timer / FADE_DURATION
-                )
-            )
-
-            fade_surface = pygame.Surface(
-                (SCREEN_WIDTH, SCREEN_HEIGHT)
-            )
-            fade_surface.fill((0, 0, 0))
-            fade_surface.set_alpha(alpha)
-            self.screen.blit(
-                fade_surface,
-                (0, 0)
+            self._wipe.draw(
+                self.screen,
+                self._fade_timer / FADE_DURATION,
+                self.level_manager.current_name,
             )
 
         pygame.display.flip()
 
     def _get_pause_assets(self):
-        """Return (overlay, font) for the pause screen, building them once.
+        """Return the pause overlay, building its layers and fonts once.
 
         Creating them every paused frame cost about 3 ms of a 16.7 ms frame.
         """
         if self._pause_assets is None:
-            overlay = pygame.Surface(
-                (SCREEN_WIDTH, SCREEN_HEIGHT),
-                pygame.SRCALPHA,
-            )
-            overlay.fill((0, 0, 0, 160))
-            self._pause_assets = (overlay, pygame.font.Font(None, 48))
+            self._pause_assets = PauseOverlay((SCREEN_WIDTH, SCREEN_HEIGHT))
         return self._pause_assets
 
     def change_state(self, new_state: str):
