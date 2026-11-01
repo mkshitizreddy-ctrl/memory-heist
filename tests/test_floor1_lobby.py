@@ -388,3 +388,124 @@ def test_messages_use_the_right_article():
     c2 = next(c for c in level.crates if c.answer == "str")
     deliver(level, player, c2, "int")
     assert "Not an int" in level.message
+
+
+# --- polish: props, light, dust, camera LED, bigger crates ---------------
+def test_new_props_are_solid_and_leave_spawn_and_crates_free():
+    level, _, player = make_level()
+    for prop in (level.sofa, level.vending, *level.plants):
+        assert prop in level.props
+        assert level.room_map.blocked(prop.inflate(-4, -4))
+        assert not prop.colliderect(player.rect)
+        for crate in level.crates:
+            assert not prop.colliderect(crate.rect)
+        assert not prop.colliderect(level.exit_zone)
+
+
+def test_exit_zone_is_reachable_from_spawn_with_the_door_open():
+    level, _, player = make_level()
+    level.door_open = True
+    for attr in ("door_is_open", "open"):
+        if hasattr(level, attr):
+            setattr(level, attr, True)
+    probe = player.rect.copy()
+    seen, stack = set(), [player.rect.topleft]
+    while stack:
+        pos = stack.pop()
+        if pos in seen:
+            continue
+        seen.add(pos)
+        probe.topleft = pos
+        if level.room_map.blocked(probe) and pos != player.rect.topleft:
+            continue
+        for dx, dy in ((8, 0), (-8, 0), (0, 8), (0, -8)):
+            stack.append((pos[0] + dx, pos[1] + dy))
+        if len(seen) > 20000:
+            break
+    probe_hits = [p for p in seen
+                  if level.exit_zone.inflate(70, 70).collidepoint(p[0] + 16, p[1] + 16)]
+    assert probe_hits
+
+
+def test_dust_spawns_only_while_moving_and_expires():
+    level, _, player = make_level()
+    player.moving = False
+    for _ in range(30):
+        level.update(0.05)
+    assert level.dust == []
+    player.moving = True
+    for _ in range(10):
+        level.update(0.05)
+    assert level.dust
+    player.moving = False
+    for _ in range(int(f1.DUST_LIFE / 0.05) + 3):
+        level.update(0.05)
+    assert level.dust == []
+
+
+def test_dust_puffs_rise_and_age():
+    level, _, player = make_level()
+    player.moving = True
+    level.update(f1.DUST_EVERY + 0.01)
+    puff = level.dust[0]
+    y0 = puff["y"]
+    player.moving = False
+    level.update(0.1)
+    assert puff["y"] < y0 and puff["age"] > 0
+
+
+def _led_pixel(level):
+    world = pygame.Surface(level.tilemap.pixel_size)
+    world.fill((0, 0, 0))
+    level._draw_camera_led(world)
+    return tuple(world.get_at(level.led_pos))[:3]
+
+
+def test_camera_led_pulses_over_time():
+    level, _, _ = make_level()
+    seen = set()
+    for _ in range(40):
+        level.update(0.05)
+        seen.add(_led_pixel(level))
+    assert len(seen) > 3
+
+
+def test_camera_led_turns_red_when_security_is_high():
+    level, game, _ = make_level()
+    game.security.level = game.security.max_level
+    level.update(0.05)
+    r, g, b = _led_pixel(level)
+    assert r > g and r > b
+
+
+def test_crate_is_drawn_larger_than_its_hit_box():
+    level, _, _ = make_level()
+    crate = level.crates[0]
+    world = pygame.Surface(level.tilemap.pixel_size)
+    world.fill((255, 0, 255))
+    rect = pygame.Rect(300, 300, crate.rect.w, crate.rect.h)
+    level._draw_crate(world, crate, rect)
+    row = rect.centery + 2                      # below the floating tag
+    xs = [x for x in range(200, 420) if tuple(world.get_at((x, row)))[:3] != (255, 0, 255)]
+    assert xs and xs[-1] - xs[0] + 1 >= rect.w * 1.25
+
+
+def test_crate_body_colour_is_the_same_for_every_type():
+    level, _, _ = make_level()
+    samples = set()
+    for crate in level.crates:
+        world = pygame.Surface(level.tilemap.pixel_size)
+        world.fill((0, 0, 0))
+        rect = pygame.Rect(300, 300, crate.rect.w, crate.rect.h)
+        level._draw_crate(world, crate, rect)
+        samples.add(tuple(world.get_at((rect.centerx, rect.bottom - 4)))[:3])
+    assert len(samples) == 1
+
+
+def test_background_draws_the_sofa():
+    level, _, _ = make_level()
+    level._build_background()
+    cx, cy = level.sofa.center
+    base = level._background.get_at((cx, cy))
+    floor = level._background.get_at((level.sofa.x - 20, cy))
+    assert tuple(base)[:3] != tuple(floor)[:3]
