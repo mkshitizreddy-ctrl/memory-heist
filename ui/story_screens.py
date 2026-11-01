@@ -16,6 +16,8 @@ from core.hero_portrait import make_portrait
 from levels.common import draw_cyber_background, draw_glow_text, GREEN, GREY
 
 PORTRAIT_SIZE = 128
+WARDEN_SIZE = 110
+WARDEN_RED = (255, 70, 70)
 
 
 class StoryScreen:
@@ -27,6 +29,7 @@ class StoryScreen:
         self.concept_font = pygame.font.Font(None, 26)
         self.hint_font = pygame.font.Font(None, 26)
         self.map_font = pygame.font.Font(None, 24)
+        self.label_font = pygame.font.Font(None, 24)
         self.tick = 0
         self.begin({"title": "", "lines": []})
 
@@ -40,6 +43,7 @@ class StoryScreen:
         self.title = beat["title"]
         self.lines = list(beat["lines"])
         self.concept = beat.get("concept")
+        self.warden = bool(beat.get("warden", False))
         self.coop = coop
         self.done = False
         self.typing_done = self._total() == 0
@@ -133,6 +137,14 @@ class StoryScreen:
         else:
             ghost = make_portrait("ghost", PORTRAIT_SIZE, self.tick)
             surface.blit(ghost, (width // 2 - PORTRAIT_SIZE // 2, top))
+
+        # WARDEN watches from the top-right corner on every card but the ending.
+        if self.warden:
+            eye = make_portrait("warden", WARDEN_SIZE, self.tick)
+            corner = (width - WARDEN_SIZE - 40, top + 5)
+            surface.blit(eye, corner)
+            name = self.label_font.render("WARDEN", True, WARDEN_RED)
+            surface.blit(name, (corner[0] + WARDEN_SIZE // 2 - name.get_width() // 2, corner[1] + WARDEN_SIZE + 2))
 
         # Centre the whole block by its longest line, and type left-aligned
         # inside it, so the text does not shift sideways as it appears.
