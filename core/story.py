@@ -13,6 +13,7 @@ ANTAGONIST = "WARDEN"
 
 STORY = {
     "intro": {
+        "warden": True,
         "title": "THE MEMORY HEIST",
         "lines": [
             "NovaCorp's security AI, WARDEN, has locked the Master Memory chip",
@@ -22,6 +23,7 @@ STORY = {
         ],
     },
     "level1": {
+        "warden": True,
         "title": "LEVEL 1 - THE SECURITY GATE",
         "concept": "Data types",
         "lines": [
@@ -30,6 +32,7 @@ STORY = {
         ],
     },
     "level2": {
+        "warden": True,
         "title": "LEVEL 2 - THE SECURITY GRID",
         "concept": "Operators",
         "lines": [
@@ -38,6 +41,7 @@ STORY = {
         ],
     },
     "level3": {
+        "warden": True,
         "title": "LEVEL 3 - THE LASER LOOP",
         "concept": "Loops",
         "lines": [
@@ -46,6 +50,7 @@ STORY = {
         ],
     },
     "level4": {
+        "warden": True,
         "title": "LEVEL 4 - THE MEMORY VAULT",
         "concept": "Lists and dictionaries",
         "lines": [
@@ -54,6 +59,7 @@ STORY = {
         ],
     },
     "level5": {
+        "warden": True,
         "title": "LEVEL 5 - THE CONTROL CENTER",
         "concept": "Functions and exceptions",
         "lines": [
@@ -62,6 +68,7 @@ STORY = {
         ],
     },
     "final_vault": {
+        "warden": True,
         "title": "FINAL VAULT - WARDEN'S LAST STAND",
         "concept": "Everything combined",
         "lines": [
