@@ -69,6 +69,8 @@ CRATE_SPOTS = [(6, 7), (10, 6), (14, 6), (18, 6), (22, 7), (7, 12),
 BIN_COLS = (8, 12, 16, 20)       # bin i spans cols [c, c+1], row BIN_ROW
 BIN_ROW = 4
 EXIT_ROWS = (9, 10, 11)
+DUST_EVERY = 0.12               # seconds between footstep puffs while walking
+DUST_LIFE = 0.45
 
 
 def type_name(value):
@@ -164,8 +166,12 @@ class FloorOneLobby:
         self.props = list(self.bins.values())
         self.desk = pygame.Rect(12 * TILE, 15 * TILE, 6 * TILE, TILE)
         self.props.append(self.desk)
-        for col, row in ((3, 15), (26, 15), (3, 8), (26, 4)):
-            self.props.append(pygame.Rect(col * TILE, row * TILE, TILE, TILE))
+        self.plants = [pygame.Rect(col * TILE, row * TILE, TILE, TILE)
+                       for col, row in ((3, 15), (26, 15), (3, 8), (26, 4))]
+        self.sofa = pygame.Rect(4 * TILE, 13 * TILE, 3 * TILE, TILE)
+        self.vending = pygame.Rect(26 * TILE, 12 * TILE, TILE, 2 * TILE)
+        self.props += self.plants + [self.sofa, self.vending]
+        self.led_pos = (20 * TILE + 16, 2 * TILE + 10)      # WARDEN camera light
         self.door = pygame.Rect(28 * TILE, EXIT_ROWS[0] * TILE, TILE * 2, TILE * len(EXIT_ROWS))
         self.door_block = self.door.copy()
         self.room_map = RoomMap(self.tilemap, self.props + [self.door_block])
@@ -190,6 +196,8 @@ class FloorOneLobby:
         self.door_open = 0.0                    # 0 closed .. 1 open
         self.lamps = [0.0] * GATES
         self.sparks = []
+        self.dust = []
+        self._dust_clock = {}
         self.time = 0.0
 
         self.font = pygame.font.Font(None, 24)
@@ -327,6 +335,7 @@ class FloorOneLobby:
             s["vy"] += 260 * dt
             s["life"] -= dt
         self.sparks = [s for s in self.sparks if s["life"] > 0]
+        self._update_dust(dt)
         for i in range(GATES):
             target = 1.0 if i < self.gates_passed else 0.0
             self.lamps[i] += (target - self.lamps[i]) * min(1.0, dt * 8)
@@ -340,6 +349,23 @@ class FloorOneLobby:
                 if player.rect.colliderect(self.exit_zone):
                     self._finish()
                     break
+
+    def _update_dust(self, dt):
+        for puff in self.dust:
+            puff["age"] += dt
+            puff["y"] -= 14 * dt
+        self.dust = [p for p in self.dust if p["age"] < DUST_LIFE]
+        for player, _ in self._players():
+            clock = self._dust_clock.get(id(player), 0.0)
+            if getattr(player, "moving", False):
+                clock += dt
+                if clock >= DUST_EVERY:
+                    clock = 0.0
+                    self.dust.append({"x": player.rect.centerx + self.rng.uniform(-6, 6),
+                                      "y": player.rect.bottom - 2, "age": 0.0})
+            else:
+                clock = 0.0
+            self._dust_clock[id(player)] = clock
 
     def _finish(self):
         self.complete = True
@@ -366,23 +392,110 @@ class FloorOneLobby:
                    border=accent, radius=6)
         label = pygame.font.Font(None, 22).render("NOVACORP RECEPTION", True, theme.PAPER)
         bg.blit(label, label.get_rect(center=self.desk.center))
-        # plants
-        for rect in self.props[len(BIN_TYPES) + 1:]:
-            pygame.draw.rect(bg, theme.mix(theme.INK, theme.PAPER, 0.15),
-                             (rect.x + 8, rect.y + 18, 16, 12), border_radius=3)
-            for dx, dy in ((0, 0), (-6, 4), (6, 4)):
-                pygame.draw.circle(bg, (60, 170, 110), (rect.centerx + dx, rect.y + 12 + dy), 9)
+        for rect in self.plants:
+            self._draw_plant(bg, rect)
+        self._draw_sofa(bg, self.sofa, accent)
+        self._draw_vending(bg, self.vending)
+        self._draw_wall_lights(bg, accent)
+        self._draw_camera_mount(bg)
         # elevator (left wall)
         elev = pygame.Rect(0, 3 * TILE, 2 * TILE, 3 * TILE)
         draw_panel(bg, elev, fill=theme.NAVY, border=theme.MIST, radius=0, shadow=False)
         pygame.draw.line(bg, theme.SLATE, (elev.centerx, elev.y + 6), (elev.centerx, elev.bottom - 6), 3)
         tag = pygame.font.Font(None, 16).render("ELEVATOR", True, theme.MIST)
         bg.blit(tag, tag.get_rect(midtop=(elev.centerx, elev.bottom + 2)))
+        # soft pools of light (additive, built once)
+        for centre, radius, colour in (
+                ((15 * TILE, 10 * TILE), 170, (34, 44, 66)),
+                ((2 * TILE, 4 * TILE + 16), 120, (30, 70, 70)),
+                ((27 * TILE, 10 * TILE), 110, (60, 40, 40)),
+                ((15 * TILE, 15 * TILE), 150, (60, 48, 24))):
+            glow = self._glow(radius, colour)
+            bg.blit(glow, (centre[0] - radius, centre[1] - radius),
+                    special_flags=pygame.BLEND_RGB_ADD)
         # title on the wall
         title = pygame.font.Font(None, 30).render("FLOOR 1 - RECEPTION LOBBY", True,
                                                   theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, 2 * TILE + 2))
         self._background = bg
+
+    @staticmethod
+    def _glow(radius, colour):
+        """Radial falloff on black, meant for additive blending."""
+        surf = pygame.Surface((radius * 2, radius * 2))
+        for r in range(radius, 0, -3):
+            k = (1.0 - r / radius) ** 2
+            pygame.draw.circle(surf, tuple(int(c * k) for c in colour), (radius, radius), r)
+        return surf
+
+    @staticmethod
+    def _draw_plant(bg, rect):
+        pot = pygame.Rect(rect.x + 8, rect.y + 18, 16, 12)
+        pygame.draw.rect(bg, (0, 0, 0), pot.move(2, 2), border_radius=3)
+        pygame.draw.rect(bg, (150, 96, 70), pot, border_radius=3)
+        pygame.draw.rect(bg, (190, 130, 96), (pot.x, pot.y, pot.w, 3), border_radius=2)
+        for dx, dy, r in ((0, 4, 9), (-7, 8, 7), (7, 8, 7), (0, -2, 7)):
+            pygame.draw.circle(bg, (46, 150, 100), (rect.centerx + dx, rect.y + 12 + dy), r)
+        for dx, dy in ((-3, 0), (4, 4), (-8, 7)):
+            pygame.draw.circle(bg, (110, 210, 150), (rect.centerx + dx, rect.y + 8 + dy), 3)
+
+    @staticmethod
+    def _draw_sofa(bg, rect, accent):
+        base = theme.mix(accent, theme.NAVY, 0.55)
+        body = rect.inflate(0, 6)
+        pygame.draw.rect(bg, (0, 0, 0), body.move(2, 3), border_radius=8)
+        pygame.draw.rect(bg, base, body, border_radius=8)
+        pygame.draw.rect(bg, theme.mix(base, theme.PAPER, 0.18),
+                         (body.x + 4, body.y + 3, body.w - 8, 10), border_radius=5)
+        third = body.w // 3
+        for i in (1, 2):
+            pygame.draw.line(bg, theme.mix(base, theme.INK, 0.4),
+                             (body.x + i * third, body.y + 14), (body.x + i * third, body.bottom - 3), 2)
+        pygame.draw.rect(bg, theme.mix(base, theme.INK, 0.4), body, 2, border_radius=8)
+
+    @staticmethod
+    def _draw_vending(bg, rect):
+        draw_panel(bg, rect, fill=theme.mix(theme.NAVY, theme.CORAL, 0.2),
+                   border=theme.CORAL, radius=4)
+        window = pygame.Rect(rect.x + 5, rect.y + 6, rect.w - 10, rect.h - 28)
+        pygame.draw.rect(bg, theme.INK, window, border_radius=3)
+        for row in range(3):
+            for col in range(2):
+                pygame.draw.rect(bg, (theme.GOLD, theme.TEAL, theme.SKY)[(row + col) % 3],
+                                 (window.x + 3 + col * 11, window.y + 4 + row * 11, 8, 7),
+                                 border_radius=2)
+        pygame.draw.rect(bg, theme.MIST, (rect.x + 8, rect.bottom - 16, rect.w - 16, 6), border_radius=2)
+
+    @staticmethod
+    def _draw_wall_lights(bg, accent):
+        glow = theme.mix(accent, theme.PAPER, 0.55)
+        for col in range(4, 28, 4):
+            x = col * TILE
+            pygame.draw.rect(bg, theme.mix(theme.INK, accent, 0.4), (x - 14, 2 * TILE + 24, 28, 6), border_radius=3)
+            pygame.draw.rect(bg, glow, (x - 10, 2 * TILE + 26, 20, 2), border_radius=1)
+
+    @staticmethod
+    def _draw_camera_mount(bg):
+        x, y = 20 * TILE, 2 * TILE + 4
+        pygame.draw.rect(bg, theme.SLATE, (x, y, 22, 12), border_radius=3)
+        pygame.draw.rect(bg, theme.MIST, (x, y, 22, 12), 1, border_radius=3)
+        pygame.draw.circle(bg, theme.INK, (x + 6, y + 6), 4)
+        pygame.draw.circle(bg, theme.MIST, (x + 6, y + 6), 4, 1)
+
+    def _draw_camera_led(self, world):
+        pulse = 0.5 + 0.5 * math.sin(self.time * 4.0)
+        alert = 1.0 if self.game is not None and getattr(self.game, "security", None) \
+            and self.game.security.level >= self.game.security.max_level * 0.5 else 0.0
+        colour = theme.mix(theme.mix(theme.SLATE, theme.CORAL, 0.35 + 0.65 * pulse),
+                           theme.CORAL, alert)
+        pygame.draw.circle(world, colour, self.led_pos, 3)
+
+    def _draw_dust(self, world):
+        for puff in self.dust:
+            k = puff["age"] / DUST_LIFE
+            radius = 2 + int(4 * k)
+            tint = theme.mix(theme.MIST, theme.floor_palette(LEVEL_KEY)["floor"], k)
+            pygame.draw.circle(world, tint, (int(puff["x"]), int(puff["y"])), radius)
 
     def _draw_bins(self, surf):
         for t, rect in self.bins.items():
@@ -396,19 +509,31 @@ class FloorOneLobby:
             surf.blit(txt, txt.get_rect(center=r.center))
 
     def _draw_crate(self, surf, crate, rect):
-        body = pygame.Rect(rect)
+        """A bigger wooden crate with a floating value tag (neutral colour: the
+        tag must not give away the bin)."""
+        hit = pygame.Rect(rect)
+        body = pygame.Rect(0, 0, int(hit.w * 1.3), int(hit.h * 1.15))
+        body.center = hit.center
         pal = theme.floor_palette(LEVEL_KEY)
-        wood = theme.mix((140, 96, 58), pal["floor"], 0.15)
+        wood = theme.mix((150, 100, 60), pal["floor"], 0.12)
+        dark = theme.mix(wood, theme.INK, 0.5)
         pygame.draw.rect(surf, (0, 0, 0), body.move(2, 3), border_radius=4)
         pygame.draw.rect(surf, wood, body, border_radius=4)
-        pygame.draw.rect(surf, theme.mix(wood, theme.INK, 0.5), body, 2, border_radius=4)
-        pygame.draw.rect(surf, theme.mix(wood, theme.PAPER, 0.25),
+        for x in (body.x + body.w // 3, body.x + 2 * body.w // 3):
+            pygame.draw.line(surf, dark, (x, body.y + 3), (x, body.bottom - 3), 1)
+        pygame.draw.rect(surf, theme.mix(wood, theme.PAPER, 0.28),
                          (body.x + 2, body.y + 2, body.w - 4, 5), border_radius=2)
+        pygame.draw.rect(surf, dark, body, 2, border_radius=4)
+        for cx, cy in ((body.x + 4, body.y + 4), (body.right - 5, body.y + 4),
+                       (body.x + 4, body.bottom - 5), (body.right - 5, body.bottom - 5)):
+            pygame.draw.circle(surf, theme.MIST, (cx, cy), 1)
         txt = self.small.render(display(crate.value), True, theme.PAPER)
-        pill = txt.get_rect(center=body.center).inflate(4, 2)
-        pill.clamp_ip(body.inflate(6, 0))
-        pygame.draw.rect(surf, theme.INK, pill, border_radius=3)
-        surf.blit(txt, txt.get_rect(center=pill.center))
+        tag = txt.get_rect().inflate(10, 4)
+        tag.midbottom = (body.centerx, body.top - 3)
+        tag.clamp_ip(pygame.Rect(0, 0, *self.tilemap.pixel_size))
+        pygame.draw.rect(surf, theme.INK, tag, border_radius=4)
+        pygame.draw.rect(surf, theme.MIST, tag, 1, border_radius=4)
+        surf.blit(txt, txt.get_rect(center=tag.center))
 
     def _draw_exit(self, surf):
         d = self.door
@@ -440,6 +565,8 @@ class FloorOneLobby:
         world = self._background.copy()
         self._draw_bins(world)
         self._draw_exit(world)
+        self._draw_camera_led(world)
+        self._draw_dust(world)
         for crate in self.crates:
             if crate.sorted or crate.carrier is not None:
                 continue
