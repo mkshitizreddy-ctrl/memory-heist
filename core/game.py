@@ -29,6 +29,7 @@ from core.level_manager import LEVEL_ORDER
 from ui.hud import HUD
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
+from systems.music import MusicPlayer
 from systems.sound_events import SoundEvents
 
 from systems.scoring import ScoreTracker, final_score
@@ -92,7 +93,8 @@ class Game:
         self.lose_screen = LoseScreen()
         self.hud = HUD()
         self.atmosphere = Atmosphere((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.audio = Audio()
+        self.audio = Audio(ambient=False)   # MusicPlayer replaces the old drone
+        self.music = MusicPlayer(self.audio)
         self.sounds = SoundEvents(self.audio)
 
         # Player & levels
@@ -414,6 +416,13 @@ class Game:
             self.level_manager.current_name,
             getattr(level, "gates_passed", 0),
         )
+        _, alert = mood_for(
+            self.state,
+            self.level_manager.current_name,
+            self.security.level,
+            self.security.max_level,
+        )
+        self.music.update(dt, self.state, self.level_manager.current_name, alert)
 
     def _update(self, dt):
         if self._fade_timer > 0:

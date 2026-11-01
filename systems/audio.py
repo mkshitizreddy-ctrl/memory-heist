@@ -23,7 +23,8 @@ except ImportError:
 
 
 class Audio:
-    def __init__(self):
+    def __init__(self, ambient=True):
+        """ambient=False skips the old drone; the music player replaces it."""
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
             self.enabled = True
@@ -63,7 +64,8 @@ class Audio:
                     print(f"  ✗ could not load {name}")
 
         self.ambient_channel = None
-        self._start_ambient()
+        if ambient:
+            self._start_ambient()
 
     def _make_ambient_loop(self):
         """Synthesize a 4-second seamless ambient drone (no external file)."""
