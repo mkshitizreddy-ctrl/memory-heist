@@ -3,6 +3,8 @@ ui/hud.py
 Heads-up display: level, score, security meter, timer.
 """
 
+import math
+
 import pygame
 
 LEVEL_LABELS = {
@@ -13,6 +15,20 @@ LEVEL_LABELS = {
     "level5": "Level 5 of 5",
     "final_vault": "Final Vault",
 }
+
+
+# The timer turns red when this many seconds (or fewer) are left.
+WARNING_SECONDS = 60
+
+
+def format_time(seconds):
+    """Return seconds as M:SS, rounded up.
+
+    Rounding up means a fresh run reads 15:00 and 0:00 only appears at the
+    moment the time is really up.
+    """
+    whole = max(0, math.ceil(seconds))
+    return f"{whole // 60}:{whole % 60:02d}"
 
 
 class HUD:
@@ -55,7 +71,10 @@ class HUD:
 
         # Timer (right side)
         if timer_remaining is not None:
-            t = max(0, int(timer_remaining))
-            timer_color = (255, 100, 100) if t <= 10 else (220, 220, 100)
-            timer_text = self.font.render(f"Time  {t}s", True, timer_color)
+            remaining = max(0, timer_remaining)
+            warning = remaining <= WARNING_SECONDS
+            timer_color = (255, 100, 100) if warning else (220, 220, 100)
+            timer_text = self.font.render(
+                f"Time  {format_time(remaining)}", True, timer_color
+            )
             surface.blit(timer_text, (width - 130, 14))

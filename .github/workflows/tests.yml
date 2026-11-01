@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# A newer run on the same branch or PR cancels the older one still queued
+# or running, so quick successive pushes do not pile up.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,6 +28,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
         run: |

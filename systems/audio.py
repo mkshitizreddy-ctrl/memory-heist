@@ -10,6 +10,11 @@ to synthesize a few low sine tones with a slow volume swell.
 import os
 import pygame
 
+# Resolved relative to the repo, not the current working directory.
+SOUNDS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "assets", "sounds"
+)
+
 try:
     import numpy as np
     NUMPY_AVAILABLE = True
@@ -22,14 +27,17 @@ class Audio:
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
             self.enabled = True
+            self.mixer_ready = True
         except pygame.error as e:
             print("Audio init failed:", e)
             self.enabled = False
+            self.mixer_ready = False
             self.sounds = {}
+            self.ambient_channel = None
             return
 
         self.sounds = {}
-        base = os.path.join("assets", "sounds")
+        base = SOUNDS_DIR
 
         print("Looking for sounds in:", os.path.abspath(base))
 
@@ -92,6 +100,8 @@ class Audio:
             self.sounds[name].play()
 
     def toggle(self):
+        if not self.mixer_ready:
+            return  # No sound device: nothing to switch on.
         self.enabled = not self.enabled
         if self.ambient_channel:
             if self.enabled:

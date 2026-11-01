@@ -551,16 +551,33 @@ class Level4MemoryVault:
     # RENDER
     # =========================================================
 
+    def _get_render_fonts(self):
+        """Return this screen's fonts, creating them only once.
+
+        pygame.font.Font() costs about 2 ms per call, so creating fonts
+        inside render() used up most of a 16.7 ms frame.
+        """
+        if getattr(self, "_render_fonts", None) is None:
+            self._render_fonts = (
+                pygame.font.Font(None, 34),
+                pygame.font.Font(None, 25),
+                pygame.font.Font(None, 21),
+                pygame.font.Font(None, 18),
+            )
+        return self._render_fonts
+
     def render(self, surface):
         """Draw the Memory Vault room and interface."""
 
         # -------------------------
         # Fonts
         # -------------------------
-        title_font = pygame.font.Font(None, 34)
-        heading_font = pygame.font.Font(None, 25)
-        text_font = pygame.font.Font(None, 21)
-        small_font = pygame.font.Font(None, 18)
+        (
+            title_font,
+            heading_font,
+            text_font,
+            small_font,
+        ) = self._get_render_fonts()
 
         # =====================================================
         # GAME ROOM

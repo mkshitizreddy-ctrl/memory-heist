@@ -1,164 +1,1418 @@
 {
-  "level1_gate_code": {
-    "prompt": "Enter the agent's clearance level as an integer.",
-    "answer": "5",
-    "hint": "Clearance levels are stored as integers, not strings."
-  },
-
-  "level2_grid_code": {
-    "prompt": "Combine the two numbers with the correct operator to reach 42.",
-    "answer": "6*7",
-    "hint": "Multiplication uses the * operator in Python."
-  },
-
-  "level5_function_parameter": {
-    "prompt": "In def unlock_vault(level), what is level?",
-    "answer": "parameter",
-    "hint": "A parameter is the variable listed in a function definition."
-  },
-
-  "level5_function_argument": {
-    "prompt": "In unlock_vault(5), what is 5?",
-    "answer": "argument",
-    "hint": "An argument is the value passed when calling a function."
-  },
-
-  "level5_return_value": {
-    "prompt": "What sends a result back from a function?",
-    "answer": "return",
-    "hint": "Python uses the return statement to send a value back."
-  },
-
-  "level5_exception_handling": {
-    "prompt": "Which structure can safely handle a ValueError?",
-    "answer": "try/except",
-    "hint": "Put risky code inside try and handle the error in except."
-  },
-
-  "level5_terminal": {
-    "prompt": "Enter the required clearance level.",
-    "answer": "5",
-    "hint": "The unlock function requires a level of at least 5."
-  },
-
-  "final_vault_data_type": {
-    "prompt": "What data type should store the clearance value 5?",
-    "answer": "integer",
-    "hint": "Whole numbers are integers."
-  },
-
-  "final_vault_operator": {
-    "prompt": "Which operator generates 42 from 6 and 7?",
-    "answer": "*",
-    "hint": "The multiplication operator is *."
-  },
-
-  "final_vault_loop": {
-    "prompt": "Which statement stops a loop immediately?",
-    "answer": "break",
-    "hint": "break exits the current loop."
-  },
-
-  "final_vault_dictionary": {
-    "prompt": "How do you retrieve the value associated with key 'key'?",
-    "answer": "vault['key']",
-    "hint": "Dictionary values are accessed using their keys."
-  },
-
-  "final_vault_function": {
-    "prompt": "What sends a result from authorize() back to the caller?",
-    "answer": "return",
-    "hint": "A return statement sends a value back."
-  },
-
-  "final_vault_exception": {
-    "prompt": "Which structure handles invalid integer input?",
-    "answer": "try/except",
-    "hint": "int() can raise ValueError, which can be handled with except."
-  },
-  "level3_loop_1": {
-    "id": "level3_loop_1",
-    "question": "Which statement immediately stops a loop?",
-    "options": ["break", "continue", "range", "return"],
-    "answer": "break"
-},
-
-"level3_loop_2": {
-    "id": "level3_loop_2",
-    "question": "Which loop is commonly used when you know how many times to repeat?",
-    "options": ["for", "while", "break", "if"],
-    "answer": "for"
-},
-
-"level3_loop_3": {
-    "id": "level3_loop_3",
-    "question": "Which loop continues running while a condition is True?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
-
-"level3_loop_4": {
-    "id": "level3_loop_4",
-    "question": "Which function generates a sequence of numbers for a for loop?",
-    "options": ["range", "loop", "count", "numbers"],
-    "answer": "range"
-},
-
-"level3_loop_5": {
-    "id": "level3_loop_5",
-    "question": "What does break do inside a loop?",
-    "options": [
-        "Stops the loop",
-        "Restarts the loop",
-        "Skips the program",
-        "Repeats the loop"
-    ],
-    "answer": "Stops the loop"
-},
-
-"level3_loop_6": {
-    "id": "level3_loop_6",
-    "question": "What type of loop can run indefinitely if its condition never becomes False?",
-    "options": ["while", "for", "break", "range"],
-    "answer": "while"
-},
-
-"level3_loop_7": {
-    "id": "level3_loop_7",
-    "question": "What will this code print? for i in range(3): print(i)",
-    "options": ["0 1 2", "1 2 3", "0 1 2 3", "3 2 1"],
-    "answer": "0 1 2"
-},
-
-"level3_loop_8": {
-    "id": "level3_loop_8",
-    "question": "What will this code print? for i in range(1, 4): print(i)",
-    "options": ["1 2 3", "0 1 2", "1 2 3 4", "0 1 2 3"],
-    "answer": "1 2 3"
-},
-
-"level3_loop_9": {
-    "id": "level3_loop_9",
-    "question": "What happens when break is executed inside a loop?",
-    "options": [
-        "The loop ends immediately",
-        "The loop starts again",
-        "The next iteration always runs",
-        "The program crashes"
-    ],
-    "answer": "The loop ends immediately"
-},
-
-"level3_loop_10": {
-    "id": "level3_loop_10",
-    "question": "What is the output? for i in range(2): print('Python')",
-    "options": [
-        "Python printed 2 times",
-        "Python printed 1 time",
-        "Python printed 3 times",
-        "Nothing"
-    ],
-    "answer": "Python printed 2 times"
-}
-     
+    "level1_gate_code": {
+        "prompt": "Enter the agent's clearance level as an integer.",
+        "answer": "5",
+        "hint": "Clearance levels are stored as integers, not strings."
+    },
+    "level2_grid_code": {
+        "prompt": "Combine the two numbers with the correct operator to reach 42.",
+        "answer": "6*7",
+        "hint": "Multiplication uses the * operator in Python."
+    },
+    "level5_function_parameter": {
+        "prompt": "In def unlock_vault(level), what is level?",
+        "answer": "parameter",
+        "hint": "A parameter is the variable listed in a function definition."
+    },
+    "level5_function_argument": {
+        "prompt": "In unlock_vault(5), what is 5?",
+        "answer": "argument",
+        "hint": "An argument is the value passed when calling a function."
+    },
+    "level5_return_value": {
+        "prompt": "What sends a result back from a function?",
+        "answer": "return",
+        "hint": "Python uses the return statement to send a value back."
+    },
+    "level5_exception_handling": {
+        "prompt": "Which structure can safely handle a ValueError?",
+        "answer": "try/except",
+        "hint": "Put risky code inside try and handle the error in except."
+    },
+    "level5_terminal": {
+        "prompt": "Enter the required clearance level.",
+        "answer": "5",
+        "hint": "The unlock function requires a level of at least 5."
+    },
+    "final_vault_data_type": {
+        "prompt": "What data type should store the clearance value 5?",
+        "answer": "integer",
+        "hint": "Whole numbers are integers."
+    },
+    "final_vault_operator": {
+        "prompt": "Which operator generates 42 from 6 and 7?",
+        "answer": "*",
+        "hint": "The multiplication operator is *."
+    },
+    "final_vault_loop": {
+        "prompt": "Which statement stops a loop immediately?",
+        "answer": "break",
+        "hint": "break exits the current loop."
+    },
+    "final_vault_dictionary": {
+        "prompt": "How do you retrieve the value associated with key 'key'?",
+        "answer": "vault['key']",
+        "hint": "Dictionary values are accessed using their keys."
+    },
+    "final_vault_function": {
+        "prompt": "What sends a result from authorize() back to the caller?",
+        "answer": "return",
+        "hint": "A return statement sends a value back."
+    },
+    "final_vault_exception": {
+        "prompt": "Which structure handles invalid integer input?",
+        "answer": "try/except",
+        "hint": "int() can raise ValueError, which can be handled with except."
+    },
+    "advanced_function_parameter": {
+        "prompt": "In def authorize(level):, what is level?",
+        "answer": "parameter",
+        "hint": "The variable written inside a function definition is a parameter."
+    },
+    "advanced_function_argument": {
+        "prompt": "In authorize(5), what is 5?",
+        "answer": "argument",
+        "hint": "The actual value supplied during a function call is an argument."
+    },
+    "advanced_function_return": {
+        "prompt": "What does return level >= 5 send back?",
+        "answer": "boolean",
+        "hint": "The comparison level >= 5 evaluates to either True or False."
+    },
+    "advanced_exception": {
+        "prompt": "What exception can int('abc') raise?",
+        "answer": "ValueError",
+        "hint": "Python raises ValueError when a string cannot be converted to an integer."
+    },
+    "advanced_dictionary": {
+        "prompt": "What does vault['key'] return when key maps to 42?",
+        "answer": "42",
+        "hint": "Dictionary indexing retrieves the value stored under the requested key."
+    },
+    "advanced_loop": {
+        "prompt": "Which statement immediately exits the current loop?",
+        "answer": "break",
+        "hint": "break terminates the nearest enclosing loop."
+    },
+    "advanced_continue": {
+        "prompt": "Which statement skips the current loop iteration?",
+        "answer": "continue",
+        "hint": "continue skips the rest of the current iteration and moves to the next one."
+    },
+    "advanced_list_append": {
+        "prompt": "Which list method adds one item to the end of a list?",
+        "answer": "append",
+        "hint": "Use list.append(item) to add one element."
+    },
+    "advanced_list_remove": {
+        "prompt": "Which list method removes a matching item?",
+        "answer": "remove",
+        "hint": "Use list.remove(item) to remove the first matching value."
+    },
+    "advanced_type_check": {
+        "prompt": "What does type(5) identify?",
+        "answer": "int",
+        "hint": "5 is a whole-number integer."
+    },
+    "advanced_boolean": {
+        "prompt": "What data type is returned by 5 >= 5?",
+        "answer": "bool",
+        "hint": "Comparisons produce True or False."
+    },
+    "level3_loop_1": {
+        "id": "level3_loop_1",
+        "room": 1,
+        "difficulty": "easy",
+        "question": "Which statement immediately stops a loop?",
+        "options": [
+            "break",
+            "continue",
+            "range",
+            "return"
+        ],
+        "answer": "break",
+        "hint": "Think about the statement that completely exits the current loop.",
+        "explanation": "The break statement immediately terminates the current loop.",
+        "points": 40
+    },
+    "level3_loop_2": {
+        "id": "level3_loop_2",
+        "room": 1,
+        "difficulty": "easy",
+        "question": "Which loop is commonly used when you know how many times to repeat?",
+        "options": [
+            "for",
+            "while",
+            "break",
+            "if"
+        ],
+        "answer": "for",
+        "hint": "This loop is commonly combined with range().",
+        "explanation": "A for loop is commonly used when iterating over a known sequence or range of values.",
+        "points": 40
+    },
+    "level3_loop_3": {
+        "id": "level3_loop_3",
+        "room": 1,
+        "difficulty": "medium",
+        "question": "Which loop continues running while a condition is True?",
+        "options": [
+            "while",
+            "for",
+            "break",
+            "range"
+        ],
+        "answer": "while",
+        "hint": "Its name describes the condition under which it keeps running.",
+        "explanation": "A while loop continues executing as long as its condition evaluates to True.",
+        "points": 50
+    },
+    "level3_loop_4": {
+        "id": "level3_loop_4",
+        "room": 2,
+        "difficulty": "easy",
+        "question": "Which function generates a sequence of numbers for a for loop?",
+        "options": [
+            "range",
+            "loop",
+            "count",
+            "numbers"
+        ],
+        "answer": "range",
+        "hint": "You often see it written like range(5).",
+        "explanation": "The range() function generates a sequence of numbers commonly used with for loops.",
+        "points": 40
+    },
+    "level3_loop_5": {
+        "id": "level3_loop_5",
+        "room": 2,
+        "difficulty": "medium",
+        "question": "What does break do inside a loop?",
+        "options": [
+            "Stops the loop",
+            "Restarts the loop",
+            "Skips the program",
+            "Repeats the loop"
+        ],
+        "answer": "Stops the loop",
+        "hint": "break does not start another iteration.",
+        "explanation": "The break statement immediately stops the loop in which it is executed.",
+        "points": 50
+    },
+    "level3_loop_6": {
+        "id": "level3_loop_6",
+        "room": 2,
+        "difficulty": "medium",
+        "question": "What type of loop can run indefinitely if its condition never becomes False?",
+        "options": [
+            "while",
+            "for",
+            "break",
+            "range"
+        ],
+        "answer": "while",
+        "hint": "Think about a loop controlled by a condition.",
+        "explanation": "A while loop can continue indefinitely if its condition never becomes False.",
+        "points": 50
+    },
+    "level3_loop_7": {
+        "id": "level3_loop_7",
+        "room": 2,
+        "difficulty": "hard",
+        "question": "What will this code print? for i in range(3): print(i)",
+        "options": [
+            "0 1 2",
+            "1 2 3",
+            "0 1 2 3",
+            "3 2 1"
+        ],
+        "answer": "0 1 2",
+        "hint": "range(3) starts at 0 and stops before 3.",
+        "explanation": "range(3) produces 0, 1, and 2, so those are the values printed.",
+        "points": 60
+    },
+    "level3_loop_8": {
+        "id": "level3_loop_8",
+        "room": 3,
+        "difficulty": "hard",
+        "question": "What will this code print? for i in range(1, 4): print(i)",
+        "options": [
+            "1 2 3",
+            "0 1 2",
+            "1 2 3 4",
+            "0 1 2 3"
+        ],
+        "answer": "1 2 3",
+        "hint": "The starting value is 1, but the ending value 4 is excluded.",
+        "explanation": "range(1, 4) generates 1, 2, and 3.",
+        "points": 60
+    },
+    "level3_loop_9": {
+        "id": "level3_loop_9",
+        "room": 3,
+        "difficulty": "medium",
+        "question": "What happens when break is executed inside a loop?",
+        "options": [
+            "The loop ends immediately",
+            "The loop starts again",
+            "The next iteration always runs",
+            "The program crashes"
+        ],
+        "answer": "The loop ends immediately",
+        "hint": "break exits the current loop.",
+        "explanation": "When Python executes break, it immediately exits the nearest enclosing loop.",
+        "points": 50
+    },
+    "level3_loop_10": {
+        "id": "level3_loop_10",
+        "room": 3,
+        "difficulty": "hard",
+        "question": "What is the output? for i in range(2): print('Python')",
+        "options": [
+            "Python printed 2 times",
+            "Python printed 1 time",
+            "Python printed 3 times",
+            "Nothing"
+        ],
+        "answer": "Python printed 2 times",
+        "hint": "range(2) produces two iterations.",
+        "explanation": "The loop runs twice because range(2) produces 0 and 1.",
+        "points": 60
+    },
+    "level3_loop_11": {
+        "id": "level3_loop_11",
+        "room": 1,
+        "difficulty": "hard",
+        "question": "What will this code print? for i in range(2, 10, 3): print(i)",
+        "options": [
+            "2 5 8",
+            "2 5 8 10",
+            "3 6 9",
+            "2 4 6 8"
+        ],
+        "answer": "2 5 8",
+        "hint": "The third value in range() is the step between numbers.",
+        "explanation": "range(2, 10, 3) starts at 2 and adds 3 each time: 2, 5, 8. The next value, 11, is past the stop value 10.",
+        "points": 60
+    },
+    "level3_loop_12": {
+        "id": "level3_loop_12",
+        "room": 3,
+        "difficulty": "easy",
+        "question": "Which statement skips the rest of the current loop iteration?",
+        "options": [
+            "continue",
+            "break",
+            "range",
+            "while"
+        ],
+        "answer": "continue",
+        "hint": "It does not exit the loop; it jumps ahead to the next pass.",
+        "explanation": "The continue statement skips the rest of the current iteration and moves on to the next iteration of the loop.",
+        "points": 40
+    },
+    "level3_loop_13": {
+        "id": "level3_loop_13",
+        "room": 1,
+        "difficulty": "easy",
+        "question": "What is a loop used for in Python?",
+        "options": [
+            "To repeat code several times",
+            "To store a value",
+            "To print only once",
+            "To end the program"
+        ],
+        "answer": "To repeat code several times",
+        "hint": "Think about doing the same steps again and again.",
+        "explanation": "A loop repeats a block of code, so you do not have to write the same instructions many times.",
+        "points": 40
+    },
+    "level3_loop_14": {
+        "id": "level3_loop_14",
+        "room": 1,
+        "difficulty": "medium",
+        "question": "What is one full run through the body of a loop called?",
+        "options": [
+            "An iteration",
+            "A condition",
+            "A function",
+            "An index"
+        ],
+        "answer": "An iteration",
+        "hint": "Each time the loop body runs once, that is one of these.",
+        "explanation": "Every single pass through the body of a loop is called an iteration.",
+        "points": 50
+    },
+    "level3_loop_15": {
+        "id": "level3_loop_15",
+        "room": 1,
+        "difficulty": "medium",
+        "question": "What happens if a while loop's condition is False the first time it is checked?",
+        "options": [
+            "The loop body never runs",
+            "The loop body runs once",
+            "The loop runs forever",
+            "Python raises an error"
+        ],
+        "answer": "The loop body never runs",
+        "hint": "A while loop checks its condition before running the body.",
+        "explanation": "A while loop tests its condition first, so if it is False at the start the body is skipped completely.",
+        "points": 50
+    },
+    "level3_loop_16": {
+        "id": "level3_loop_16",
+        "room": 1,
+        "difficulty": "hard",
+        "question": "Start with i = 3. What does this print? while i > 0: print(i); i -= 1",
+        "options": [
+            "3 2 1",
+            "3 2 1 0",
+            "2 1 0",
+            "1 2 3"
+        ],
+        "answer": "3 2 1",
+        "hint": "i goes down by 1 after every print, and the loop stops when i is no longer greater than 0.",
+        "explanation": "i takes the values 3, 2 and 1. When i becomes 0 the condition i > 0 is False, so 0 is not printed.",
+        "points": 60
+    },
+    "level3_loop_17": {
+        "id": "level3_loop_17",
+        "room": 1,
+        "difficulty": "hard",
+        "question": "What will this code print? for ch in 'cat': print(ch)",
+        "options": [
+            "c a t",
+            "cat",
+            "t a c",
+            "c a"
+        ],
+        "answer": "c a t",
+        "hint": "A for loop over a string visits one character per iteration.",
+        "explanation": "The loop runs once for each character, printing c, then a, then t.",
+        "points": 60
+    },
+    "level3_loop_18": {
+        "id": "level3_loop_18",
+        "room": 2,
+        "difficulty": "easy",
+        "question": "What is the first number produced by range(5)?",
+        "options": [
+            "0",
+            "1",
+            "5",
+            "4"
+        ],
+        "answer": "0",
+        "hint": "range() starts at 0 unless you tell it to start somewhere else.",
+        "explanation": "range(5) produces 0, 1, 2, 3 and 4, so it starts at 0.",
+        "points": 40
+    },
+    "level3_loop_19": {
+        "id": "level3_loop_19",
+        "room": 2,
+        "difficulty": "easy",
+        "question": "In range(2, 6), which of these numbers is NOT produced?",
+        "options": [
+            "6",
+            "2",
+            "3",
+            "5"
+        ],
+        "answer": "6",
+        "hint": "The stop value is never included.",
+        "explanation": "range(2, 6) produces 2, 3, 4 and 5. The stop value 6 is excluded.",
+        "points": 40
+    },
+    "level3_loop_20": {
+        "id": "level3_loop_20",
+        "room": 2,
+        "difficulty": "medium",
+        "question": "Which call produces the numbers 0, 2, 4, 6, 8?",
+        "options": [
+            "range(0, 10, 2)",
+            "range(0, 8, 2)",
+            "range(2, 10, 2)",
+            "range(10, 2)"
+        ],
+        "answer": "range(0, 10, 2)",
+        "hint": "The third value is the step, and the stop value is not included.",
+        "explanation": "range(0, 10, 2) starts at 0 and adds 2 until it reaches 10, giving 0, 2, 4, 6 and 8.",
+        "points": 50
+    },
+    "level3_loop_21": {
+        "id": "level3_loop_21",
+        "room": 2,
+        "difficulty": "hard",
+        "question": "What is the value of sum(range(4))?",
+        "options": [
+            "6",
+            "10",
+            "4",
+            "3"
+        ],
+        "answer": "6",
+        "hint": "range(4) gives 0, 1, 2 and 3. Add them together.",
+        "explanation": "range(4) produces 0, 1, 2 and 3, and 0 + 1 + 2 + 3 = 6.",
+        "points": 60
+    },
+    "level3_loop_22": {
+        "id": "level3_loop_22",
+        "room": 2,
+        "difficulty": "hard",
+        "question": "What will this code print? for i in range(5, 0, -2): print(i)",
+        "options": [
+            "5 3 1",
+            "5 3 1 -1",
+            "5 4 3 2 1",
+            "4 2 0"
+        ],
+        "answer": "5 3 1",
+        "hint": "A negative step counts down, and the stop value 0 is not included.",
+        "explanation": "range(5, 0, -2) starts at 5 and subtracts 2 each time: 5, 3, 1. The next value, -1, is past the stop value 0.",
+        "points": 60
+    },
+    "level3_loop_23": {
+        "id": "level3_loop_23",
+        "room": 3,
+        "difficulty": "easy",
+        "question": "Which statement can stop a while True loop?",
+        "options": [
+            "break",
+            "continue",
+            "range",
+            "else"
+        ],
+        "answer": "break",
+        "hint": "A while True loop never ends by itself.",
+        "explanation": "The break statement exits the loop immediately, even when the condition is always True.",
+        "points": 40
+    },
+    "level3_loop_24": {
+        "id": "level3_loop_24",
+        "room": 3,
+        "difficulty": "easy",
+        "question": "Which pair of statements controls the flow inside a loop?",
+        "options": [
+            "break and continue",
+            "for and range",
+            "print and input",
+            "if and else"
+        ],
+        "answer": "break and continue",
+        "hint": "One of them stops the loop, and the other skips to the next iteration.",
+        "explanation": "break ends the loop, and continue skips the rest of the current iteration.",
+        "points": 40
+    },
+    "level3_loop_25": {
+        "id": "level3_loop_25",
+        "room": 3,
+        "difficulty": "medium",
+        "question": "Pseudocode: for i in range(5). If i is 2, continue. Else print i. Output?",
+        "options": [
+            "0 1 3 4",
+            "0 1 2 3 4",
+            "0 1",
+            "3 4"
+        ],
+        "answer": "0 1 3 4",
+        "hint": "continue skips only the current iteration, and the loop keeps going.",
+        "explanation": "When i is 2, continue skips the print. The loop then carries on, so 0, 1, 3 and 4 are printed.",
+        "points": 50
+    },
+    "level3_loop_26": {
+        "id": "level3_loop_26",
+        "room": 3,
+        "difficulty": "medium",
+        "question": "What is the difference between break and continue?",
+        "options": [
+            "break ends the loop; continue skips one iteration",
+            "break skips one iteration; continue ends the loop",
+            "They do exactly the same thing",
+            "Both restart the loop from 0"
+        ],
+        "answer": "break ends the loop; continue skips one iteration",
+        "hint": "One leaves the loop completely, and the other only jumps to the next pass.",
+        "explanation": "break exits the whole loop, while continue only skips the rest of the current iteration.",
+        "points": 50
+    },
+    "level3_loop_27": {
+        "id": "level3_loop_27",
+        "room": 3,
+        "difficulty": "hard",
+        "question": "Pseudocode: for i in range(6). If odd, continue. If i is 4, break. Else print i. Output?",
+        "options": [
+            "0 2",
+            "0 2 4",
+            "2 4",
+            "0 1 2 3"
+        ],
+        "answer": "0 2",
+        "hint": "Check the odd numbers first, then the break, and only then the print.",
+        "explanation": "0 and 2 are printed. Odd numbers are skipped, and when i reaches 4 the loop breaks before printing it.",
+        "points": 60
+    },
+    "level1_gate_1": {
+        "id": "level1_gate_1",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "Which data type stores the value 25?",
+        "options": [
+            "int",
+            "str",
+            "bool",
+            "float"
+        ],
+        "answer": "int",
+        "hint": "25 has no quotes and no decimal point.",
+        "explanation": "Whole numbers with no quotes or decimal point are stored as int.",
+        "points": 40
+    },
+    "level1_gate_2": {
+        "id": "level1_gate_2",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "Which data type stores the value \"Ghost\"?",
+        "options": [
+            "str",
+            "int",
+            "bool",
+            "list"
+        ],
+        "answer": "str",
+        "hint": "It is written inside quotes.",
+        "explanation": "Anything written inside quotes is a string (str) in Python.",
+        "points": 40
+    },
+    "level1_gate_3": {
+        "id": "level1_gate_3",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "Which of these is written as a whole number (int)?",
+        "options": [
+            "7",
+            "\"7\"",
+            "7.0",
+            "True"
+        ],
+        "answer": "7",
+        "hint": "An int has no quotes and no decimal point.",
+        "explanation": "\"7\" is a str, 7.0 is a float, and True is a bool \u2014 only 7 is an int.",
+        "points": 40
+    },
+    "level1_gate_4": {
+        "id": "level1_gate_4",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "agent_id = \"A-4471\". What does type(agent_id) return?",
+        "options": [
+            "<class 'str'>",
+            "<class 'int'>",
+            "<class 'bool'>",
+            "<class 'float'>"
+        ],
+        "answer": "<class 'str'>",
+        "hint": "agent_id is written in quotes.",
+        "explanation": "Quoted text is always a str, even if it contains numbers like \"4471\".",
+        "points": 50
+    },
+    "level1_gate_5": {
+        "id": "level1_gate_5",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "clearance = 3. Which statement about clearance is true?",
+        "options": [
+            "It is a float",
+            "It is an int",
+            "It is a str",
+            "It is a bool"
+        ],
+        "answer": "It is an int",
+        "hint": "3 has no decimal point or quotes.",
+        "explanation": "A whole number with no decimal point or quotes is an int.",
+        "points": 50
+    },
+    "level1_gate_6": {
+        "id": "level1_gate_6",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "price = 19.99. What is the data type of price?",
+        "options": [
+            "float",
+            "int",
+            "str",
+            "bool"
+        ],
+        "answer": "float",
+        "hint": "price has a decimal point.",
+        "explanation": "Numbers written with a decimal point are stored as float.",
+        "points": 50
+    },
+    "level1_gate_7": {
+        "id": "level1_gate_7",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "What does int(\"5\") return?",
+        "options": [
+            "5 (an int)",
+            "\"5\" (a str)",
+            "Error",
+            "5.0 (a float)"
+        ],
+        "answer": "5 (an int)",
+        "hint": "int() converts a digit string into a whole number.",
+        "explanation": "int() takes a string of digits and converts it into an actual int, 5.",
+        "points": 60
+    },
+    "level1_gate_8": {
+        "id": "level1_gate_8",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "x = 10; y = \"10\". Does x == y evaluate to True or False?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "An int and a str are never equal, even if they look the same.",
+        "explanation": "Python compares type and value together, so an int and a str are never ==.",
+        "points": 60
+    },
+    "level1_gate_9": {
+        "id": "level1_gate_9",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "What does str(25) return?",
+        "options": [
+            "\"25\" (a str)",
+            "25 (an int)",
+            "Error",
+            "25.0"
+        ],
+        "answer": "\"25\" (a str)",
+        "hint": "str() converts a value into text.",
+        "explanation": "str() takes any value and converts it into a string version of it.",
+        "points": 60
+    },
+    "level1_gate_10": {
+        "id": "level1_gate_10",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "Which of these is a boolean value?",
+        "options": [
+            "True",
+            "\"True\"",
+            "1.0",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "Booleans have no quotes and are only True or False.",
+        "explanation": "True without quotes is the boolean type; \"True\" in quotes is just a string.",
+        "points": 40
+    },
+    "level1_gate_11": {
+        "id": "level1_gate_11",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "is_active = False. What is the data type of is_active?",
+        "options": [
+            "bool",
+            "str",
+            "int",
+            "float"
+        ],
+        "answer": "bool",
+        "hint": "False is one of only two boolean values.",
+        "explanation": "True and False are the only two bool values in Python.",
+        "points": 40
+    },
+    "level1_gate_12": {
+        "id": "level1_gate_12",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "Which symbol is used to assign a value to a variable?",
+        "options": [
+            "=",
+            "==",
+            "!=",
+            "->"
+        ],
+        "answer": "=",
+        "hint": "A single symbol stores a value; a doubled one compares values.",
+        "explanation": "= assigns a value to a variable; == checks if two values are equal.",
+        "points": 40
+    },
+    "level1_gate_13": {
+        "id": "level1_gate_13",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "is_active = True. What is type(is_active)?",
+        "options": [
+            "<class 'bool'>",
+            "<class 'str'>",
+            "<class 'int'>",
+            "<class 'float'>"
+        ],
+        "answer": "<class 'bool'>",
+        "hint": "True/False values are booleans.",
+        "explanation": "True and False are always of type bool.",
+        "points": 50
+    },
+    "level1_gate_14": {
+        "id": "level1_gate_14",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "codename = \"Ghost\". What does type(codename) return?",
+        "options": [
+            "<class 'str'>",
+            "<class 'int'>",
+            "<class 'bool'>",
+            "<class 'NoneType'>"
+        ],
+        "answer": "<class 'str'>",
+        "hint": "codename is written in quotes.",
+        "explanation": "Quoted text is always a str.",
+        "points": 50
+    },
+    "level1_gate_15": {
+        "id": "level1_gate_15",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "level = 7; level_name = \"Seven\". Which variable is an int?",
+        "options": [
+            "level",
+            "level_name",
+            "Both",
+            "Neither"
+        ],
+        "answer": "level",
+        "hint": "Look for the one without quotes.",
+        "explanation": "level has no quotes and is a whole number, so it is an int; level_name is a str.",
+        "points": 50
+    },
+    "level1_gate_16": {
+        "id": "level1_gate_16",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "What does bool(0) evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "0",
+            "Error"
+        ],
+        "answer": "False",
+        "hint": "0 is treated as falsy in Python.",
+        "explanation": "0 is one of Python's falsy values, so bool(0) is False.",
+        "points": 60
+    },
+    "level1_gate_17": {
+        "id": "level1_gate_17",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "What does bool(\"\") evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "An empty string is also falsy.",
+        "explanation": "An empty string \"\" is falsy, so bool(\"\") is False.",
+        "points": 60
+    },
+    "level1_gate_18": {
+        "id": "level1_gate_18",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "clearance = \"3\". What would int(clearance) + 1 return?",
+        "options": [
+            "4",
+            "\"31\"",
+            "Error",
+            "3.1"
+        ],
+        "answer": "4",
+        "hint": "Convert the string to an int first, then add.",
+        "explanation": "int(\"3\") becomes the int 3, and 3 + 1 is 4.",
+        "points": 60
+    },
+    "level1_gate_19": {
+        "id": "level1_gate_19",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "Which data type stores True or False?",
+        "options": [
+            "bool",
+            "int",
+            "str",
+            "float"
+        ],
+        "answer": "bool",
+        "hint": "Only one type holds True/False values.",
+        "explanation": "bool is the data type that holds only True or False.",
+        "points": 40
+    },
+    "level1_gate_20": {
+        "id": "level1_gate_20",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "Which of these is NOT a valid Python data type?",
+        "options": [
+            "character",
+            "int",
+            "str",
+            "bool"
+        ],
+        "answer": "character",
+        "hint": "Python has no single-character type like some other languages.",
+        "explanation": "Python has no separate 'character' type \u2014 single characters are just str.",
+        "points": 40
+    },
+    "level1_gate_21": {
+        "id": "level1_gate_21",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "agent_level = 5. Which data type is agent_level?",
+        "options": [
+            "int",
+            "str",
+            "bool",
+            "float"
+        ],
+        "answer": "int",
+        "hint": "5 is a whole number with no quotes.",
+        "explanation": "A whole number with no quotes or decimal point is an int.",
+        "points": 40
+    },
+    "level1_gate_22": {
+        "id": "level1_gate_22",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "score = 99.5. What is the data type of score?",
+        "options": [
+            "float",
+            "int",
+            "str",
+            "bool"
+        ],
+        "answer": "float",
+        "hint": "score has a decimal point.",
+        "explanation": "Numbers with a decimal point are floats.",
+        "points": 50
+    },
+    "level1_gate_23": {
+        "id": "level1_gate_23",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "access = \"granted\". What is type(access)?",
+        "options": [
+            "<class 'str'>",
+            "<class 'bool'>",
+            "<class 'int'>",
+            "<class 'float'>"
+        ],
+        "answer": "<class 'str'>",
+        "hint": "access is written in quotes.",
+        "explanation": "Quoted text is always a str.",
+        "points": 50
+    },
+    "level1_gate_24": {
+        "id": "level1_gate_24",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "flag = True; code = 1. Which variable is a bool?",
+        "options": [
+            "flag",
+            "code",
+            "Both",
+            "Neither"
+        ],
+        "answer": "flag",
+        "hint": "Only one of these is written as True/False.",
+        "explanation": "flag is True/False, so it's a bool; code is a plain int.",
+        "points": 50
+    },
+    "level1_gate_25": {
+        "id": "level1_gate_25",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "What does float(\"3\") return?",
+        "options": [
+            "3.0",
+            "\"3\"",
+            "3",
+            "Error"
+        ],
+        "answer": "3.0",
+        "hint": "float() converts text into a decimal number.",
+        "explanation": "float(\"3\") converts the string into the float 3.0.",
+        "points": 60
+    },
+    "level1_gate_26": {
+        "id": "level1_gate_26",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "What does type(True) return?",
+        "options": [
+            "<class 'bool'>",
+            "<class 'int'>",
+            "<class 'str'>",
+            "<class 'NoneType'>"
+        ],
+        "answer": "<class 'bool'>",
+        "hint": "True is a boolean value.",
+        "explanation": "type(True) always returns <class 'bool'>.",
+        "points": 60
+    },
+    "level1_gate_27": {
+        "id": "level1_gate_27",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "a = 5; b = 5.0. Does type(a) == type(b)?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "One is a whole number, the other has a decimal point.",
+        "explanation": "a is an int and b is a float \u2014 different types, even though the values look equal.",
+        "points": 60
+    },
+    "level2_gate_1": {
+        "id": "level2_gate_1",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "What does 6 * 7 evaluate to?",
+        "options": [
+            "42",
+            "67",
+            "13",
+            "76"
+        ],
+        "answer": "42",
+        "hint": "* means multiply.",
+        "explanation": "6 multiplied by 7 is 42.",
+        "points": 40
+    },
+    "level2_gate_2": {
+        "id": "level2_gate_2",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "What does 10 % 3 evaluate to?",
+        "options": [
+            "1",
+            "3",
+            "0",
+            "10"
+        ],
+        "answer": "1",
+        "hint": "% gives the remainder after division.",
+        "explanation": "10 divided by 3 is 3 remainder 1, so 10 % 3 is 1.",
+        "points": 40
+    },
+    "level2_gate_3": {
+        "id": "level2_gate_3",
+        "room": 1,
+        "difficulty": "easy",
+        "prompt": "What does 5 + 2 * 2 evaluate to?",
+        "options": [
+            "9",
+            "14",
+            "10",
+            "7"
+        ],
+        "answer": "9",
+        "hint": "Multiplication happens before addition.",
+        "explanation": "2 * 2 is done first (4), then 5 + 4 is 9.",
+        "points": 40
+    },
+    "level2_gate_4": {
+        "id": "level2_gate_4",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "What does (4 + 3) * 2 evaluate to?",
+        "options": [
+            "14",
+            "10",
+            "11",
+            "9"
+        ],
+        "answer": "14",
+        "hint": "Parentheses are evaluated first.",
+        "explanation": "(4 + 3) is 7 first, then 7 * 2 is 14.",
+        "points": 50
+    },
+    "level2_gate_5": {
+        "id": "level2_gate_5",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "What does 15 // 4 evaluate to?",
+        "options": [
+            "3",
+            "3.75",
+            "4",
+            "1"
+        ],
+        "answer": "3",
+        "hint": "// is floor (whole-number) division.",
+        "explanation": "15 // 4 divides and drops the remainder, giving 3.",
+        "points": 50
+    },
+    "level2_gate_6": {
+        "id": "level2_gate_6",
+        "room": 1,
+        "difficulty": "medium",
+        "prompt": "What does 2 ** 3 evaluate to?",
+        "options": [
+            "8",
+            "6",
+            "9",
+            "5"
+        ],
+        "answer": "8",
+        "hint": "** means 'to the power of'.",
+        "explanation": "2 ** 3 means 2 to the power of 3, which is 8.",
+        "points": 50
+    },
+    "level2_gate_7": {
+        "id": "level2_gate_7",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "What does 2 + 3 * 4 evaluate to?",
+        "options": [
+            "14",
+            "20",
+            "24",
+            "9"
+        ],
+        "answer": "14",
+        "hint": "Multiplication happens before addition.",
+        "explanation": "3 * 4 is done first (12), then 2 + 12 is 14.",
+        "points": 60
+    },
+    "level2_gate_8": {
+        "id": "level2_gate_8",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "What does (10 - 4) // 2 evaluate to?",
+        "options": [
+            "3",
+            "2",
+            "5",
+            "6"
+        ],
+        "answer": "3",
+        "hint": "Work out the parentheses first, then divide.",
+        "explanation": "(10 - 4) is 6 first, then 6 // 2 is 3.",
+        "points": 60
+    },
+    "level2_gate_9": {
+        "id": "level2_gate_9",
+        "room": 1,
+        "difficulty": "hard",
+        "prompt": "What does 7 % 2 + 3 * 2 evaluate to?",
+        "options": [
+            "7",
+            "8",
+            "9",
+            "10"
+        ],
+        "answer": "7",
+        "hint": "Do % and * before the final +.",
+        "explanation": "7 % 2 is 1, and 3 * 2 is 6, so 1 + 6 is 7.",
+        "points": 60
+    },
+    "level2_gate_10": {
+        "id": "level2_gate_10",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "What does 5 > 3 evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "5",
+            "3"
+        ],
+        "answer": "True",
+        "hint": "Is 5 actually greater than 3?",
+        "explanation": "Comparisons return a bool, and 5 is greater than 3, so this is True.",
+        "points": 40
+    },
+    "level2_gate_11": {
+        "id": "level2_gate_11",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "What does 4 == 4 evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "4",
+            "Error"
+        ],
+        "answer": "True",
+        "hint": "== checks if two values are equal.",
+        "explanation": "4 is equal to 4, so 4 == 4 is True.",
+        "points": 40
+    },
+    "level2_gate_12": {
+        "id": "level2_gate_12",
+        "room": 2,
+        "difficulty": "easy",
+        "prompt": "What does 2 != 3 evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "2",
+            "3"
+        ],
+        "answer": "True",
+        "hint": "!= means 'not equal to'.",
+        "explanation": "2 is not equal to 3, so 2 != 3 is True.",
+        "points": 40
+    },
+    "level2_gate_13": {
+        "id": "level2_gate_13",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "clearance = 3. What does clearance >= 3 evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "3",
+            "Error"
+        ],
+        "answer": "True",
+        "hint": ">= means greater than or equal to.",
+        "explanation": "3 is equal to 3, and >= includes equal, so this is True.",
+        "points": 50
+    },
+    "level2_gate_14": {
+        "id": "level2_gate_14",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "What does 5 <= 2 evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "5",
+            "2"
+        ],
+        "answer": "False",
+        "hint": "Is 5 actually less than or equal to 2?",
+        "explanation": "5 is not less than or equal to 2, so this is False.",
+        "points": 50
+    },
+    "level2_gate_15": {
+        "id": "level2_gate_15",
+        "room": 2,
+        "difficulty": "medium",
+        "prompt": "What does 10 == 10.0 evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "Python compares the numeric value, not the type, for ==.",
+        "explanation": "10 and 10.0 have the same numeric value, so 10 == 10.0 is True.",
+        "points": 50
+    },
+    "level2_gate_16": {
+        "id": "level2_gate_16",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "x = 10; y = \"10\". Does x == y evaluate to True or False?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "An int and a str are never equal, even if they look the same.",
+        "explanation": "Python compares type and value together, so an int and a str are never ==",
+        "points": 60
+    },
+    "level2_gate_17": {
+        "id": "level2_gate_17",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "What does (1 > 2) == False evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "First work out (1 > 2), then compare it to False.",
+        "explanation": "(1 > 2) is False, and False == False is True.",
+        "points": 60
+    },
+    "level2_gate_18": {
+        "id": "level2_gate_18",
+        "room": 2,
+        "difficulty": "hard",
+        "prompt": "What does 3 != 3.0 evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "Python compares the numeric value, not the type, for !=.",
+        "explanation": "3 and 3.0 have the same numeric value, so 3 != 3.0 is False.",
+        "points": 60
+    },
+    "level2_gate_19": {
+        "id": "level2_gate_19",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "What does True and True evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "'and' needs both sides to be True.",
+        "explanation": "Both sides are True, so True and True is True.",
+        "points": 40
+    },
+    "level2_gate_20": {
+        "id": "level2_gate_20",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "What does True or False evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "'or' only needs one side to be True.",
+        "explanation": "One side is True, and 'or' only needs one, so this is True.",
+        "points": 40
+    },
+    "level2_gate_21": {
+        "id": "level2_gate_21",
+        "room": 3,
+        "difficulty": "easy",
+        "prompt": "What does not True evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "'not' flips a boolean value.",
+        "explanation": "'not' flips True into False.",
+        "points": 40
+    },
+    "level2_gate_22": {
+        "id": "level2_gate_22",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "What does True and False evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "'and' needs both sides to be True.",
+        "explanation": "'and' is only True when both sides are True; here one side is False.",
+        "points": 50
+    },
+    "level2_gate_23": {
+        "id": "level2_gate_23",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "What does (1 > 2) or (4 == 4) evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "'or' only needs one side to be True.",
+        "explanation": "1 > 2 is False, but 4 == 4 is True, and 'or' only needs one True side.",
+        "points": 50
+    },
+    "level2_gate_24": {
+        "id": "level2_gate_24",
+        "room": 3,
+        "difficulty": "medium",
+        "prompt": "clearance = 2. What does not (clearance >= 3) evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "clearance >= 3 is False here, and 'not' flips it.",
+        "explanation": "2 >= 3 is False, and 'not' flips False into True.",
+        "points": 50
+    },
+    "level2_gate_25": {
+        "id": "level2_gate_25",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "What does (5 > 3) and (2 > 4) evaluate to?",
+        "options": [
+            "False",
+            "True",
+            "Error",
+            "None"
+        ],
+        "answer": "False",
+        "hint": "'and' needs both sides to be True.",
+        "explanation": "5 > 3 is True, but 2 > 4 is False, so the whole 'and' is False.",
+        "points": 60
+    },
+    "level2_gate_26": {
+        "id": "level2_gate_26",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "What does not (False or False) evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "Work out the 'or' first, then apply 'not'.",
+        "explanation": "False or False is False, and 'not' flips it to True.",
+        "points": 60
+    },
+    "level2_gate_27": {
+        "id": "level2_gate_27",
+        "room": 3,
+        "difficulty": "hard",
+        "prompt": "What does (3 == 3) and not (5 > 10) evaluate to?",
+        "options": [
+            "True",
+            "False",
+            "Error",
+            "None"
+        ],
+        "answer": "True",
+        "hint": "Work out each part, then combine with 'and'.",
+        "explanation": "3 == 3 is True, and not (5 > 10) is also True, so True and True is True.",
+        "points": 60
+    }
 }

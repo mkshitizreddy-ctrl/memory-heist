@@ -5,12 +5,15 @@ Owner: Member 1 - Core Game System
 Sets up the Pygame window and runs the main game loop.
 """
 
-import sys
 import pygame
 
 from core.player import Player, ARROWS
 from core.level_manager import LevelManager
-from core.difficulty import get_difficulty, DEFAULT_DIFFICULTY
+from core.difficulty import (
+    get_difficulty,
+    DEFAULT_DIFFICULTY,
+    run_time_seconds,
+)
 from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level3_loops import Level3LaserLoop
@@ -20,10 +23,13 @@ from levels.final_vault import FinalVault
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
+from ui.story_screens import StoryScreen
+from core.story import beat_for
+from core.level_manager import LEVEL_ORDER
 from ui.hud import HUD
 from systems.audio import Audio
 
-from systems.scoring import ScoreTracker
+from systems.scoring import ScoreTracker, final_score
 from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
@@ -35,6 +41,9 @@ FPS = 60
 TITLE = "Memory Heist"
 BG_COLOR = (10, 12, 20)
 FADE_DURATION = 0.4
+# Longest frame time (seconds) the game will simulate. Below 20 FPS the game
+# slows down instead of taking one huge step.
+MAX_DT = 0.05
 PLAYER_START_POS = (100, 100)
 PLAYER2_START_POS = (150, 100)
 
@@ -57,9 +66,7 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(
-            (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        self.screen = self._create_window()
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -77,6 +84,9 @@ class Game:
         # UI
         self.menu = MainMenu()
         self.win_screen = WinScreen()
+        self.story_screen = StoryScreen()
+        # Switch for the story scenes; off goes straight from menu to Level 1.
+        self.story_enabled = True
         self.lose_screen = LoseScreen()
         self.hud = HUD()
         self.audio = Audio()
@@ -100,6 +110,8 @@ class Game:
 
         # Animated background tick
         self._bg_tick = 0
+        # Built on the first paused frame (see _get_pause_assets).
+        self._pause_assets = None
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -162,16 +174,89 @@ class Game:
         if current_name != self._last_level_name:
             self._last_level_name = current_name
             self._fade_timer = FADE_DURATION
+            # No level places the players itself, so without this a level
+            # starts wherever the previous one left them.
+            self._reset_player_position()
+            # Never cover a win or loss that happened on the same frame.
+            if self.state == "playing":
+                self._open_briefing(current_name)
+
+    def _open_briefing(self, level_name):
+        """Show the story card for a level and freeze the run clock on it."""
+        beat = beat_for(level_name)
+        if not self.story_enabled or beat is None:
+            return
+        self.story_screen.begin(
+            beat,
+            coop=self.coop,
+            progress=(LEVEL_ORDER.index(level_name), len(LEVEL_ORDER)),
+        )
+        self._fade_timer = 0.0
+        self.change_state("briefing")
+
+    def _end_briefing(self):
+        """Back to the level, fading in."""
+        self.change_state("playing")
+        self._fade_timer = FADE_DURATION
+
+    def _leave_story(self):
+        """A story card finished normally: intro -> Level 1 card -> level."""
+        if self.state == "intro":
+            self._start_new_run()
+            self._open_briefing("level1")
+        else:
+            self._end_briefing()
+
+    def _skip_story(self):
+        """ESC on a story card: skip it (and, from the intro, the whole story)."""
+        if self.state == "intro":
+            self._start_new_run()
+        else:
+            self._end_briefing()
+
+    def _frame_dt(self):
+        """Seconds since the previous frame, capped at MAX_DT.
+
+        A stalled frame (dragging the window, a slow load) would otherwise
+        give every update a huge dt: timers would jump and a movement step
+        could carry the player through a wall.
+        """
+        return min(self.clock.tick(FPS) / 1000.0, MAX_DT)
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS) / 1000.0
+            dt = self._frame_dt()
             self.handle_events()
             self.update(dt)
             self.render()
 
-        pygame.quit()
-        sys.exit()
+    def _win_screen_is_done(self):
+        """True on the win screen once the name is saved and the table shows.
+
+        While a name is being typed, R and M are ordinary letters.
+        """
+        return self.state == "win" and not self.win_screen.entering
+
+    @staticmethod
+    def _create_window():
+        """Open the 960x640 window, scaled when the machine supports it.
+
+        SCALED keeps the drawing surface at 960x640 and lets F11 stretch it
+        to the screen, with mouse positions mapped back automatically. Setups
+        without a renderer (headless test runs) get a plain window instead.
+        """
+        size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        try:
+            return pygame.display.set_mode(size, pygame.SCALED)
+        except pygame.error:
+            return pygame.display.set_mode(size)
+
+    def _toggle_fullscreen(self):
+        """Switch between the window and fullscreen; ignore unsupported setups."""
+        try:
+            pygame.display.toggle_fullscreen()
+        except pygame.error:
+            pass
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -179,10 +264,27 @@ class Game:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_F11:
+                    # Works on every screen and is never forwarded.
+                    self._toggle_fullscreen()
+                    continue
+
+                elif event.key == pygame.K_ESCAPE:
                     if self.state == "playing":
                         self.paused = not self.paused
+                        # The toggle is consumed here, never forwarded.
+                        continue
+                    elif self.state in ("intro", "briefing"):
+                        # Skip the story instead of quitting.
+                        self.story_screen.skip()
+                        self._skip_story()
+                        continue
                     elif self.state in ("win", "lose", "menu"):
+                        if self.state == "win" and self.win_screen.entering:
+                            # Skip the leaderboard entry instead of quitting,
+                            # so a score being named is not thrown away.
+                            self.win_screen.skip_entry()
+                            continue
                         self.running = False
 
                 elif event.key == pygame.K_RETURN:
@@ -195,11 +297,28 @@ class Game:
                         ]
                         self.coop = self.menu.coop
                         self.hints.enabled = self.difficulty["hints_enabled"]
-                        self._start_new_run()
+                        self._begin_run()
+                        # The key that starts a run must not reach Level 1.
+                        continue
 
                 elif event.key == pygame.K_r:
-                    if self.state == "lose":
+                    if self.state == "lose" or self._win_screen_is_done():
                         self._start_new_run()
+                        # Same for retry: consume the key.
+                        continue
+
+                elif event.key == pygame.K_m:
+                    if self.state == "lose" or self._win_screen_is_done():
+                        self.change_state("menu")
+                        # The key must not reach the menu it opens.
+                        continue
+
+            if self.state in ("intro", "briefing"):
+                self.story_screen.handle_event(event)
+                if self.story_screen.done:
+                    self._leave_story()
+                # The key that ends a story card must not reach the level.
+                continue
 
             if self.state == "menu":
                 self.menu.handle_event(event)
@@ -266,6 +385,11 @@ class Game:
                 self._fade_timer - dt
             )
 
+        if self.state in ("intro", "briefing"):
+            # Story cards only type their text; the run clock stays frozen.
+            self.story_screen.update(dt)
+            return
+
         if self.state != "playing" or self.paused:
             return
 
@@ -300,6 +424,11 @@ class Game:
         # Detect level changes
         self._handle_level_change()
 
+        # The level may have just ended the run (win). Do not let the
+        # timer or security checks below overwrite that this frame.
+        if self.state != "playing":
+            return
+
         # Update global timer
         self.timer.update(dt)
 
@@ -323,6 +452,9 @@ class Game:
 
         if self.state == "menu":
             self.menu.render(self.screen)
+
+        elif self.state in ("intro", "briefing"):
+            self.story_screen.render(self.screen)
 
         elif self.state == "playing":
             self.level_manager.render(self.screen)
@@ -350,20 +482,12 @@ class Game:
             )
 
             if self.paused:
-                overlay = pygame.Surface(
-                    (SCREEN_WIDTH, SCREEN_HEIGHT),
-                    pygame.SRCALPHA,
-                )
-                overlay.fill((0, 0, 0, 160))
+                overlay, pause_font = self._get_pause_assets()
                 self.screen.blit(
                     overlay,
                     (0, 0)
                 )
 
-                pause_font = pygame.font.Font(
-                    None,
-                    48
-                )
                 txt = pause_font.render(
                     "PAUSED",
                     True,
@@ -382,7 +506,7 @@ class Game:
         elif self.state == "win":
             self.win_screen.render(
                 self.screen,
-                score=self.score.get_score(),
+                score=self.win_screen.score,
             )
 
         elif self.state == "lose":
@@ -411,23 +535,55 @@ class Game:
 
         pygame.display.flip()
 
+    def _get_pause_assets(self):
+        """Return (overlay, font) for the pause screen, building them once.
+
+        Creating them every paused frame cost about 3 ms of a 16.7 ms frame.
+        """
+        if self._pause_assets is None:
+            overlay = pygame.Surface(
+                (SCREEN_WIDTH, SCREEN_HEIGHT),
+                pygame.SRCALPHA,
+            )
+            overlay.fill((0, 0, 0, 160))
+            self._pause_assets = (overlay, pygame.font.Font(None, 48))
+        return self._pause_assets
+
     def change_state(self, new_state: str):
         """Central place to switch between game states."""
         self.state = new_state
         self.paused = False
 
         if new_state == "win":
-            self.win_screen.begin(
+            # Time left and difficulty turn the run score into the final one.
+            result = final_score(
                 self.score.get_score(),
+                self.timer.get_remaining() if self.timer.active else 0,
+                self.difficulty["score_multiplier"],
+            )
+            self.win_screen.begin(
+                result["total"],
                 self.difficulty["label"].title(),
                 self.coop,
+                result,
             )
+
+    def _begin_run(self):
+        """Start from the menu: the intro scene first, or straight to Level 1."""
+        if not self.story_enabled:
+            self._start_new_run()
+            return
+        # The run clock stays off until the intro is over.
+        self.timer = Timer()
+        self.story_screen.begin(beat_for("intro"), coop=self.coop)
+        self.change_state("intro")
 
     def _start_new_run(self):
         """Reset systems, player position, fresh levels, and start Level 1."""
         self.score.reset()
         self.security.reset()
         self.timer = Timer()
+        self.timer.start(run_time_seconds(self.difficulty))
         self._reset_player_position()
 
         # Fresh levels — undoes prior completion.

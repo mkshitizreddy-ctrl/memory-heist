@@ -19,14 +19,19 @@ class WinScreen:
         self.tick = 0
         self.begin(0, "Medium", False)
 
-    def begin(self, score, difficulty, coop):
+    def begin(self, score, difficulty, coop, breakdown=None):
         """Start a fresh win screen: ask for a name, then show the table."""
         self.score = score
+        self.breakdown = breakdown
         self.difficulty = difficulty
         self.coop = coop
         self.name = ""
         self.entering = True
         self.rank = None
+
+    def skip_entry(self):
+        """Leave name entry without saving a leaderboard entry."""
+        self.entering = False
 
     def handle_event(self, event):
         """Type a name, then ENTER saves it to the leaderboard."""
@@ -66,6 +71,15 @@ class WinScreen:
         score_text = self.subtitle_font.render(f"Final Score: {score}", True, (200, 220, 255))
         surface.blit(score_text, (width // 2 - score_text.get_width() // 2, 205))
 
+        if self.breakdown:
+            parts = self.breakdown
+            detail = self.row_font.render(
+                f"Base {parts['base']}  +  Time bonus {parts['time_bonus']}"
+                f"  x{parts['multiplier']:g}",
+                True, (150, 165, 190),
+            )
+            surface.blit(detail, (width // 2 - detail.get_width() // 2, 240))
+
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
 
         if self.entering:
@@ -76,13 +90,16 @@ class WinScreen:
             name_text = self.subtitle_font.render(self.name + cursor, True, (255, 230, 150))
             surface.blit(name_text, (width // 2 - name_text.get_width() // 2, 335))
 
-            hint = self.prompt_font.render("Press ENTER to save", True, (pulse, pulse, pulse + 10))
+            hint = self.prompt_font.render(
+                "Press ENTER to save   |   ESC to skip",
+                True, (pulse, pulse, pulse + 10)
+            )
             surface.blit(hint, (width // 2 - hint.get_width() // 2, 395))
         else:
             heading = self.prompt_font.render("TOP SCORES", True, (140, 200, 255))
-            surface.blit(heading, (width // 2 - heading.get_width() // 2, 260))
+            surface.blit(heading, (width // 2 - heading.get_width() // 2, 278))
 
-            y = 295
+            y = 312
             for position, entry in enumerate(self.leaderboard.top(5), start=1):
                 tag = " (co-op)" if entry.get("coop") else ""
                 mine = position == self.rank
@@ -96,7 +113,10 @@ class WinScreen:
                 surface.blit(self.row_font.render(extra, True, color), (left + 310, y))
                 y += 30
 
-            prompt = self.prompt_font.render("Press ESC to quit", True, (pulse, pulse, pulse + 10))
+            prompt = self.prompt_font.render(
+                "R: play again   |   M: menu   |   ESC: quit",
+                True, (pulse, pulse, pulse + 10)
+            )
             surface.blit(prompt, (width // 2 - prompt.get_width() // 2, height - 70))
 
 
@@ -125,7 +145,7 @@ class LoseScreen:
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
         prompt = self.prompt_font.render(
-            "Press R to retry   |   ESC to quit",
+            "R: retry   |   M: menu   |   ESC: quit",
             True, (pulse, 155, 165)
         )
         surface.blit(prompt, (width // 2 - prompt.get_width() // 2, height - 80))

@@ -33,10 +33,15 @@ class Player:
         self.facing_left = False
         self.moving = False
         self.anim_time = 0.0
+        # Sub-pixel part of a step that did not fit in a whole pixel.
+        self._remainder_x = 0.0
+        self._remainder_y = 0.0
 
     def reset_position(self, x, y):
         """Reset the player to the given position."""
         self.rect.topleft = (x, y)
+        self._remainder_x = 0.0
+        self._remainder_y = 0.0
 
     def handle_input(self, keys, dt, blocked=None):
         dx = dy = 0
@@ -63,18 +68,28 @@ class Player:
             dy *= 0.7071
 
         # Move horizontally and resolve collision.
-        move_x = int(dx * self.speed * dt)
+        if dx == 0:
+            self._remainder_x = 0.0
+        self._remainder_x += dx * self.speed * dt
+        move_x = int(self._remainder_x)
+        self._remainder_x -= move_x
         self.rect.x += move_x
 
         if blocked and blocked(self.rect):
             self.rect.x -= move_x
+            self._remainder_x = 0.0
 
         # Move vertically and resolve collision.
-        move_y = int(dy * self.speed * dt)
+        if dy == 0:
+            self._remainder_y = 0.0
+        self._remainder_y += dy * self.speed * dt
+        move_y = int(self._remainder_y)
+        self._remainder_y -= move_y
         self.rect.y += move_y
 
         if blocked and blocked(self.rect):
             self.rect.y -= move_y
+            self._remainder_y = 0.0
 
     def draw(self, surface):
         if self.moving:
