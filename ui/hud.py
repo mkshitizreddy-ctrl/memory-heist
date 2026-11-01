@@ -7,6 +7,8 @@ import math
 
 import pygame
 
+from core.hero_portrait import make_portrait
+
 LEVEL_LABELS = {
     "level1": "Level 1 of 5",
     "level2": "Level 2 of 5",
@@ -15,6 +17,13 @@ LEVEL_LABELS = {
     "level5": "Level 5 of 5",
     "final_vault": "Final Vault",
 }
+
+
+# Ghost (and Echo in co-op) ride in the bar, so every level shows the heroes.
+BADGE_SIZE = 48      # exactly the size of the portrait art: no uneven pixels
+BADGE_GAP = 6
+BADGE_TIMER_MARGIN = 10   # clear space kept before the timer text
+TIMER_SPACE = 130         # width reserved for the timer at the right edge
 
 
 # The timer turns red when this many seconds (or fewer) are left.
@@ -36,8 +45,18 @@ class HUD:
         self.font = pygame.font.Font(None, 26)
         self.small = pygame.font.Font(None, 20)
 
+    def badge_rects(self, width, coop=False):
+        """Where the hero badges go: just left of the timer, Ghost first."""
+        count = 2 if coop else 1
+        right = width - TIMER_SPACE - BADGE_TIMER_MARGIN
+        left = right - count * BADGE_SIZE - (count - 1) * BADGE_GAP
+        return [
+            pygame.Rect(left + i * (BADGE_SIZE + BADGE_GAP), 0, BADGE_SIZE, BADGE_SIZE)
+            for i in range(count)
+        ]
+
     def render(self, surface, level_name, score=0, security_level=0,
-               security_max=100, timer_remaining=None):
+               security_max=100, timer_remaining=None, coop=False, tick=0):
         width = surface.get_width()
 
         # Semi-transparent top bar
@@ -68,6 +87,11 @@ class HUD:
 
         sec_label = self.small.render(f"{security_level}/{security_max}", True, (180, 185, 200))
         surface.blit(sec_label, (bar_x + bar_w + 10, bar_y - 1))
+
+        # Heroes: Ghost, plus Echo in co-op (both blink and pulse with tick).
+        names = ["ghost", "echo"] if coop else ["ghost"]
+        for name, rect in zip(names, self.badge_rects(width, coop)):
+            surface.blit(make_portrait(name, BADGE_SIZE, tick + (15 if name == "echo" else 0)), rect)
 
         # Timer (right side)
         if timer_remaining is not None:

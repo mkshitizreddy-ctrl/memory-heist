@@ -520,6 +520,8 @@ class Game:
                 security_level=self.security.level,
                 security_max=self.security.max_level,
                 timer_remaining=timer_val,
+                coop=self.coop,
+                tick=self._bg_tick,
             )
 
             if self.paused:
