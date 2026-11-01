@@ -5,6 +5,8 @@ Owner: Member 1 - Core Game System
 Sets up the Pygame window and runs the main game loop.
 """
 
+import os
+
 import pygame
 
 from core.player import Player, ARROWS
@@ -30,6 +32,7 @@ from ui.hud import HUD
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
 from systems.music import MusicPlayer
+from levels.floor1_lobby import FloorOneLobby
 from ui.comms import CommsFeed
 from systems.sound_events import SoundEvents
 
@@ -124,10 +127,12 @@ class Game:
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
-        self.level_manager.register(
-            "level1",
-            Level1(player=self.player, game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_NEW_FLOOR1") == "1":
+            # Reference floor on the new kit; Level 1 itself is untouched.
+            level1 = FloorOneLobby(player=self.player, game=self)
+        else:
+            level1 = Level1(player=self.player, game=self)
+        self.level_manager.register("level1", level1)
         self.level_manager.register(
             "level2",
             Level2(player=self.player, game=self)
