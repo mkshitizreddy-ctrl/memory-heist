@@ -28,6 +28,7 @@ from core.story import beat_for
 from core.level_manager import LEVEL_ORDER
 from ui.hud import HUD
 from systems.audio import Audio
+from systems.sound_events import SoundEvents
 
 from systems.scoring import ScoreTracker, final_score
 from systems.timer import Timer
@@ -90,6 +91,7 @@ class Game:
         self.lose_screen = LoseScreen()
         self.hud = HUD()
         self.audio = Audio()
+        self.sounds = SoundEvents(self.audio)
 
         # Player & levels
         self.player = Player(*PLAYER_START_POS)
@@ -282,6 +284,9 @@ class Game:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
+                if event.key != pygame.K_F11 and self.state != "playing":
+                    self.sounds.click()
+
                 if event.key == pygame.K_F11:
                     # Works on every screen and is never forwarded.
                     self._toggle_fullscreen()
@@ -397,6 +402,18 @@ class Game:
         )
 
     def update(self, dt):
+        """Advance one frame, then let the sound effects react to what changed."""
+        self._update(dt)
+        level = self.level_manager.current
+        self.sounds.observe(
+            self.state,
+            self.score.get_score(),
+            self.security.level,
+            self.level_manager.current_name,
+            getattr(level, "gates_passed", 0),
+        )
+
+    def _update(self, dt):
         if self._fade_timer > 0:
             self._fade_timer = max(
                 0.0,
