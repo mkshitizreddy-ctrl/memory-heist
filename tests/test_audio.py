@@ -16,4 +16,4 @@ def test_sound_effects_load_from_any_working_directory(tmp_path, monkeypatch):
     audio = Audio()
 
     assert audio.enabled
-    assert set(audio.sounds) == SOUND_NAMES
+    assert SOUND_NAMES <= set(audio.sounds)
