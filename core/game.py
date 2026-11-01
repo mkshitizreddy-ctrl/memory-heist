@@ -30,6 +30,7 @@ from ui.hud import HUD
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
 from systems.music import MusicPlayer
+from ui.comms import CommsFeed
 from systems.sound_events import SoundEvents
 
 from systems.scoring import ScoreTracker, final_score
@@ -95,6 +96,8 @@ class Game:
         self.atmosphere = Atmosphere((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.audio = Audio(ambient=False)   # MusicPlayer replaces the old drone
         self.music = MusicPlayer(self.audio)
+        self.comms = CommsFeed()
+        self._comms_fonts = None            # built on the first frame it is drawn
         self.sounds = SoundEvents(self.audio)
 
         # Player & levels
@@ -423,6 +426,15 @@ class Game:
             self.security.max_level,
         )
         self.music.update(dt, self.state, self.level_manager.current_name, alert)
+        self.comms.observe(
+            self.state,
+            self.level_manager.current_name,
+            self.security.level,
+            self.security.max_level,
+            getattr(level, "gates_passed", 0),
+        )
+        if not self.paused:
+            self.comms.update(dt)
 
     def _update(self, dt):
         if self._fade_timer > 0:
@@ -547,6 +559,10 @@ class Game:
                 coop=self.coop,
                 tick=self._bg_tick,
             )
+
+            if self._comms_fonts is None:
+                self._comms_fonts = (pygame.font.Font(None, 22), pygame.font.Font(None, 24))
+            self.comms.draw(self.screen, *self._comms_fonts)
 
             if self.paused:
                 overlay, pause_font = self._get_pause_assets()
