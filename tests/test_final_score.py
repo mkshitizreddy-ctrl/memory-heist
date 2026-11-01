@@ -111,10 +111,13 @@ def test_win_screen_shows_the_final_score_and_breakdown(game):
     screen.subtitle_font = RecordingFont(screen.subtitle_font)
     screen.row_font = RecordingFont(screen.row_font)
     screen.prompt_font = RecordingFont(screen.prompt_font)
+    screen.big_font = RecordingFont(screen.big_font)
+    screen.caption_font = RecordingFont(screen.caption_font)
 
     game.render()
 
     texts = screen.subtitle_font.texts + screen.row_font.texts + screen.prompt_font.texts
-    assert "Final Score: 375" in texts
+    assert "375" in screen.big_font.texts           # the big score number
+    assert "FINAL SCORE" in screen.caption_font.texts
     joined = " ".join(texts)
     assert "Base 100" in joined and "Time bonus 200" in joined and "x1.25" in joined
