@@ -172,3 +172,25 @@ class DialogueBox:
                 break
             surface.blit(font.render(line, True, theme.PAPER), (rect.x + theme.PAD, y))
             y += font.get_linesize()
+
+
+def blit_centered(surface, image, centre):
+    """Blit an image so its middle sits on `centre`; returns the rect used."""
+    rect = image.get_rect(center=centre)
+    surface.blit(image, rect)
+    return rect
+
+
+def draw_chip(surface, rect, text, font, fg=theme.PAPER, fill=theme.NAVY,
+              border=theme.SLATE, filled=False):
+    """A rounded label. `filled` swaps to a solid accent chip with dark text."""
+    rect = pygame.Rect(rect)
+    if filled:
+        pygame.draw.rect(surface, border, rect, border_radius=rect.height // 2)
+        fg = theme.INK
+    else:
+        pygame.draw.rect(surface, fill, rect, border_radius=rect.height // 2)
+        pygame.draw.rect(surface, border, rect, width=2, border_radius=rect.height // 2)
+    blit_centered(surface, font.render(text, True, fg), rect.center)
+    return rect
+
