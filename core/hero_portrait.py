@@ -125,7 +125,7 @@ def _draw_echo(g, tick, blink):
     pygame.draw.rect(g, (190, 100, 100), (22, 22, 4, 1))
 
 
-def _draw_warden(g, tick):
+def _draw_warden(g, tick, alert=False):
     cx = cy = GRID // 2
     # Hexagonal housing with two antennae.
     hexagon = [
@@ -146,7 +146,7 @@ def _draw_warden(g, tick):
         pygame.draw.rect(g, (200, 90, 90), (round(x) - 1, round(y) - 1, 2, 2))
 
     # Ring of marks that slowly turns.
-    spin = tick * 0.03
+    spin = tick * (0.12 if alert else 0.03)
     for i in range(12):
         angle = spin + i * math.pi / 6
         x = round(cx + 17 * math.cos(angle))
@@ -154,7 +154,7 @@ def _draw_warden(g, tick):
         pygame.draw.rect(g, (230, 60, 60) if i % 3 == 0 else (130, 30, 40), (x - 1, y - 1, 2, 2))
 
     # Eye: iris layers, a pupil that looks around, and a glint.
-    look = round(5 * math.sin(tick * 0.03))
+    look = round(6 * math.sin(tick * 0.18)) if alert else round(5 * math.sin(tick * 0.03))
     pygame.draw.circle(g, (60, 8, 16), (cx, cy), 13)
     pygame.draw.circle(g, (150, 12, 22), (cx, cy), 11)
     pygame.draw.circle(g, (214, 32, 40), (cx, cy), 8)
@@ -166,8 +166,11 @@ def _draw_warden(g, tick):
     pygame.draw.rect(g, (255, 210, 200), (cx + look - 2, cy - 2, 1, 1))
 
 
-def make_portrait(name, size, tick=0):
-    """Return a size x size SRCALPHA portrait of `name`; tick drives the animation."""
+def make_portrait(name, size, tick=0, alert=False):
+    """Return a size x size SRCALPHA portrait of `name`; tick drives the animation.
+
+    alert only affects WARDEN: faster eye and ring, quicker glow (it is "speaking").
+    """
     if name not in CHARACTERS:
         raise ValueError(f"Unknown character: {name!r}")
 
@@ -178,12 +181,12 @@ def make_portrait(name, size, tick=0):
     elif name == "echo":
         _draw_echo(grid, tick, blink)
     else:
-        _draw_warden(grid, tick)
+        _draw_warden(grid, tick, alert)
     figure = pygame.transform.scale(grid, (size, size))  # nearest neighbour
 
     unit = size / GRID
     color = GLOW[name]
-    pulse = _pulse(tick)
+    pulse = _pulse(tick * 2.5 if alert and name == "warden" else tick)
 
     # Soft halo behind the figure, drawn under it so the edges stay crisp.
     halo = pygame.Surface((size, size), pygame.SRCALPHA)

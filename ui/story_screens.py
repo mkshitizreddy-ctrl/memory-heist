@@ -13,6 +13,13 @@ import math
 import pygame
 
 from core.hero_portrait import make_portrait
+from ui.cutscene_fx import (
+    DataStreams,
+    draw_glitch,
+    draw_scanlines,
+    open_flicker,
+    periodic_glitch,
+)
 from levels.common import draw_cyber_background, draw_glow_text, GREEN, GREY
 
 PORTRAIT_SIZE = 128
@@ -31,6 +38,8 @@ class StoryScreen:
         self.map_font = pygame.font.Font(None, 24)
         self.label_font = pygame.font.Font(None, 24)
         self.tick = 0
+        self.age = 0.0
+        self.streams = DataStreams(960, 640)
         self.begin({"title": "", "lines": []})
 
     def begin(self, beat, coop=False, progress=None):
@@ -48,6 +57,7 @@ class StoryScreen:
         self.done = False
         self.typing_done = self._total() == 0
         self._clock = 0.0
+        self.age = 0.0
 
     def _total(self):
         return sum(len(line) for line in self.lines)
@@ -56,12 +66,22 @@ class StoryScreen:
         return min(self._total(), int(self._clock))
 
     def update(self, dt):
-        """Advance the typewriter."""
+        """Advance the typewriter, the card clock and the background streams."""
+        self.age += dt
+        self.streams.update(dt)
         if self.done or self.typing_done:
             return
         self._clock += dt * self.CHARS_PER_SECOND
         if self._revealed() >= self._total():
             self.typing_done = True
+
+    def flicker(self):
+        """1.0 just after the card opens, fading to 0 (drives the glitch)."""
+        return open_flicker(self.age)
+
+    def warden_alert(self):
+        """WARDEN's eye is alert only while its card is still typing."""
+        return self.warden and not self.typing_done
 
     def visible_lines(self):
         """The lines typed so far, the last one possibly partial."""
@@ -124,6 +144,9 @@ class StoryScreen:
         self.tick += 1
         width, height = surface.get_size()
         draw_cyber_background(surface, self.tick)
+        if self.streams.width != width or self.streams.height != height:
+            self.streams = DataStreams(width, height)
+        self.streams.draw(surface)
 
         draw_glow_text(surface, self.title_font, self.title, (width // 2, 60), color=GREEN)
 
@@ -140,7 +163,7 @@ class StoryScreen:
 
         # WARDEN watches from the top-right corner on every card but the ending.
         if self.warden:
-            eye = make_portrait("warden", WARDEN_SIZE, self.tick)
+            eye = make_portrait("warden", WARDEN_SIZE, self.tick, alert=self.warden_alert())
             corner = (width - WARDEN_SIZE - 40, top + 5)
             surface.blit(eye, corner)
             name = self.label_font.render("WARDEN", True, WARDEN_RED)
@@ -171,3 +194,8 @@ class StoryScreen:
         )
         hint = self.hint_font.render(text, True, (pulse, pulse, pulse + 10))
         surface.blit(hint, (width // 2 - hint.get_width() // 2, height - 70))
+
+        # Screen effects go last so they cover the whole card.
+        draw_scanlines(surface, self.tick)
+        glitch = max(self.flicker(), periodic_glitch(self.tick) if self.warden else 0.0)
+        draw_glitch(surface, self.tick, glitch)
