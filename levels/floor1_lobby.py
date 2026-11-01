@@ -71,6 +71,7 @@ BIN_ROW = 4
 EXIT_ROWS = (9, 10, 11)
 DUST_EVERY = 0.12               # seconds between footstep puffs while walking
 DUST_LIFE = 0.45
+STEP_EVERY = 0.32                       # seconds between footstep sounds
 
 
 def type_name(value):
@@ -197,6 +198,7 @@ class FloorOneLobby:
         self.lamps = [0.0] * GATES
         self.sparks = []
         self.dust = []
+        self._step_clock = {}
         self._dust_clock = {}
         self.time = 0.0
 
@@ -253,6 +255,7 @@ class FloorOneLobby:
         self.carried[id(player)] = best
         self._sync_carried()
         self.crate_pop.trigger(0.35)
+        self._sfx("pickup")
         self._say(f"Got {display(best.value)}. Which bin?", theme.PAPER)
 
     def _put_down(self, player, crate):
@@ -265,6 +268,7 @@ class FloorOneLobby:
         crate.rect = spot
         crate.carrier = None
         del self.carried[id(player)]
+        self._sfx("drop")
 
     def _drop_in_bin(self, player, crate, bin_type):
         del self.carried[id(player)]
@@ -298,9 +302,28 @@ class FloorOneLobby:
         if self.sorted_count >= GATES * CRATES_PER_GATE and self.door_tween is None \
                 and self.door_open < 1.0:
             self.door_tween = Tween(0.0, 1.0, 0.8, ease_out_cubic)
+            self._sfx("door")
             self._say("Badge reader online. The exit is open.", theme.GOLD)
 
     # --- helpers --------------------------------------------------------
+    def _sfx(self, name):
+        """Play a sound effect if the game has audio (tests and previews may not)."""
+        audio = getattr(self.game, "audio", None)
+        if audio is not None:
+            audio.play(name)
+
+    def _update_steps(self, dt):
+        for player, _ in self._players():
+            clock = self._step_clock.get(id(player), 0.0)
+            if getattr(player, "moving", False):
+                clock += dt
+                if clock >= STEP_EVERY:
+                    clock = 0.0
+                    self._sfx("step")
+            else:
+                clock = STEP_EVERY * 0.6      # the first step after standing still is quick
+            self._step_clock[id(player)] = clock
+
     def _say(self, text, tone):
         self.message, self.message_tone, self._message_age = text, tone, 0.0
 
@@ -336,6 +359,7 @@ class FloorOneLobby:
             s["life"] -= dt
         self.sparks = [s for s in self.sparks if s["life"] > 0]
         self._update_dust(dt)
+        self._update_steps(dt)
         for i in range(GATES):
             target = 1.0 if i < self.gates_passed else 0.0
             self.lamps[i] += (target - self.lamps[i]) * min(1.0, dt * 8)

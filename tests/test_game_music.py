@@ -34,7 +34,7 @@ def run(g, seconds=3.0):
 
 def test_old_drone_is_gone_but_effects_still_load(game):
     assert game.audio.ambient_channel is None
-    assert set(game.audio.sounds) == {"correct", "wrong", "unlock", "click"}
+    assert {"correct", "wrong", "unlock", "click"} <= set(game.audio.sounds)
 
 
 def test_audio_default_still_starts_drone_for_other_callers():

@@ -63,9 +63,23 @@ class Audio:
                 if not loaded:
                     print(f"  ✗ could not load {name}")
 
+        self._load_generated_sfx()
         self.ambient_channel = None
         if ambient:
             self._start_ambient()
+
+    def _load_generated_sfx(self):
+        """Add the procedural effects (pickup/drop/step/door), unless a file of
+        the same name already exists."""
+        if not NUMPY_AVAILABLE:
+            return
+        try:
+            from systems.sfx import SFX_NAMES, synth_sfx, to_int16_stereo
+            for name in SFX_NAMES:
+                if name not in self.sounds:
+                    self.sounds[name] = pygame.sndarray.make_sound(to_int16_stereo(synth_sfx(name)))
+        except (pygame.error, ValueError) as e:
+            print("Generated sound effects unavailable:", e)
 
     def _make_ambient_loop(self):
         """Synthesize a 4-second seamless ambient drone (no external file)."""
