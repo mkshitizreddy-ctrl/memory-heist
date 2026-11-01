@@ -104,11 +104,11 @@ class Game:
         self.sounds = SoundEvents(self.audio)
 
         # Player & levels
-        self.player = Player(*PLAYER_START_POS)
+        self.player = Player(*PLAYER_START_POS, palette="ghost")
         self.player2 = Player(
             *PLAYER2_START_POS,
             controls=ARROWS,
-            palette="orange",
+            palette="echo",
         )
         self.coop = False
         self.level_manager = LevelManager(self)

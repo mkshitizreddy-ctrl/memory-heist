@@ -7,6 +7,7 @@ Player position, movement (WASD or arrow keys), and collision response.
 
 import pygame
 
+from core.hero_sprites import HEROES, make_hero_frames
 from entities.sprites import make_player_frames
 
 WASD = {
@@ -29,7 +30,11 @@ class Player:
         self.rect = pygame.Rect(x, y, 32, 32)
         self.speed = speed
         self.controls = controls or WASD
-        self.frames = make_player_frames(palette)
+        # 'ghost' / 'echo' are the story heroes; older palette names still work.
+        if palette in HEROES:
+            self.frames = make_hero_frames(palette)
+        else:
+            self.frames = make_player_frames(palette)
         self.facing_left = False
         self.moving = False
         self.anim_time = 0.0
