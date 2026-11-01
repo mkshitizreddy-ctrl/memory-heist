@@ -91,6 +91,7 @@ def test_escape_that_unpauses_is_not_forwarded(game, received, monkeypatch):
 # --- a finished game must stay finished ------------------------------------
 
 def test_win_is_not_overwritten_by_lose_on_the_same_frame(game):
+    game.story_enabled = False  # with the story on, the ending card shows first
     game.change_state("playing")
     game.level_manager.start("final_vault")
     game.level_manager.current.complete = True

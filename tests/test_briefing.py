@@ -127,7 +127,7 @@ def test_the_clock_is_frozen_on_a_level_briefing(playing):
     assert playing.timer.get_remaining() == before
 
 
-def test_every_level_gets_its_own_briefing_and_the_last_one_wins(playing):
+def test_every_level_gets_its_own_briefing_and_the_last_one_ends_the_run(playing):
     for index, name in enumerate(LEVEL_ORDER[1:], start=1):
         finish_level(playing)
         assert playing.state == "briefing"
@@ -138,6 +138,8 @@ def test_every_level_gets_its_own_briefing_and_the_last_one_wins(playing):
 
     finish_level(playing)  # the Final Vault
 
+    assert playing.state == "outro"  # the ending card, then the win screen
+    close_card(playing)
     assert playing.state == "win"
 
 

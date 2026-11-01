@@ -194,6 +194,20 @@ class Game:
         self._fade_timer = 0.0
         self.change_state("briefing")
 
+    def _open_outro(self):
+        """Show the ending card with every level marked done."""
+        total = len(LEVEL_ORDER)
+        self.story_screen.begin(
+            beat_for("outro"), coop=self.coop, progress=(total, total)
+        )
+        self._fade_timer = 0.0
+        # Not change_state: that would restart the win screen and its score.
+        self.state = "outro"
+
+    def _end_outro(self):
+        """On to the win screen."""
+        self.state = "win"
+
     def _end_briefing(self):
         """Back to the level, fading in."""
         self.change_state("playing")
@@ -204,6 +218,8 @@ class Game:
         if self.state == "intro":
             self._start_new_run()
             self._open_briefing("level1")
+        elif self.state == "outro":
+            self._end_outro()
         else:
             self._end_briefing()
 
@@ -211,6 +227,8 @@ class Game:
         """ESC on a story card: skip it (and, from the intro, the whole story)."""
         if self.state == "intro":
             self._start_new_run()
+        elif self.state == "outro":
+            self._end_outro()
         else:
             self._end_briefing()
 
@@ -274,7 +292,7 @@ class Game:
                         self.paused = not self.paused
                         # The toggle is consumed here, never forwarded.
                         continue
-                    elif self.state in ("intro", "briefing"):
+                    elif self.state in ("intro", "briefing", "outro"):
                         # Skip the story instead of quitting.
                         self.story_screen.skip()
                         self._skip_story()
@@ -313,7 +331,7 @@ class Game:
                         # The key must not reach the menu it opens.
                         continue
 
-            if self.state in ("intro", "briefing"):
+            if self.state in ("intro", "briefing", "outro"):
                 self.story_screen.handle_event(event)
                 if self.story_screen.done:
                     self._leave_story()
@@ -385,7 +403,7 @@ class Game:
                 self._fade_timer - dt
             )
 
-        if self.state in ("intro", "briefing"):
+        if self.state in ("intro", "briefing", "outro"):
             # Story cards only type their text; the run clock stays frozen.
             self.story_screen.update(dt)
             return
@@ -424,6 +442,12 @@ class Game:
         # Detect level changes
         self._handle_level_change()
 
+        # The final level just ended the run: show the ending card before
+        # the win screen (whose score was already fixed by the win).
+        if self.state == "win" and self.story_enabled:
+            self._open_outro()
+            return
+
         # The level may have just ended the run (win). Do not let the
         # timer or security checks below overwrite that this frame.
         if self.state != "playing":
@@ -453,7 +477,7 @@ class Game:
         if self.state == "menu":
             self.menu.render(self.screen)
 
-        elif self.state in ("intro", "briefing"):
+        elif self.state in ("intro", "briefing", "outro"):
             self.story_screen.render(self.screen)
 
         elif self.state == "playing":
