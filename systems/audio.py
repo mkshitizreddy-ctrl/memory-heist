@@ -35,6 +35,9 @@ class Audio:
             self.mixer_ready = False
             self.sounds = {}
             self.ambient_channel = None
+            self.music_volume = 1.0
+            self.sfx_volume = 1.0
+            self._base_volume = {}
             return
 
         self.sounds = {}
@@ -64,6 +67,9 @@ class Audio:
                     print(f"  ✗ could not load {name}")
 
         self._load_generated_sfx()
+        self.music_volume = 1.0
+        self.sfx_volume = 1.0
+        self._base_volume = {}
         self.ambient_channel = None
         if ambient:
             self._start_ambient()
@@ -113,7 +119,23 @@ class Audio:
 
     def play(self, name: str):
         if self.enabled and name in self.sounds:
-            self.sounds[name].play()
+            sound = self.sounds[name]
+            base = self._base_volume.setdefault(name, sound.get_volume())
+            sound.set_volume(base * self.sfx_volume)
+            sound.play()
+
+    def apply_settings(self, settings):
+        """Use the player's volumes and mute switch (works even with no mixer)."""
+        self.music_volume = settings.music
+        self.sfx_volume = settings.sfx
+        if not self.mixer_ready:
+            return
+        self.enabled = not settings.muted
+        if self.ambient_channel:
+            if self.enabled:
+                self.ambient_channel.unpause()
+            else:
+                self.ambient_channel.pause()
 
     def toggle(self):
         if not self.mixer_ready:

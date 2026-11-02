@@ -32,7 +32,7 @@ class PauseOverlay:
                 for i in range(3)]
 
     def resume_chip(self):
-        chip = pygame.Rect(0, 0, 300, 44)
+        chip = pygame.Rect(0, 0, 380, 44)
         chip.midbottom = (self.panel.centerx, self.panel.bottom - 24)
         return chip
 
@@ -60,5 +60,5 @@ class PauseOverlay:
                           (slot.centerx, slot.y + 42))
 
         pulse = 0.5 + 0.5 * abs((tick % 60) - 30) / 30
-        draw_chip(surface, self.resume_chip(), "ESC: resume", self.chip_font,
+        draw_chip(surface, self.resume_chip(), "ESC: resume   |   S: settings", self.chip_font,
                   fg=theme.mix(theme.TEAL, theme.PAPER, 0.5 * pulse), border=theme.TEAL)

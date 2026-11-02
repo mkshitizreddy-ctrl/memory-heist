@@ -187,9 +187,10 @@ class MusicPlayer:
         mix = mix_for(state, level_name, alert)
         step = FADE_PER_SECOND * max(0.0, dt)
         muted = not getattr(self.audio, "enabled", True)
+        scale = getattr(self.audio, "music_volume", 1.0)
         for voice in list(self.voices):
             if voice.key == self.key:
-                voice.target = 0.0 if muted else mix[voice.stem] * MASTER
+                voice.target = 0.0 if muted else mix[voice.stem] * MASTER * scale
             voice.volume = approach(voice.volume, voice.target, step)
             voice.channel.set_volume(voice.volume)
             if voice.key != self.key and voice.volume <= 0.0:

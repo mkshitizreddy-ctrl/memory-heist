@@ -66,7 +66,9 @@ class MainMenu:
         coop.midtop = (cx, chips[0].bottom + 14)
         start = pygame.Rect(0, 0, 340, 46)
         start.midtop = (cx, coop.bottom + 22)
-        return {"panel": panel, "chips": chips, "coop": coop, "start": start,
+        hint = pygame.Rect(0, 0, 420, 24)
+        hint.midtop = (cx, start.bottom + 14)
+        return {"panel": panel, "chips": chips, "coop": coop, "start": start, "hint": hint,
                 "heroes": [pygame.Rect(cx - 370, 30, PORTRAIT_SIZE, PORTRAIT_SIZE),
                            pygame.Rect(cx + 370 - PORTRAIT_SIZE, 30, PORTRAIT_SIZE, PORTRAIT_SIZE)]}
 
@@ -130,6 +132,8 @@ class MainMenu:
         blit_centered(surface, self.prompt_font.render("Press ENTER to start", True,
                                                        theme.mix(theme.TEAL, theme.PAPER, 0.6)),
                       start.center)
+        blit_centered(surface, self.control_font.render(
+            "S: settings   |   F11: fullscreen", True, theme.MIST), lay["hint"].center)
 
     def handle_click(self, pos):
         pass

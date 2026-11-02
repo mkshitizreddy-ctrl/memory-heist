@@ -29,7 +29,9 @@ from ui.story_screens import StoryScreen
 from core.story import beat_for
 from core.level_manager import LEVEL_ORDER
 from core.floor_stats import floor_summary, snapshot
+from systems.settings import Settings
 from ui.hud import HUD
+from ui.settings_screen import SettingsScreen
 from ui.overlays import PauseOverlay
 from ui.transitions import ElevatorWipe
 from ui.atmosphere import Atmosphere, mood_for
@@ -108,6 +110,12 @@ class Game:
         self.atmosphere = Atmosphere((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.audio = Audio(ambient=False)   # MusicPlayer replaces the old drone
         self.music = MusicPlayer(self.audio)
+        self.settings = Settings.load()
+        self.audio.apply_settings(self.settings)
+        self.settings_screen = SettingsScreen(
+            self.settings, on_change=self._settings_changed,
+            size=(SCREEN_WIDTH, SCREEN_HEIGHT),
+        )
         self.comms = CommsFeed()
         self._comms_fonts = None            # built on the first frame it is drawn
         self.sounds = SoundEvents(self.audio)
@@ -325,10 +333,24 @@ class Game:
         except pygame.error:
             pass
 
+    def _settings_changed(self, kind):
+        """Apply a settings change live; effects get a sample blip to judge by."""
+        self.audio.apply_settings(self.settings)
+        if kind == "sfx":
+            self.audio.play("pickup")
+
+    def _can_open_settings(self):
+        return self.state == "menu" or (self.state == "playing" and self.paused)
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+
+            elif not self.settings_screen.closed:
+                # The settings panel owns the keyboard and mouse while it is open.
+                self.settings_screen.handle_event(event)
+                continue
 
             elif event.type == pygame.KEYDOWN:
                 if event.key != pygame.K_F11 and self.state != "playing":
@@ -337,6 +359,10 @@ class Game:
                 if event.key == pygame.K_F11:
                     # Works on every screen and is never forwarded.
                     self._toggle_fullscreen()
+                    continue
+
+                elif event.key == pygame.K_s and self._can_open_settings():
+                    self.settings_screen.open()
                     continue
 
                 elif event.key == pygame.K_ESCAPE:
@@ -629,6 +655,8 @@ class Game:
 
         if self.state != "playing":
             self._apply_mood()
+
+        self.settings_screen.draw(self.screen, self._bg_tick)
 
         # Elevator doors open after a level change.
         if self._fade_timer > 0:
