@@ -28,6 +28,7 @@ from ui.screens import WinScreen, LoseScreen
 from ui.story_screens import StoryScreen
 from core.story import beat_for
 from core.level_manager import LEVEL_ORDER
+from core.floor_stats import floor_summary, snapshot
 from ui.hud import HUD
 from ui.overlays import PauseOverlay
 from ui.transitions import ElevatorWipe
@@ -63,9 +64,15 @@ class DifficultySecurityMeter(SecurityMeter):
     def __init__(self, max_level=100):
         super().__init__(max_level=max_level)
         self.penalty_multiplier = 1.0
+        self.mistakes = 0          # how many times security was raised this run
+
+    def reset(self):
+        super().reset()
+        self.mistakes = 0
 
     def increase(self, amount=20):
         """Scale a base security increase before applying it."""
+        self.mistakes += 1
         adjusted_amount = round(amount * self.penalty_multiplier)
         super().increase(adjusted_amount)
 
@@ -127,6 +134,7 @@ class Game:
         # Built on the first paused frame (see _get_pause_assets).
         self._pause_assets = None
         self._wipe = ElevatorWipe()
+        self._floor_snap = None     # score, time and mistakes when the floor began
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -189,16 +197,38 @@ class Game:
         current_name = self.level_manager.current_name
 
         if current_name != self._last_level_name:
+            previous = self._last_level_name
             self._last_level_name = current_name
+            cleared = None
+            if self._is_next_floor(previous, current_name):
+                cleared = self._floor_summary(previous)
+            self._floor_snap = self._take_snapshot()
             self._fade_timer = FADE_DURATION
             # No level places the players itself, so without this a level
             # starts wherever the previous one left them.
             self._reset_player_position()
             # Never cover a win or loss that happened on the same frame.
             if self.state == "playing":
-                self._open_briefing(current_name)
+                self._open_briefing(current_name, cleared=cleared)
 
-    def _open_briefing(self, level_name):
+    @staticmethod
+    def _is_next_floor(previous, current):
+        """True when `current` is the floor right after `previous` (a real clear)."""
+        if previous not in LEVEL_ORDER or current not in LEVEL_ORDER:
+            return False
+        return LEVEL_ORDER.index(current) == LEVEL_ORDER.index(previous) + 1
+
+    def _take_snapshot(self):
+        return snapshot(
+            self.score.get_score(),
+            self.timer.get_remaining() if self.timer.active else 0,
+            getattr(self.security, "mistakes", 0),
+        )
+
+    def _floor_summary(self, name):
+        return floor_summary(name, self._floor_snap, self._take_snapshot())
+
+    def _open_briefing(self, level_name, cleared=None):
         """Show the story card for a level and freeze the run clock on it."""
         beat = beat_for(level_name)
         if not self.story_enabled or beat is None:
@@ -207,6 +237,7 @@ class Game:
             beat,
             coop=self.coop,
             progress=(LEVEL_ORDER.index(level_name), len(LEVEL_ORDER)),
+            cleared=cleared,
         )
         self._fade_timer = 0.0
         self.change_state("briefing")
@@ -215,7 +246,8 @@ class Game:
         """Show the ending card with every level marked done."""
         total = len(LEVEL_ORDER)
         self.story_screen.begin(
-            beat_for("outro"), coop=self.coop, progress=(total, total)
+            beat_for("outro"), coop=self.coop, progress=(total, total),
+            cleared=self._floor_summary(self.level_manager.current_name),
         )
         self._fade_timer = 0.0
         # Not change_state: that would restart the win screen and its score.
@@ -660,4 +692,5 @@ class Game:
 
         self.change_state("playing")
         self._last_level_name = self.level_manager.current_name
+        self._floor_snap = self._take_snapshot()
         self._fade_timer = 0.0

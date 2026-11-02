@@ -21,6 +21,9 @@ from ui.cutscene_fx import (
     periodic_glitch,
 )
 from levels.common import draw_cyber_background, draw_glow_text, GREEN, GREY
+from core.floor_stats import MAX_STARS, format_duration
+from ui import theme
+from ui.kit import blit_centered, draw_panel
 
 PORTRAIT_SIZE = 128
 WARDEN_SIZE = 110
@@ -37,18 +40,20 @@ class StoryScreen:
         self.hint_font = pygame.font.Font(None, 26)
         self.map_font = pygame.font.Font(None, 24)
         self.label_font = pygame.font.Font(None, 24)
+        self.stat_font = pygame.font.Font(None, 22)
         self.tick = 0
         self.age = 0.0
         self.streams = DataStreams(960, 640)
         self.begin({"title": "", "lines": []})
 
-    def begin(self, beat, coop=False, progress=None):
+    def begin(self, beat, coop=False, progress=None, cleared=None):
         """Start a card from a story beat; coop shows both thieves.
 
         progress is (current level index, number of levels) and adds the
         route map; leave it out for cards that are not about a level.
         """
         self.progress = progress
+        self.cleared = cleared      # summary of the floor just finished, or None
         self.title = beat["title"]
         self.lines = list(beat["lines"])
         self.concept = beat.get("concept")
@@ -140,6 +145,49 @@ class StoryScreen:
             image = self.map_font.render(label, True, ink)
             surface.blit(image, image.get_rect(center=center))
 
+    CLEARED_RECT = pygame.Rect(40, 105, 250, 150)
+
+    @staticmethod
+    def star_points(centre, radius):
+        """Ten points of a five-pointed star, point up."""
+        cx, cy = centre
+        pts = []
+        for i in range(10):
+            ang = -math.pi / 2 + i * math.pi / 5
+            r = radius if i % 2 == 0 else radius * 0.42
+            pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
+        return pts
+
+    def _draw_cleared(self, surface):
+        """A compact panel for the floor just finished: stars, points, time, mistakes."""
+        info = self.cleared
+        palette = theme.floor_palette(info["name"])
+        accent = palette["accent"]
+        rect = draw_panel(surface, self.CLEARED_RECT,
+                          fill=theme.mix(theme.INK, theme.NAVY, 0.6), border=accent)
+        blit_centered(surface, self.label_font.render("FLOOR CLEARED", True, accent),
+                      (rect.centerx, rect.y + 16))
+        blit_centered(surface, self.stat_font.render(palette["name"].upper(), True, theme.MIST),
+                      (rect.centerx, rect.y + 34))
+        for i in range(MAX_STARS):
+            centre = (rect.centerx + (i - 1) * 36, rect.y + 62)
+            pts = self.star_points(centre, 14)
+            if i < info["stars"]:
+                pygame.draw.polygon(surface, theme.GOLD, pts)
+            else:
+                pygame.draw.polygon(surface, theme.SLATE, pts, 2)
+        sign = "+" if info["points"] >= 0 else ""
+        rows = [("POINTS", f"{sign}{info['points']}", theme.SKY),
+                ("TIME", format_duration(info["seconds"]), theme.GOLD),
+                ("MISTAKES", str(info["mistakes"]),
+                 theme.TEAL if info["mistakes"] == 0 else theme.CORAL)]
+        y = rect.y + 88
+        for caption, value, colour in rows:
+            surface.blit(self.stat_font.render(caption, True, theme.MIST), (rect.x + 18, y))
+            val = self.stat_font.render(value, True, colour)
+            surface.blit(val, (rect.right - 18 - val.get_width(), y))
+            y += 19
+
     def render(self, surface):
         self.tick += 1
         width, height = surface.get_size()
@@ -160,6 +208,9 @@ class StoryScreen:
         else:
             ghost = make_portrait("ghost", PORTRAIT_SIZE, self.tick)
             surface.blit(ghost, (width // 2 - PORTRAIT_SIZE // 2, top))
+
+        if self.cleared:
+            self._draw_cleared(surface)
 
         # WARDEN watches from the top-right corner on every card but the ending.
         if self.warden:
