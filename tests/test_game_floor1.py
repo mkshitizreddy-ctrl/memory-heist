@@ -1,4 +1,4 @@
-"""MEMORY_HEIST_NEW_FLOOR1=1 plays the reference floor in place of Level 1."""
+"""Floor 1 (the reception lobby) is Level 1; MEMORY_HEIST_OLD_LEVEL1=1 brings back the old one."""
 
 import os
 
@@ -21,32 +21,33 @@ def cleanup():
     pygame.mixer.set_reserved(0)
 
 
-def make(monkeypatch, flag):
-    if flag is None:
-        monkeypatch.delenv("MEMORY_HEIST_NEW_FLOOR1", raising=False)
+def make(monkeypatch, old_level1=None):
+    """A game; `old_level1` is the value of MEMORY_HEIST_OLD_LEVEL1 (None = unset)."""
+    if old_level1 is None:
+        monkeypatch.delenv("MEMORY_HEIST_OLD_LEVEL1", raising=False)
     else:
-        monkeypatch.setenv("MEMORY_HEIST_NEW_FLOOR1", flag)
-    g = Game()
-    return g
+        monkeypatch.setenv("MEMORY_HEIST_OLD_LEVEL1", old_level1)
+    return Game()
 
 
-def test_default_still_uses_the_original_level_1(monkeypatch):
-    g = make(monkeypatch, None)
-    assert isinstance(g.level_manager.levels["level1"], Level1)
-    g.music.stop()
-
-
-def test_flag_swaps_in_the_reference_floor_only_when_exactly_1(monkeypatch):
-    g = make(monkeypatch, "0")
-    assert isinstance(g.level_manager.levels["level1"], Level1)
-    g.music.stop()
-    g = make(monkeypatch, "1")
+def test_default_level_1_is_the_reception_lobby(monkeypatch):
+    g = make(monkeypatch)
     assert isinstance(g.level_manager.levels["level1"], FloorOneLobby)
     g.music.stop()
 
 
-def test_reference_floor_runs_inside_the_real_game_loop(monkeypatch):
+def test_the_old_level_1_comes_back_only_when_the_switch_is_exactly_1(monkeypatch):
+    for value in ("0", "", "true", "yes"):
+        g = make(monkeypatch, value)
+        assert isinstance(g.level_manager.levels["level1"], FloorOneLobby), value
+        g.music.stop()
     g = make(monkeypatch, "1")
+    assert isinstance(g.level_manager.levels["level1"], Level1)
+    g.music.stop()
+
+
+def test_reference_floor_runs_inside_the_real_game_loop(monkeypatch):
+    g = make(monkeypatch)
     g.story_enabled = False
     g.level_manager.start("level1")
     g._last_level_name = "level1"
@@ -65,7 +66,7 @@ def test_reference_floor_runs_inside_the_real_game_loop(monkeypatch):
 
 
 def test_wrong_sort_in_the_real_game_raises_security_and_warden_speaks(monkeypatch):
-    g = make(monkeypatch, "1")
+    g = make(monkeypatch)
     g.story_enabled = False
     g.level_manager.start("level1")
     g._last_level_name = "level1"
@@ -88,7 +89,7 @@ def test_wrong_sort_in_the_real_game_raises_security_and_warden_speaks(monkeypat
 
 
 def test_finishing_the_reference_floor_advances_to_level_2(monkeypatch):
-    g = make(monkeypatch, "1")
+    g = make(monkeypatch)
     g.story_enabled = False
     g.level_manager.start("level1")
     g._last_level_name = "level1"
@@ -97,3 +98,12 @@ def test_finishing_the_reference_floor_advances_to_level_2(monkeypatch):
     g.update(1 / 60)
     assert g.level_manager.current_name == "level2"
     g.music.stop()
+
+
+def test_the_level_1_briefing_describes_the_lobby_not_the_old_gate():
+    from core.story import beat_for
+    beat = beat_for("level1")
+    text = " ".join([beat["title"], *beat["lines"]]).lower()
+    assert "lobby" in beat["title"].lower() and "crate" in text and "bin" in text
+    assert "gate checks" not in text and "clearance" not in text
+    assert beat["concept"] == "Data types"

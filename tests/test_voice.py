@@ -486,7 +486,6 @@ def test_a_story_card_is_voiced_in_the_real_game(game):
 
 
 def test_floor_one_npcs_are_voiced_in_the_real_game(monkeypatch):
-    monkeypatch.setenv("MEMORY_HEIST_NEW_FLOOR1", "1")
     g = Game()
     try:
         g.story_enabled = False

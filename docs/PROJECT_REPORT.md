@@ -1092,7 +1092,7 @@ Systems that need to react to the game (sound effects, music, mood colouring, th
 1. **Sound and music are generated, not downloaded.** No royalty-free music file was available, and every outside file is a licensing question. The music and effects are short numpy waveforms, so the repository stays small and nothing needs credit. The cost is a simpler sound than recorded music.
 2. **The tile map is our own, under 200 lines.** The usual library (pyscroll) is GPL-licensed, which would force the whole project under the same licence. The game only needs solid tiles, a camera and drawing, so writing it was cheaper than the licence question.
 3. **Teammates' levels were restyled, not rewritten.** Levels 3 and 4 in particular had a lot of debugged behaviour. The shared layer therefore only changes how a level looks and fits (palette, panels, free HUD and radio strips). Questions, hints, scoring, the drone and the gate logic are untouched, and a floor is only rebuilt when its owner agrees.
-4. **The rebuilt Floor 1 is opt-in.** It is switched on with the environment variable `MEMORY_HEIST_NEW_FLOOR1=1`. Without it the original Level 1 is used, so the finished game never depended on an unfinished replacement.
+4. **The rebuilt Floor 1 is now Level 1.** It started opt-in so the finished game never depended on an unfinished replacement. Once it was tested and polished it became the default. The original question-screen Level 1 is kept in `levels/level1.py` and returns with the environment variable `MEMORY_HEIST_OLD_LEVEL1=1`.
 5. **Audio channels are reserved.** The mixer was running out of channels once the music stems were playing, which silently dropped sound effects. Channels 0 to 5 now belong to the music and the rest to effects.
 6. **The floor results need no new game state.** The game stores a snapshot of score, time and mistakes when a floor starts and shows the difference on the next briefing card. Time spent reading cards is not counted, because the run clock is frozen there.
 7. **Settings never touch the tests.** A test fixture points the settings file at a temporary folder, so a developer's saved volume cannot change a test result and tests never write to `saves/`.
@@ -1113,7 +1113,7 @@ A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the whole suite o
 | Action | How |
 | --- | --- |
 | Start the game | `python main.py` |
-| Try the rebuilt Floor 1 | `set MEMORY_HEIST_NEW_FLOOR1=1`, then `python main.py` (Windows) |
+| Play the original Level 1 instead of Floor 1 | `set MEMORY_HEIST_OLD_LEVEL1=1`, then `python main.py` (Windows) |
 | Run all tests | `python -m pytest tests -q` |
 | Pause | ESC while playing |
 | Settings | S on the menu, or S on the pause screen |
