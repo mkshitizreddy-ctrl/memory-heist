@@ -28,6 +28,7 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
+from levels import lobby_decor
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -221,6 +222,7 @@ class FloorOneLobby:
         self._step_clock = {}
         self._dust_clock = {}
         self.time = 0.0
+        self.ambience = lobby_decor.Ambience(seed=11)   # own rng: crate layout stays untouched
 
         self.font = ui_font(22)
         self.small = ui_font(20)
@@ -402,6 +404,7 @@ class FloorOneLobby:
             s["life"] -= dt
         self.sparks = [s for s in self.sparks if s["life"] > 0]
         self._update_dust(dt)
+        self.ambience.update(dt)
         self._update_steps(dt)
         self._update_npcs(dt)
         for i in range(GATES):
@@ -461,6 +464,7 @@ class FloorOneLobby:
                    border=accent, radius=6)
         label = ui_font(22).render("NOVACORP RECEPTION", True, theme.PAPER)
         bg.blit(label, label.get_rect(center=self.desk.center))
+        lobby_decor.draw_static(bg, accent, self.desk)
         for rect in self.plants:
             self._draw_plant(bg, rect)
         self._draw_sofa(bg, self.sofa, accent)
@@ -551,10 +555,14 @@ class FloorOneLobby:
         pygame.draw.circle(bg, theme.INK, (x + 6, y + 6), 4)
         pygame.draw.circle(bg, theme.MIST, (x + 6, y + 6), 4, 1)
 
+    def _alerted(self):
+        """True once security is at half or more: the camera turns red."""
+        return bool(self.game is not None and getattr(self.game, "security", None)
+                    and self.game.security.level >= self.game.security.max_level * 0.5)
+
     def _draw_camera_led(self, world):
         pulse = 0.5 + 0.5 * math.sin(self.time * 4.0)
-        alert = 1.0 if self.game is not None and getattr(self.game, "security", None) \
-            and self.game.security.level >= self.game.security.max_level * 0.5 else 0.0
+        alert = 1.0 if self._alerted() else 0.0
         colour = theme.mix(theme.mix(theme.SLATE, theme.CORAL, 0.35 + 0.65 * pulse),
                            theme.CORAL, alert)
         pygame.draw.circle(world, colour, self.led_pos, 3)
@@ -632,6 +640,7 @@ class FloorOneLobby:
         if self._background is None:
             self._build_background()
         world = self._background.copy()
+        self.ambience.draw(world, self.desk, self.vending, self._alerted())
         self._draw_bins(world)
         self._draw_exit(world)
         self._draw_camera_led(world)
