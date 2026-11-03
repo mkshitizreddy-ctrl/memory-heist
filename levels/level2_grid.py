@@ -250,6 +250,7 @@ class GridRoom(RoomMixin, Level2):
             G.draw_gate(world, gate_rect, openness, self.time)
         lamp = theme.mix(theme.CORAL, theme.TEAL, self.gate_open[2])
         G.draw_shutter(world, G.GATE_RECTS[2], self.gate_open[2], lamp)
+        G.draw_chevrons(world, self.gate_open[2], self.time)
         standing = {self.pad_at(p) for p, _ in self.players()} - {None}
         if self.gates_passed < GATES_PER_LEVEL:
             for i, (rect, option) in enumerate(zip(self.pad_rects(), self.current_question["options"])):

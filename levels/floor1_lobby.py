@@ -257,13 +257,20 @@ class FloorOneLobby:
         if crate is None:
             self._pick_up(player)
             return
-        for t, rect in self.bins.items():
-            if self._near(player, rect):
-                self._drop_in_bin(player, crate, t)
-                return
+        bin_type = self._bin_in_reach(player)
+        if bin_type is not None:
+            self._drop_in_bin(player, crate, bin_type)
+            return
         self._put_down(player, crate)
 
-    def _pick_up(self, player):
+    def _bin_in_reach(self, player):
+        for t, rect in self.bins.items():
+            if self._near(player, rect):
+                return t
+        return None
+
+    def _pickup_target(self, player):
+        """The nearest free crate within reach of `player`, or None."""
         best, best_d = None, 1e9
         for crate in self.crates:
             if crate.sorted or crate.carrier is not None:
@@ -273,6 +280,30 @@ class FloorOneLobby:
             d = math.dist(crate.rect.center, player.rect.center)
             if d < best_d:
                 best, best_d = crate, d
+        return best
+
+    def _prompted_crates(self):
+        """Crates a player with free hands could pick up right now (drawn highlighted)."""
+        out = []
+        for player, _ in self._players():
+            if id(player) not in self.carried:
+                crate = self._pickup_target(player)
+                if crate is not None and crate not in out:
+                    out.append(crate)
+        return out
+
+    def _prompted_bins(self):
+        """Bins a player carrying a crate is close enough to drop into."""
+        out = set()
+        for player, _ in self._players():
+            if id(player) in self.carried:
+                bin_type = self._bin_in_reach(player)
+                if bin_type is not None:
+                    out.add(bin_type)
+        return out
+
+    def _pick_up(self, player):
+        best = self._pickup_target(player)
         if best is None:
             return
         best.carrier = player
@@ -574,7 +605,7 @@ class FloorOneLobby:
             tint = theme.mix(theme.MIST, theme.floor_palette(LEVEL_KEY)["floor"], k)
             pygame.draw.circle(world, tint, (int(puff["x"]), int(puff["y"])), radius)
 
-    def _draw_bins(self, surf):
+    def _draw_bins(self, surf, active=()):
         for t, rect in self.bins.items():
             sx, sy = self.bin_pulse[t].scale
             w, h = int(rect.w * sx), int(rect.h * sy)
@@ -584,8 +615,11 @@ class FloorOneLobby:
             draw_panel(surf, r, fill=theme.mix(theme.NAVY, colour, 0.3), border=colour, radius=6)
             txt = self.code_big.render(t, True, theme.PAPER)
             surf.blit(txt, txt.get_rect(center=r.center))
+            if t in active:                                  # a player is carrying a crate to this bin
+                glow = theme.mix(colour, theme.PAPER, 0.5 + 0.5 * math.sin(self.time * 6))
+                pygame.draw.rect(surf, glow, r.inflate(8, 8), 2, border_radius=9)
 
-    def _draw_crate(self, surf, crate, rect):
+    def _draw_crate(self, surf, crate, rect, highlight=False):
         """A bigger wooden crate with a floating value tag (neutral colour: the
         tag must not give away the bin)."""
         hit = pygame.Rect(rect)
@@ -611,6 +645,16 @@ class FloorOneLobby:
         pygame.draw.rect(surf, theme.INK, tag, border_radius=4)
         pygame.draw.rect(surf, theme.MIST, tag, 1, border_radius=4)
         surf.blit(txt, txt.get_rect(center=tag.center))
+        if highlight:                                        # "you can pick this up": a ring and an E key
+            ring = theme.mix(theme.PAPER, theme.TEAL, 0.5 + 0.5 * math.sin(self.time * 6))
+            pygame.draw.rect(surf, ring, body.inflate(8, 8), 2, border_radius=6)
+            key = pygame.Rect(0, 0, 18, 18)
+            key.midbottom = (tag.centerx, tag.top - 3)
+            key.clamp_ip(pygame.Rect(0, 0, *self.tilemap.pixel_size))
+            pygame.draw.rect(surf, theme.INK, key, border_radius=4)
+            pygame.draw.rect(surf, ring, key, 1, border_radius=4)
+            letter = self.small.render("E", True, ring)
+            surf.blit(letter, letter.get_rect(center=key.center))
 
     def _draw_exit(self, surf):
         d = self.door
@@ -641,15 +685,16 @@ class FloorOneLobby:
             self._build_background()
         world = self._background.copy()
         self.ambience.draw(world, self.desk, self.vending, self._alerted())
-        self._draw_bins(world)
+        self._draw_bins(world, self._prompted_bins())
         self._draw_exit(world)
         self._draw_camera_led(world)
         self._draw_dust(world)
+        prompted = self._prompted_crates()
         for crate in self.crates:
             if crate.sorted or crate.carrier is not None:
                 continue
             bob = int(math.sin(self.time * 2 + crate.bob) * 1.5)
-            self._draw_crate(world, crate, crate.rect.move(0, bob))
+            self._draw_crate(world, crate, crate.rect.move(0, bob), crate in prompted)
         for player, _ in self._players():
             crate = self.carried.get(id(player))
             if crate is not None:
