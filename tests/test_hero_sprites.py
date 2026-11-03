@@ -23,7 +23,7 @@ def raw(surface):
 @pytest.mark.parametrize("name", HEROES)
 def test_frames_have_the_shape_player_expects(name):
     f = make_hero_frames(name)
-    assert set(f) == {"idle", "walk"} and len(f["walk"]) == 4
+    assert set(f) == {"idle", "walk", "blink"} and len(f["walk"]) == 4
     for img in [f["idle"]] + f["walk"]:
         assert img.get_size() == (32, 32)
 

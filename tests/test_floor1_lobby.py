@@ -509,3 +509,44 @@ def test_background_draws_the_sofa():
     base = level._background.get_at((cx, cy))
     floor = level._background.get_at((level.sofa.x - 20, cy))
     assert tuple(base)[:3] != tuple(floor)[:3]
+
+
+def all_wall_messages():
+    """Every line the lobby can print on the wall."""
+    from levels.floor1_lobby import BIN_TYPES, HINTS
+    lines = ["Carry each crate to the bin for its data type.",
+             "Badge reader online. The exit is open.",
+             "Reception cleared. The elevator is waiting."]
+    for bin_type in BIN_TYPES:
+        lines.append(f"Not {with_article(bin_type)}. {HINTS[bin_type]}")
+        lines.append(f"{display('x')} is {with_article(bin_type)}. Correct!")
+    lines.append(f"Got {display('A-4471')}. Which bin?")
+    return lines
+
+
+def test_wall_text_stays_inside_the_wall_band_and_clear_of_the_spawn():
+    """Text must not spill onto the floor, where the player starts."""
+    from levels.floor1_lobby import MESSAGE_Y, TITLE_Y
+    from core.tilemap import TILE
+    from ui.kit import shadowed
+
+    level, _, player = make_level()
+    spawn = pygame.Rect(100, 100, 32, 32)
+    from ui.fonts import ui_font
+    title_h = shadowed(ui_font(26, bold=True), "FLOOR 1 - RECEPTION LOBBY", (0, 0, 0)).get_height()
+    assert TITLE_Y >= 48                                   # below the HUD
+    assert TITLE_Y + title_h <= MESSAGE_Y                  # title sits above the message
+    for text in all_wall_messages():
+        image = shadowed(level.font, text, (0, 0, 0))
+        rect = pygame.Rect(TILE * 2, MESSAGE_Y, *image.get_size())
+        assert rect.bottom <= 3 * TILE + 2, text           # does not spill onto the floor
+        assert not rect.colliderect(spawn), text
+
+
+def test_longest_wall_message_stops_before_the_camera_mount():
+    from core.tilemap import TILE
+    from ui.kit import shadowed
+
+    level, _, _ = make_level()
+    widest = max(shadowed(level.font, t, (0, 0, 0)).get_width() for t in all_wall_messages())
+    assert TILE * 2 + widest < 20 * TILE - 20              # camera sits at column 20

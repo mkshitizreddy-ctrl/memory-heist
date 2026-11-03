@@ -7,8 +7,9 @@ scaled 2x nearest-neighbour to the 32x32 player size. They match the portraits
 (Ghost: hooded, cyan visor. Echo: orange hair, gold goggles) so the hero reads
 as the same person on the HUD, in cutscenes and in the levels.
 
-Same shape as entities.sprites.make_player_frames:
-    {"idle": surface, "walk": [4 surfaces]}   facing right (Player flips for left).
+Same shape as entities.sprites.make_player_frames, plus a blink frame:
+    {"idle": surface, "walk": [4 surfaces], "blink": surface}
+facing right (Player flips for left).
 """
 
 import pygame
@@ -78,6 +79,12 @@ _PARTS = {
 
 HEROES = tuple(PALETTES)
 
+# What the eyes become mid-blink: the visor / goggles dim to a thin dark band.
+BLINK_COLOURS = {
+    "ghost": {"V": (24, 70, 86)},
+    "echo": {"Y": (120, 84, 40)},
+}
+
 
 OUTLINE = (6, 10, 20, 255)
 
@@ -114,7 +121,9 @@ def make_hero_frames(name):
     def frame(key):
         return _build(head + body + legs[key], palette)
 
+    blink_palette = {**palette, **BLINK_COLOURS[name]}
     return {
         "idle": frame("idle"),
         "walk": [frame("step_a"), frame("idle"), frame("step_b"), frame("idle")],
+        "blink": _build(head + body + legs["idle"], blink_palette),
     }
