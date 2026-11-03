@@ -70,6 +70,9 @@ CRATE_SPOTS = [(6, 7), (10, 6), (14, 6), (18, 6), (22, 7), (7, 12),
 BIN_COLS = (8, 12, 16, 20)       # bin i spans cols [c, c+1], row BIN_ROW
 BIN_ROW = 4
 EXIT_ROWS = (9, 10, 11)
+# Text on the wall band (y 48..96, between the HUD and the floor).
+TITLE_Y = 48
+MESSAGE_Y = 74
 DUST_EVERY = 0.12               # seconds between footstep puffs while walking
 DUST_LIFE = 0.45
 STEP_EVERY = 0.32                       # seconds between footstep sounds
@@ -203,7 +206,7 @@ class FloorOneLobby:
         self._dust_clock = {}
         self.time = 0.0
 
-        self.font = ui_font(24)
+        self.font = ui_font(22)
         self.small = ui_font(20)
         self.big = ui_font(30)
         self.code = code_font(20)       # crate values
@@ -441,9 +444,9 @@ class FloorOneLobby:
             bg.blit(glow, (centre[0] - radius, centre[1] - radius),
                     special_flags=pygame.BLEND_RGB_ADD)
         # title on the wall
-        title = shadowed(ui_font(30, bold=True), "FLOOR 1 - RECEPTION LOBBY",
+        title = shadowed(ui_font(26, bold=True), "FLOOR 1 - RECEPTION LOBBY",
                          theme.mix(accent, theme.PAPER, 0.4))
-        bg.blit(title, (TILE * 2, 2 * TILE + 2))
+        bg.blit(title, (TILE * 2, TITLE_Y))
         self._background = bg
 
     @staticmethod
@@ -613,9 +616,9 @@ class FloorOneLobby:
         # message strip on the wall, under the HUD
         if self.message:
             msg = shadowed(self.font, self.message, self.message_tone)
-            world.blit(msg, (TILE * 2, 2 * TILE + 26))
+            world.blit(msg, (TILE * 2, MESSAGE_Y))
         hint = shadowed(self.small, "E: pick up / put down", theme.MIST)
-        world.blit(hint, (world.get_width() - hint.get_width() - TILE * 2, 2 * TILE + 4))
+        world.blit(hint, (world.get_width() - hint.get_width() - TILE * 2, TITLE_Y + 2))
         ox, oy = self.shake.offset()
         surface.fill(theme.INK)
         surface.blit(world, (ox, oy))
