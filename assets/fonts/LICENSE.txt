@@ -1,0 +1,8 @@
+Chakra Petch (SemiBold, Bold), Copyright 2018 The Chakra Petch Project Authors
+https://github.com/m4rc1e/Chakra-Petch  (licence: OFL-ChakraPetch.txt)
+
+Share Tech Mono, Copyright 2012 Carrois Type Design, Ralph du Carrois
+https://fonts.google.com/specimen/Share+Tech+Mono  (licence: OFL-ShareTechMono.txt)
+
+Both are licensed under the SIL Open Font License 1.1.
+Bundled so text looks the same on every computer.

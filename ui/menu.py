@@ -16,9 +16,9 @@ from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
 
 CONTROLS = [
-    ("Level 1 & 2", "Mouse - click answers / tiles"),
-    ("Level 3, 5 & Final Vault", "1-4 keys - select an answer"),
-    ("Level 3 & 4", "WASD to move, E to collect / interact"),
+    ("Levels 1, 2", "Mouse - click answers / tiles"),
+    ("Levels 3, 5, Final Vault", "1-4 keys - select an answer"),
+    ("Levels 3, 4", "WASD to move, E to collect / interact"),
     ("Co-op (C)", "Player 2: arrow keys to move, Right Shift to interact"),
     ("Any time", "ESC to pause or quit, R to retry after a loss"),
 ]

@@ -1,3 +1,0 @@
-Lato (Semibold, Bold) by Lukasz Dziedzic, http://www.latofonts.com
-Licensed under the SIL Open Font License 1.1: https://openfontlicense.org
-Bundled so text looks the same on every computer.

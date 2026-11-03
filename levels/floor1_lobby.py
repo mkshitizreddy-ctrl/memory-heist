@@ -28,8 +28,8 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.tilemap import TILE, TileMap, make_tiles
 from ui import theme
-from ui.kit import draw_panel
-from ui.fonts import ui_font
+from ui.kit import draw_panel, shadowed
+from ui.fonts import code_font, ui_font
 
 LEVEL_KEY = "level1"
 COLS, ROWS = 30, 20            # 960 x 640: exactly one screen
@@ -206,6 +206,8 @@ class FloorOneLobby:
         self.font = ui_font(24)
         self.small = ui_font(20)
         self.big = ui_font(30)
+        self.code = code_font(20)       # crate values
+        self.code_big = code_font(30)   # bin type names
         self._background = None
 
     # --- players --------------------------------------------------------
@@ -439,8 +441,8 @@ class FloorOneLobby:
             bg.blit(glow, (centre[0] - radius, centre[1] - radius),
                     special_flags=pygame.BLEND_RGB_ADD)
         # title on the wall
-        title = ui_font(30, bold=True).render("FLOOR 1 - RECEPTION LOBBY", True,
-                                                  theme.mix(accent, theme.PAPER, 0.4))
+        title = shadowed(ui_font(30, bold=True), "FLOOR 1 - RECEPTION LOBBY",
+                         theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, 2 * TILE + 2))
         self._background = bg
 
@@ -530,7 +532,7 @@ class FloorOneLobby:
             r.midbottom = rect.midbottom
             colour = BIN_COLOURS[t]
             draw_panel(surf, r, fill=theme.mix(theme.NAVY, colour, 0.3), border=colour, radius=6)
-            txt = self.big.render(t, True, theme.PAPER)
+            txt = self.code_big.render(t, True, theme.PAPER)
             surf.blit(txt, txt.get_rect(center=r.center))
 
     def _draw_crate(self, surf, crate, rect):
@@ -552,7 +554,7 @@ class FloorOneLobby:
         for cx, cy in ((body.x + 4, body.y + 4), (body.right - 5, body.y + 4),
                        (body.x + 4, body.bottom - 5), (body.right - 5, body.bottom - 5)):
             pygame.draw.circle(surf, theme.MIST, (cx, cy), 1)
-        txt = self.small.render(display(crate.value), True, theme.PAPER)
+        txt = self.code.render(display(crate.value), True, theme.PAPER)
         tag = txt.get_rect().inflate(10, 4)
         tag.midbottom = (body.centerx, body.top - 3)
         tag.clamp_ip(pygame.Rect(0, 0, *self.tilemap.pixel_size))
@@ -610,9 +612,9 @@ class FloorOneLobby:
             pygame.draw.circle(world, s["colour"], (int(s["x"]), int(s["y"])), size)
         # message strip on the wall, under the HUD
         if self.message:
-            msg = self.font.render(self.message, True, self.message_tone)
+            msg = shadowed(self.font, self.message, self.message_tone)
             world.blit(msg, (TILE * 2, 2 * TILE + 26))
-        hint = self.small.render("E: pick up / put down", True, theme.MIST)
+        hint = shadowed(self.small, "E: pick up / put down", theme.MIST)
         world.blit(hint, (world.get_width() - hint.get_width() - TILE * 2, 2 * TILE + 4))
         ox, oy = self.shake.offset()
         surface.fill(theme.INK)
