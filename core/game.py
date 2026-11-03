@@ -18,6 +18,7 @@ from core.difficulty import (
 )
 from levels.level1 import Level1
 from levels.level2 import Level2
+from levels.level2_grid import GridRoom
 from levels.level3_loops import Level3LaserLoop
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
@@ -157,10 +158,11 @@ class Game:
             # Floor 1, the reception lobby on the shared kit, is Level 1.
             level1 = FloorOneLobby(player=self.player, game=self)
         self.level_manager.register("level1", level1)
-        self.level_manager.register(
-            "level2",
-            Level2(player=self.player, game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL2") == "1":
+            level2 = Level2(player=self.player, game=self)       # escape hatch
+        else:
+            level2 = GridRoom(player=self.player, game=self)     # Floor 2 on the shared kit
+        self.level_manager.register("level2", level2)
         level3 = Level3LaserLoop(game=self)
         self._apply_difficulty_to_room_timer(level3)
         self.level_manager.register(
@@ -201,9 +203,11 @@ class Game:
         level.time_left = level.time_limit
 
     def _reset_player_position(self):
-        """Reset the player to the configured starting position."""
-        self.player.reset_position(*PLAYER_START_POS)
-        self.player2.reset_position(*PLAYER2_START_POS)
+        """Put the players at the level's spawn points, or the default start."""
+        spawns = getattr(self.level_manager.current, "spawn_points", None)
+        start1, start2 = spawns if spawns else (PLAYER_START_POS, PLAYER2_START_POS)
+        self.player.reset_position(*start1)
+        self.player2.reset_position(*start2)
 
     def _handle_level_change(self):
         """Start the transition fade when the active level changes."""

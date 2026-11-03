@@ -33,11 +33,11 @@ STORY = {
     },
     "level2": {
         "warden": True,
-        "title": "LEVEL 2 - THE SECURITY GRID",
+        "title": "LEVEL 2 - THE MAINTENANCE GRID",
         "concept": "Operators",
         "lines": [
-            "The grid only opens for the right operation.",
-            "Combine the numbers to reach the code: 42.",
+            "Three sealed chambers, each with a wall screen and answer pads.",
+            "Read the screen, stand on the right answer and press E to open the gate.",
         ],
     },
     "level3": {
