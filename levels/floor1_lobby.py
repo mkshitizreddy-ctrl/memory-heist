@@ -26,6 +26,7 @@ import pygame
 
 from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
+from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
 from ui import theme
 from ui.kit import draw_panel, shadowed
@@ -70,6 +71,16 @@ CRATE_SPOTS = [(6, 7), (10, 6), (14, 6), (18, 6), (22, 7), (7, 12),
 BIN_COLS = (8, 12, 16, 20)       # bin i spans cols [c, c+1], row BIN_ROW
 BIN_ROW = 4
 EXIT_ROWS = (9, 10, 11)
+# The people who work here (tile col, row). The receptionist stands behind the
+# desk; the guard patrols the open floor to its right.
+RECEPTIONIST_TILE = (15, 16)
+GUARD_ROUTE = [(19, 16), (25, 16), (25, 14)]
+GREETINGS = ("Welcome to NovaCorp.", "Sign in before you wander.", "Mind the crates.")
+GUARD_LINES = ("Move along, visitor.", "Badges stay visible.")
+PRAISE = ("Nice sorting.", "Spot on.")
+SCOLD = "Easy there, visitor."
+FAREWELL = "Have a good day."
+
 # Text on the wall band (y 48..96, between the HUD and the floor).
 TITLE_Y = 48
 MESSAGE_Y = 74
@@ -176,6 +187,11 @@ class FloorOneLobby:
         self.sofa = pygame.Rect(4 * TILE, 13 * TILE, 3 * TILE, TILE)
         self.vending = pygame.Rect(26 * TILE, 12 * TILE, TILE, 2 * TILE)
         self.props += self.plants + [self.sofa, self.vending]
+        self.receptionist = NPC("receptionist", (RECEPTIONIST_TILE[0] * TILE, RECEPTIONIST_TILE[1] * TILE),
+                                facing_left=True)
+        self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
+        self.npcs = [self.receptionist, self.guard]
+        self._lines_said = {"receptionist": 0, "guard": 0, "praise": 0}
         self.led_pos = (20 * TILE + 16, 2 * TILE + 10)      # WARDEN camera light
         self.door = pygame.Rect(28 * TILE, EXIT_ROWS[0] * TILE, TILE * 2, TILE * len(EXIT_ROWS))
         self.door_block = self.door.copy()
@@ -288,6 +304,7 @@ class FloorOneLobby:
             if self.game:
                 self.game.score.add(CRATE_POINTS)
             self._say(f"{display(crate.value)} is {with_article(bin_type)}. Correct!", theme.TEAL)
+            self._npc_react("praise")
             self._check_gates()
         else:
             crate.rect = crate.home.copy()
@@ -297,6 +314,8 @@ class FloorOneLobby:
             if self.game and not self.game.hints.enabled:
                 hint = "Hints are off on this difficulty."
             self._say(f"Not {with_article(bin_type)}. {hint}", theme.CORAL)
+            self.guard.alert(player.rect, 1.6)
+            self.guard.say(SCOLD)
             if self.game:
                 self.game.security.increase(WRONG_SECURITY)
                 self.game.score.penalize(WRONG_PENALTY)
@@ -329,6 +348,24 @@ class FloorOneLobby:
             else:
                 clock = STEP_EVERY * 0.6      # the first step after standing still is quick
             self._step_clock[id(player)] = clock
+
+    def _npc_react(self, event):
+        """The people nearby comment on what just happened; each line is said in turn."""
+        if event == "praise":
+            n = self._lines_said["praise"]
+            self._lines_said["praise"] = n + 1
+            if n % 2 == 0:                       # every other correct sort, not every one
+                self.receptionist.say(PRAISE[(n // 2) % len(PRAISE)])
+
+    def _update_npcs(self, dt):
+        for npc in self.npcs:
+            npc.update(dt)
+        for player, _ in self._players():
+            for npc, lines in ((self.receptionist, GREETINGS), (self.guard, GUARD_LINES)):
+                if npc.notice(player.rect, id(player)):
+                    n = self._lines_said[npc.kind]
+                    self._lines_said[npc.kind] = n + 1
+                    npc.say(lines[n % len(lines)])
 
     def _say(self, text, tone):
         self.message, self.message_tone, self._message_age = text, tone, 0.0
@@ -366,6 +403,7 @@ class FloorOneLobby:
         self.sparks = [s for s in self.sparks if s["life"] > 0]
         self._update_dust(dt)
         self._update_steps(dt)
+        self._update_npcs(dt)
         for i in range(GATES):
             target = 1.0 if i < self.gates_passed else 0.0
             self.lamps[i] += (target - self.lamps[i]) * min(1.0, dt * 8)
@@ -399,6 +437,7 @@ class FloorOneLobby:
 
     def _finish(self):
         self.complete = True
+        self.receptionist.say(FAREWELL)
         if self.game:
             self.game.score.add(FINISH_BONUS)
         self._say("Reception cleared. The elevator is waiting.", theme.GOLD)
@@ -610,6 +649,8 @@ class FloorOneLobby:
                 r.midbottom = (player.rect.centerx, player.rect.top - 2)
                 crate.rect = r
                 self._draw_crate(world, crate, r)
+        for npc in self.npcs:
+            npc.draw(world, self.small)
         for s in self.sparks:
             size = max(1, int(4 * s["life"] / 0.6))
             pygame.draw.circle(world, s["colour"], (int(s["x"]), int(s["y"])), size)

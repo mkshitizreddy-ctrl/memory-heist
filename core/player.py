@@ -7,7 +7,10 @@ Player position, movement (WASD or arrow keys), and collision response.
 
 import pygame
 
-from core.animation import SquashStretch, scaled
+from core.animation import SquashStretch
+from core.character import (  # noqa: F401  (timing names are re-exported)
+    BLINK_LENGTH, BLINK_PERIOD, BOUNCE_PX, BREATH_PERIOD, WALK_FPS,
+    blink_closed, breath_offset, draw_character, pose_for, walk_bounce)
 from core.hero_sprites import HEROES, make_hero_frames
 from entities.sprites import make_player_frames
 
@@ -26,29 +29,8 @@ ARROWS = {
 }
 
 
-# --- Animation timing (all in seconds / pixels) ----------------------------
-WALK_FPS = 8
-BOUNCE_PX = 2          # body lifts this much on the passing frames of a walk
-BREATH_PERIOD = 1.6    # idle: one full rise and fall
-BLINK_PERIOD = 3.4     # idle: eyes close once per period...
-BLINK_LENGTH = 0.14    # ...for this long, at the end of it
 START_STRETCH = 0.16   # springy pop when a step begins
 STOP_SQUASH = -0.2     # and a little settle when it ends
-
-
-def blink_closed(idle_time):
-    """True while the idle character's eyes are shut."""
-    return (idle_time % BLINK_PERIOD) >= BLINK_PERIOD - BLINK_LENGTH
-
-
-def breath_offset(idle_time):
-    """0 or 1 pixel of lift while standing still: a slow, steady breath."""
-    return 1 if (idle_time % BREATH_PERIOD) >= BREATH_PERIOD / 2 else 0
-
-
-def walk_bounce(frame_index):
-    """Lift in pixels for a walk frame: up on passing poses, down on steps."""
-    return BOUNCE_PX if frame_index % 2 == 1 else 0
 
 
 class Player:
@@ -141,29 +123,8 @@ class Player:
 
     def current_pose(self):
         """(image, lift): the frame to show and how many pixels to raise it."""
-        if self.moving:
-            walk = self.frames["walk"]
-            index = int(self.anim_time * WALK_FPS) % len(walk)
-            return walk[index], walk_bounce(index)
-        if blink_closed(self.idle_time):
-            return self.frames.get("blink", self.frames["idle"]), 0
-        return self.frames["idle"], breath_offset(self.idle_time)
+        return pose_for(self.frames, self.moving, self.anim_time, self.idle_time)
 
     def draw(self, surface):
         image, lift = self.current_pose()
-
-        if self.facing_left:
-            image = pygame.transform.flip(image, True, False)
-
-        # Soft shadow under the feet; it narrows as the body rises.
-        shadow = pygame.Rect(0, 0, 22 - lift * 2, 8 - lift)
-        shadow.midbottom = (self.rect.centerx, self.rect.bottom + 2)
-        shade = pygame.Surface(shadow.size, pygame.SRCALPHA)
-        pygame.draw.ellipse(shade, (0, 0, 0, 90), shade.get_rect())
-        surface.blit(shade, shadow)
-
-        x, y = self.rect.topleft
-        if not self.squash.at_rest:
-            image, (ox, oy) = scaled(image, *self.squash.scale)
-            x, y = x + ox, y + oy
-        surface.blit(image, (x, y - lift))
+        draw_character(surface, self.rect, image, lift, self.facing_left, self.squash)
