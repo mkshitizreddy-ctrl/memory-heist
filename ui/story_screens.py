@@ -45,6 +45,7 @@ class StoryScreen:
         self.tick = 0
         self.age = 0.0
         self.streams = DataStreams(960, 640)
+        self.serial = 0                 # counts cards, so a voice knows a new one began
         self.begin({"title": "", "lines": []})
 
     def begin(self, beat, coop=False, progress=None, cleared=None):
@@ -53,6 +54,7 @@ class StoryScreen:
         progress is (current level index, number of levels) and adds the
         route map; leave it out for cards that are not about a level.
         """
+        self.serial += 1
         self.progress = progress
         self.cleared = cleared      # summary of the floor just finished, or None
         self.title = beat["title"]

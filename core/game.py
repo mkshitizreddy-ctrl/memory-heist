@@ -36,6 +36,7 @@ from ui.overlays import PauseOverlay
 from ui.transitions import ElevatorWipe
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
+from systems.voice import VoiceEvents, VoicePlayer
 from systems.music import MusicPlayer
 from levels.floor1_lobby import FloorOneLobby
 from ui.comms import CommsFeed
@@ -118,6 +119,8 @@ class Game:
             size=(SCREEN_WIDTH, SCREEN_HEIGHT),
         )
         self.comms = CommsFeed()
+        self.voice = VoicePlayer(self.audio)
+        self.voices = VoiceEvents(self.voice)
         self._comms_fonts = None            # built on the first frame it is drawn
         self.sounds = SoundEvents(self.audio)
 
@@ -502,6 +505,10 @@ class Game:
         )
         if not self.paused:
             self.comms.update(dt)
+        self.voices.observe(self.state, self.comms.current,
+                            getattr(level, "npcs", ()), self.story_screen)
+        if not self.paused:
+            self.voice.update(dt)
 
     def _update(self, dt):
         if self._fade_timer > 0:
