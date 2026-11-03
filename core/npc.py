@@ -58,6 +58,7 @@ class NPC:
         self._alert = 0.0                             # time left looking at the player
         self._noticed = set()
         self.speech = None
+        self.said = 0                                 # lines spoken so far (voices watch this)
         self._speech_left = 0.0
 
     # --- behaviour --------------------------------------------------------
@@ -69,6 +70,7 @@ class NPC:
 
     def say(self, text, seconds=SPEECH_SECONDS):
         self.speech, self._speech_left = text, seconds
+        self.said += 1
 
     def alert(self, point, seconds=1.5):
         """Stop and look at something for a moment."""
