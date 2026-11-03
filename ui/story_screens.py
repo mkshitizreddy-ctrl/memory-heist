@@ -24,6 +24,7 @@ from levels.common import draw_cyber_background, draw_glow_text, GREEN, GREY
 from core.floor_stats import MAX_STARS, format_duration
 from ui import theme
 from ui.kit import blit_centered, draw_panel
+from ui.fonts import ui_font
 
 PORTRAIT_SIZE = 128
 WARDEN_SIZE = 110
@@ -34,13 +35,13 @@ class StoryScreen:
     CHARS_PER_SECOND = 45
 
     def __init__(self):
-        self.title_font = pygame.font.Font(None, 52)
-        self.body_font = pygame.font.Font(None, 30)
-        self.concept_font = pygame.font.Font(None, 26)
-        self.hint_font = pygame.font.Font(None, 26)
-        self.map_font = pygame.font.Font(None, 24)
-        self.label_font = pygame.font.Font(None, 24)
-        self.stat_font = pygame.font.Font(None, 22)
+        self.title_font = ui_font(52, bold=True)
+        self.body_font = ui_font(30)
+        self.concept_font = ui_font(26)
+        self.hint_font = ui_font(26)
+        self.map_font = ui_font(24)
+        self.label_font = ui_font(24)
+        self.stat_font = ui_font(22)
         self.tick = 0
         self.age = 0.0
         self.streams = DataStreams(960, 640)

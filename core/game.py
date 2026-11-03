@@ -45,6 +45,7 @@ from systems.scoring import ScoreTracker, final_score
 from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
+from ui.fonts import ui_font
 
 
 SCREEN_WIDTH = 960
@@ -627,7 +628,7 @@ class Game:
             )
 
             if self._comms_fonts is None:
-                self._comms_fonts = (pygame.font.Font(None, 22), pygame.font.Font(None, 24))
+                self._comms_fonts = (ui_font(22), ui_font(24))
             self.comms.draw(self.screen, *self._comms_fonts)
 
             if self.paused:

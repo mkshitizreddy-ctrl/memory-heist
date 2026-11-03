@@ -13,6 +13,7 @@ from core.hero_portrait import make_portrait
 from ui import theme
 from ui.backdrop import draw_backdrop
 from ui.kit import blit_centered, draw_chip, draw_panel
+from ui.fonts import ui_font
 
 CONTROLS = [
     ("Level 1 & 2", "Mouse - click answers / tiles"),
@@ -30,11 +31,11 @@ ROW_HEIGHT = 30
 
 class MainMenu:
     def __init__(self):
-        self.title_font = pygame.font.Font(None, 64)
-        self.subtitle_font = pygame.font.Font(None, 26)
-        self.heading_font = pygame.font.Font(None, 24)
-        self.control_font = pygame.font.Font(None, 22)
-        self.prompt_font = pygame.font.Font(None, 32)
+        self.title_font = ui_font(64, bold=True)
+        self.subtitle_font = ui_font(26)
+        self.heading_font = ui_font(24)
+        self.control_font = ui_font(22)
+        self.prompt_font = ui_font(32)
         self.tick = 0
         self.selected_difficulty = "medium"
         self.coop = False

@@ -11,18 +11,19 @@ from systems.leaderboard import Leaderboard, MAX_NAME_LENGTH
 from ui import theme
 from ui.backdrop import draw_backdrop
 from ui.kit import blit_centered, draw_chip, draw_panel
+from ui.fonts import ui_font
 
 PORTRAIT_SIZE = 96
 
 
 class WinScreen:
     def __init__(self, leaderboard=None):
-        self.title_font = pygame.font.Font(None, 68)
-        self.subtitle_font = pygame.font.Font(None, 32)
-        self.prompt_font = pygame.font.Font(None, 28)
-        self.row_font = pygame.font.Font(None, 26)
-        self.big_font = pygame.font.Font(None, 72)
-        self.caption_font = pygame.font.Font(None, 20)
+        self.title_font = ui_font(68, bold=True)
+        self.subtitle_font = ui_font(32)
+        self.prompt_font = ui_font(28)
+        self.row_font = ui_font(26)
+        self.big_font = ui_font(72, bold=True)
+        self.caption_font = ui_font(20)
         self.leaderboard = leaderboard or Leaderboard()
         self.tick = 0
         self.begin(0, "Medium", False)
@@ -156,11 +157,11 @@ class WinScreen:
 
 class LoseScreen:
     def __init__(self):
-        self.title_font = pygame.font.Font(None, 68)
-        self.subtitle_font = pygame.font.Font(None, 32)
-        self.prompt_font = pygame.font.Font(None, 28)
-        self.big_font = pygame.font.Font(None, 56)
-        self.caption_font = pygame.font.Font(None, 20)
+        self.title_font = ui_font(68, bold=True)
+        self.subtitle_font = ui_font(32)
+        self.prompt_font = ui_font(28)
+        self.big_font = ui_font(56, bold=True)
+        self.caption_font = ui_font(20)
         self.tick = 0
 
     def layout(self, width=960):

@@ -11,6 +11,7 @@ import pygame
 from systems.settings import STEP, clamp, step
 from ui import theme
 from ui.kit import blit_centered, draw_chip, draw_panel
+from ui.fonts import ui_font
 
 ROW_MUSIC, ROW_SFX, ROW_SOUND = 0, 1, 2
 ROW_COUNT = 3
@@ -28,10 +29,10 @@ class SettingsScreen:
         self._dragging = None
         self.dim = pygame.Surface(size, pygame.SRCALPHA)
         self.dim.fill((4, 6, 14, 190))
-        self.title_font = pygame.font.Font(None, 56)
-        self.label_font = pygame.font.Font(None, 28)
-        self.small_font = pygame.font.Font(None, 22)
-        self.chip_font = pygame.font.Font(None, 26)
+        self.title_font = ui_font(56, bold=True)
+        self.label_font = ui_font(28)
+        self.small_font = ui_font(22)
+        self.chip_font = ui_font(26)
         self.panel = pygame.Rect((0, 0), PANEL_SIZE)
         self.panel.center = (size[0] // 2, size[1] // 2)
 

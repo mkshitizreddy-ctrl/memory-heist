@@ -9,6 +9,7 @@ import pygame
 from ui import theme
 from ui.hud import LEVEL_LABELS, format_time
 from ui.kit import blit_centered, draw_chip, draw_panel
+from ui.fonts import ui_font
 
 PANEL_SIZE = (440, 270)
 
@@ -18,10 +19,10 @@ class PauseOverlay:
         self.size = size
         self.dim = pygame.Surface(size, pygame.SRCALPHA)
         self.dim.fill((4, 6, 14, 170))
-        self.title_font = pygame.font.Font(None, 64)
-        self.label_font = pygame.font.Font(None, 20)
-        self.value_font = pygame.font.Font(None, 34)
-        self.chip_font = pygame.font.Font(None, 26)
+        self.title_font = ui_font(64, bold=True)
+        self.label_font = ui_font(20)
+        self.value_font = ui_font(34)
+        self.chip_font = ui_font(26)
         self.panel = pygame.Rect((0, 0), PANEL_SIZE)
         self.panel.center = (size[0] // 2, size[1] // 2)
 
