@@ -1,0 +1,17 @@
+# Keep line endings the same for everyone.
+# Files are stored with LF in the repository and checked out with LF on every
+# system, so Windows no longer prints "LF will be replaced by CRLF" warnings.
+* text=auto eol=lf
+
+# Never touch binary files.
+*.ogg binary
+*.wav binary
+*.mp3 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.pdf binary
