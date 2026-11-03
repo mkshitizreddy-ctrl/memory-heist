@@ -773,3 +773,81 @@ def test_radio_and_story_for_level_2_describe_the_room_not_the_old_screen():
     assert "42" not in text and "security grid" not in text and beat["concept"] == "Operators"
     speaker, line = line_for("level2", "enter")
     assert speaker == "Echo" and len(line) <= MAX_LINE and "screen" in line.lower() and "42" not in line
+
+
+# --- polish: fitted prompts, signs, floor paint, chevrons ------------------------
+def test_a_short_prompt_gets_the_big_font_on_at_most_two_lines():
+    font, lines = G.fit_prompt("What does 15 // 4 evaluate to?", 216)
+    assert font.get_height() > G.code_font(17).get_height()
+    assert 1 <= len(lines) <= 2 and " ".join(lines) == "What does 15 // 4 evaluate to?"
+    assert all(font.size(line)[0] <= 216 for line in lines)
+
+
+def test_a_long_prompt_shrinks_then_is_cut_to_three_lines():
+    long = "What does the expression (3 + 4) * 2 ** 2 - 10 // 3 evaluate to here?"
+    font, lines = G.fit_prompt(long, 216)
+    assert font.get_height() == G.code_font(17).get_height()
+    assert len(lines) == 3
+    huge, cut = G.fit_prompt("word " * 80, 216)
+    assert len(cut) == 3 and all(huge.size(line)[0] <= 216 for line in cut)
+
+
+def test_fit_prompt_handles_an_empty_prompt():
+    assert G.fit_prompt("", 216)[1] in ([], [""])
+
+
+def static_background(room):
+    render(room)
+    return room._background
+
+
+def test_hazard_stripes_are_painted_under_the_two_gates_but_not_the_exit_or_plain_lane():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    plain = pygame.Rect(5 * TILE, G.LANE_ROWS[0] * TILE + 6, TILE, 20)        # clear of the dashed centre line
+    for rect in G.GATE_RECTS[:2]:
+        cell = pygame.Rect(rect.x, rect.y + 6, rect.w, 20)                             # clear of the dashed centre line
+        assert len(set(region_pixels(bg, cell))) >= 2
+        assert any(p[0] > 120 and p[2] < 90 for p in region_pixels(bg, cell))          # a warm stripe colour
+    assert not any(p[0] > 120 and p[2] < 90 for p in region_pixels(bg, plain))
+
+
+def test_there_is_an_exit_sign_above_the_door_and_a_label_on_each_bay_floor():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    sign = pygame.Rect(28 * TILE + 4, 8 * TILE, 56, 26)
+    wall = pygame.Rect(28 * TILE + 4, 6 * TILE, 56, 26)
+    assert len(set(region_pixels(bg, sign))) > len(set(region_pixels(bg, wall)))
+    assert any(p[1] > 150 and p[0] < 120 for p in region_pixels(bg, sign))               # teal letters
+    for first, last in G.CHAMBERS:
+        label = pygame.Rect(first * TILE + 40, 16 * TILE + 8, (last - first + 1) * TILE - 80, 28)
+        assert len(set(region_pixels(bg, label))) > 4
+        centre = (first + last + 1) * TILE // 2
+        assert len(set(region_pixels(bg, pygame.Rect(centre - 44, 16 * TILE + 8, 10, 28)))) > 2   # the long label, not just "BAY"
+
+
+def test_chevrons_show_only_once_the_exit_is_opening_and_they_move():
+    def frame(openness, t):
+        s = pygame.Surface((960, 640))
+        s.fill((1, 2, 3))
+        G.draw_chevrons(s, openness, t)
+        return region_pixels(s, pygame.Rect(22 * TILE, G.LANE_ROWS[0] * TILE, 6 * TILE, 3 * TILE))
+    blank = frame(0.0, 0.0)
+    assert set(blank) == {(1, 2, 3)} and set(frame(0.4, 0.0)) == {(1, 2, 3)}
+    assert set(frame(1.0, 0.0)) != {(1, 2, 3)}
+    assert frame(1.0, 0.0) != frame(1.0, 0.2)
+    assert frame(1.0, 0.0) == frame(1.0, 0.0)
+
+
+def test_the_room_draws_chevrons_when_the_exit_has_opened():
+    room, _, player = make_room()
+    set_pool(room, QS)
+    area = pygame.Rect(23 * TILE, G.LANE_ROWS[1] * TILE + 4, 4 * 36, 24)          # only the chevrons live here
+    before = region_pixels(render(room), area)
+    for label in ("42", "True", "False"):
+        answer(room, player, label)
+    player.rect.center = (3 * TILE, 11 * TILE)
+    settle(room, 3)
+    first = region_pixels(render(room), area)
+    settle(room, 0.1)
+    assert first != before and first != region_pixels(render(room), area)

@@ -550,3 +550,112 @@ def test_longest_wall_message_stops_before_the_camera_mount():
     level, _, _ = make_level()
     widest = max(shadowed(level.font, t, (0, 0, 0)).get_width() for t in all_wall_messages())
     assert TILE * 2 + widest < 20 * TILE - 20              # camera sits at column 20
+
+
+# --- polish: show what the player can do right now ------------------------------
+def render_level(level):
+    surface = pygame.Surface((960, 640))
+    level.render(surface)
+    return surface
+
+
+def region(surface, rect):
+    return [tuple(surface.get_at((x, y)))[:3] for x in range(rect.left, rect.right, 2)
+            for y in range(rect.top, rect.bottom, 2)]
+
+
+def test_the_pickup_target_is_the_nearest_free_crate_in_reach():
+    level, _, player = make_level()
+    a, b = level.crates[:2]
+    b.rect.center = (a.rect.centerx + 40, a.rect.centery)
+    player.rect.center = (a.rect.centerx + 4, a.rect.centery + 20)
+    assert level._pickup_target(player) is a
+    player.rect.topleft = (64, 540)
+    assert level._pickup_target(player) is None
+    a.sorted = True
+    player.rect.center = (b.rect.centerx, b.rect.centery + 20)
+    assert level._pickup_target(player) is b
+    b.carrier = object()
+    assert level._pickup_target(player) is None
+
+
+def test_the_bin_in_reach_is_found_only_when_close():
+    level, _, player = make_level()
+    stand_by(player, level.bins["str"])
+    assert level._bin_in_reach(player) == "str"
+    player.rect.topleft = (64, 540)
+    assert level._bin_in_reach(player) is None
+
+
+def test_only_a_free_player_is_offered_a_crate_and_only_a_carrier_is_offered_a_bin():
+    level, _, player = make_level()
+    c = level.crates[0]
+    stand_by(player, c.rect)
+    assert level._prompted_crates() == [c] and level._prompted_bins() == set()
+    level.handle_event(key(pygame.K_e))
+    assert level._prompted_crates() == [] and level._prompted_bins() == set()
+    stand_by(player, level.bins["bool"])
+    assert level._prompted_bins() == {"bool"}
+
+
+def test_in_co_op_each_player_gets_their_own_prompt():
+    level, game, p1 = make_level()
+    game.coop, game.player2 = True, Player(0, 0)
+    a, b = level.crates[:2]
+    stand_by(p1, a.rect)
+    stand_by(game.player2, b.rect)
+    assert set(map(id, level._prompted_crates())) == {id(a), id(b)}
+
+
+def test_a_crate_you_can_pick_up_is_drawn_with_a_highlight():
+    level, _, player = make_level()
+    c = level.crates[0]
+    spot = c.rect.inflate(46, 46)
+    player.rect.topleft = (64, 540)
+    far = region(render_level(level), spot)
+    stand_by(player, c.rect)
+    near = region(render_level(level), spot)
+    assert near != far
+    assert region(render_level(level), spot) == near                       # steady between frames at one instant
+
+
+def test_the_highlight_pulses_over_time():
+    level, _, player = make_level()
+    c = level.crates[0]
+    stand_by(player, c.rect)
+    spot = c.rect.inflate(46, 46)
+    first = region(render_level(level), spot)
+    level.time += 0.26
+    assert region(render_level(level), spot) != first
+
+
+def test_a_bin_glows_only_for_a_player_carrying_a_crate_into_reach():
+    level, _, player = make_level()
+    c = level.crates[0]
+    bin_rect = level.bins["float"]
+    edge = pygame.Rect(bin_rect.left - 4, bin_rect.top, 3, bin_rect.h)         # the left side of the glow ring
+    player.rect.topleft = (64, 540)
+    far = region(render_level(level), edge)
+    stand_by(player, level.bins["float"])
+    assert region(render_level(level), edge) == far                          # empty-handed: no glow
+    carry(level, player, c)
+    stand_by(player, level.bins["float"])
+    assert region(render_level(level), edge) != far
+
+
+def test_the_highlight_draws_nothing_outside_its_margin():
+    level, _, player = make_level()
+    c = level.crates[0]
+    world_far = region(render_level(level), pygame.Rect(0, 100, 960, 400))
+    stand_by(player, c.rect)
+    changed = [i for i, (a, b) in enumerate(zip(world_far, region(render_level(level), pygame.Rect(0, 100, 960, 400)))) if a != b]
+    assert changed and len(changed) < 400                                    # a small area, not the whole room
+
+
+def test_two_players_by_the_same_crate_prompt_it_once():
+    level, game, p1 = make_level()
+    game.coop, game.player2 = True, Player(0, 0)
+    c = level.crates[0]
+    stand_by(p1, c.rect)
+    stand_by(game.player2, c.rect)
+    assert level._prompted_crates() == [c]

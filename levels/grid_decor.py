@@ -132,6 +132,18 @@ def fit_font(text, max_width, sizes=(22, 20, 18, 16, 14)):
     return font
 
 
+def fit_prompt(prompt, width, sizes=(20, 19, 18), lines=2, smallest=17, smallest_lines=3):
+    """(font, wrapped lines) for a screen prompt: the biggest font that fits `lines`
+    lines, else the smallest font cut to `smallest_lines` lines."""
+    for size in sizes:
+        font = code_font(size)
+        wrapped = wrap_text(prompt, font, width)
+        if len(wrapped) <= lines:
+            return font, wrapped
+    font = code_font(smallest)
+    return font, wrap_text(prompt, font, width)[:smallest_lines]
+
+
 # --- baked decoration -------------------------------------------------------
 def draw_static(bg, accent):
     metal = theme.mix(theme.SLATE, accent, 0.18)
@@ -168,6 +180,45 @@ def draw_static(bg, accent):
         glow = _glow(150, theme.mix(theme.INK, accent, 0.28))
         bg.blit(glow, ((first + last + 1) * TILE // 2 - 150, SCREEN_Y + SCREEN_H // 2 - 40),
                 special_flags=pygame.BLEND_RGB_ADD)
+    for rect in GATE_RECTS[:2]:                                  # hazard stripes under the gates
+        _hazard(bg, rect)
+    _exit_sign(bg, accent)
+    for gate, (first, last) in enumerate(CHAMBERS):              # bay stencils on the floor
+        label = ui_font(16, bold=True).render(f"BAY {gate + 1} - {TOPICS[gate]}", True,
+                                              theme.mix(theme.INK, accent, 0.55))
+        bg.blit(label, label.get_rect(center=((first + last + 1) * TILE // 2, 17 * TILE - 14)))
+
+
+def _hazard(bg, rect):
+    """Diagonal warning stripes on the floor cell a gate stands in."""
+    bg.fill(theme.mix(theme.INK, theme.GOLD, 0.1), rect)
+    clip = bg.get_clip()
+    bg.set_clip(rect)
+    for x in range(rect.left - rect.h, rect.right, 14):
+        pygame.draw.line(bg, theme.mix(theme.GOLD, theme.INK, 0.45), (x, rect.bottom), (x + rect.h, rect.top), 5)
+    bg.set_clip(clip)
+
+
+def _exit_sign(bg, accent):
+    sign = pygame.Rect(28 * TILE + 4, 8 * TILE, 56, 26)
+    pygame.draw.rect(bg, theme.INK, sign, border_radius=4)
+    pygame.draw.rect(bg, theme.TEAL, sign, 2, border_radius=4)
+    text = ui_font(16, bold=True).render("EXIT", True, theme.TEAL)
+    bg.blit(text, text.get_rect(center=(sign.centerx - 6, sign.centery)))
+    tip = [(sign.right - 14, sign.centery - 5), (sign.right - 14, sign.centery + 5), (sign.right - 7, sign.centery)]
+    pygame.draw.polygon(bg, theme.TEAL, tip)
+
+
+def draw_chevrons(surface, openness, time):
+    """Arrows along the lane that run toward the exit once its door is opening."""
+    if openness < 0.5:
+        return
+    y = LANE_ROWS[1] * TILE + TILE // 2
+    for k in range(4):
+        x = 23 * TILE + k * 36
+        glow = ((time * 2.5 - k * 0.4) % 1.6) / 1.6
+        colour = theme.mix(theme.INK, theme.TEAL, 0.25 + 0.75 * max(0.0, 1.0 - abs(glow - 0.3) * 2.2))
+        pygame.draw.lines(surface, colour, False, [(x, y - 10), (x + 10, y), (x, y + 10)], 3)
 
 
 def _glow(radius, colour):
@@ -268,9 +319,10 @@ def draw_screen(surface, rect, gate, state, accent, prompt="", answer="", fracti
         surface.blit(result, result.get_rect(center=(rect.centerx, rect.centery + 22)))
         return
     y = rect.y + 24
-    for line in wrap_text(prompt, body, rect.w - 16)[:3]:
-        surface.blit(body.render(line, True, theme.PAPER), (rect.x + 8, y))
-        y += body.get_linesize()
+    font, lines = fit_prompt(prompt, rect.w - 16)
+    for line in lines:
+        surface.blit(font.render(line, True, theme.PAPER), (rect.x + 8, y))
+        y += font.get_linesize()
     bar = pygame.Rect(rect.x + 8, rect.bottom - 12, rect.w - 16, 5)
     pygame.draw.rect(surface, theme.mix(theme.INK, theme.SLATE, 0.5), bar, border_radius=2)
     low = fraction < 0.25
