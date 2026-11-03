@@ -150,11 +150,12 @@ class Game:
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
-        if os.environ.get("MEMORY_HEIST_NEW_FLOOR1") == "1":
-            # Reference floor on the new kit; Level 1 itself is untouched.
-            level1 = FloorOneLobby(player=self.player, game=self)
-        else:
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL1") == "1":
+            # Escape hatch: the original question-screen Level 1.
             level1 = Level1(player=self.player, game=self)
+        else:
+            # Floor 1, the reception lobby on the shared kit, is Level 1.
+            level1 = FloorOneLobby(player=self.player, game=self)
         self.level_manager.register("level1", level1)
         self.level_manager.register(
             "level2",

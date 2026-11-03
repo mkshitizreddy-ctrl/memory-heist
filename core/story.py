@@ -24,11 +24,11 @@ STORY = {
     },
     "level1": {
         "warden": True,
-        "title": "LEVEL 1 - THE SECURITY GATE",
+        "title": "LEVEL 1 - THE RECEPTION LOBBY",
         "concept": "Data types",
         "lines": [
-            "The gate checks what you are before it lets you in.",
-            "Prove clearance 5 by naming the right data types.",
+            "Crates are piled across the lobby, each marked with a value.",
+            "Carry every crate to the bin for its data type to open the gates.",
         ],
     },
     "level2": {
