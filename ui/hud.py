@@ -9,6 +9,7 @@ import pygame
 
 from core.hero_portrait import make_portrait
 from ui import theme
+from ui.fonts import ui_font
 
 LEVEL_LABELS = {
     "level1": "Level 1 of 5",
@@ -72,10 +73,10 @@ def count_up(shown, target, rate=0.25):
 
 class HUD:
     def __init__(self):
-        self.font = pygame.font.Font(None, 26)
-        self.small = pygame.font.Font(None, 20)
-        self.tiny = pygame.font.Font(None, 16)
-        self.big = pygame.font.Font(None, 28)
+        self.font = ui_font(26)
+        self.small = ui_font(20)
+        self.tiny = ui_font(16)
+        self.big = ui_font(28)
         self._shown_score = None      # score currently displayed (counts up)
         self._flash = 0               # frames left of the "points gained" glow
         self._last_score = None

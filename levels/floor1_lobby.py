@@ -29,6 +29,7 @@ from core.easing import Tween, ease_out_cubic
 from core.tilemap import TILE, TileMap, make_tiles
 from ui import theme
 from ui.kit import draw_panel
+from ui.fonts import ui_font
 
 LEVEL_KEY = "level1"
 COLS, ROWS = 30, 20            # 960 x 640: exactly one screen
@@ -202,9 +203,9 @@ class FloorOneLobby:
         self._dust_clock = {}
         self.time = 0.0
 
-        self.font = pygame.font.Font(None, 24)
-        self.small = pygame.font.Font(None, 20)
-        self.big = pygame.font.Font(None, 30)
+        self.font = ui_font(24)
+        self.small = ui_font(20)
+        self.big = ui_font(30)
         self._background = None
 
     # --- players --------------------------------------------------------
@@ -414,7 +415,7 @@ class FloorOneLobby:
         # reception desk
         draw_panel(bg, self.desk, fill=theme.mix(theme.NAVY, accent, 0.25),
                    border=accent, radius=6)
-        label = pygame.font.Font(None, 22).render("NOVACORP RECEPTION", True, theme.PAPER)
+        label = ui_font(22).render("NOVACORP RECEPTION", True, theme.PAPER)
         bg.blit(label, label.get_rect(center=self.desk.center))
         for rect in self.plants:
             self._draw_plant(bg, rect)
@@ -426,7 +427,7 @@ class FloorOneLobby:
         elev = pygame.Rect(0, 3 * TILE, 2 * TILE, 3 * TILE)
         draw_panel(bg, elev, fill=theme.NAVY, border=theme.MIST, radius=0, shadow=False)
         pygame.draw.line(bg, theme.SLATE, (elev.centerx, elev.y + 6), (elev.centerx, elev.bottom - 6), 3)
-        tag = pygame.font.Font(None, 16).render("ELEVATOR", True, theme.MIST)
+        tag = ui_font(16).render("ELEVATOR", True, theme.MIST)
         bg.blit(tag, tag.get_rect(midtop=(elev.centerx, elev.bottom + 2)))
         # soft pools of light (additive, built once)
         for centre, radius, colour in (
@@ -438,7 +439,7 @@ class FloorOneLobby:
             bg.blit(glow, (centre[0] - radius, centre[1] - radius),
                     special_flags=pygame.BLEND_RGB_ADD)
         # title on the wall
-        title = pygame.font.Font(None, 30).render("FLOOR 1 - RECEPTION LOBBY", True,
+        title = ui_font(30, bold=True).render("FLOOR 1 - RECEPTION LOBBY", True,
                                                   theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, 2 * TILE + 2))
         self._background = bg

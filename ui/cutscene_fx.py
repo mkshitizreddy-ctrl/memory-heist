@@ -11,6 +11,7 @@ the same picture), so it is easy to test.
 import random
 
 import pygame
+from ui.fonts import ui_font
 
 STREAM_CHARS = "01<>{}[]()=+*#/\\"
 CELL = 22                      # pixel height of one character
@@ -31,7 +32,7 @@ class DataStreams:
         self.width = width
         self.height = height
         self.clock = 0.0
-        self._font = pygame.font.Font(None, 22)
+        self._font = ui_font(22)
         self._glyphs = {}
         rng = random.Random(seed)
         self.columns = []

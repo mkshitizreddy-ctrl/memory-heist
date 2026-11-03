@@ -10,6 +10,7 @@ import pygame
 from core.easing import clamp01, ease_in_out_quad
 from ui import theme
 from ui.hud import LEVEL_LABELS
+from ui.fonts import ui_font
 
 SEAM = 4
 
@@ -29,8 +30,8 @@ def label_alpha(progress):
 
 class ElevatorWipe:
     def __init__(self):
-        self.title_font = pygame.font.Font(None, 54)
-        self.name_font = pygame.font.Font(None, 28)
+        self.title_font = ui_font(54, bold=True)
+        self.name_font = ui_font(28)
 
     def draw(self, surface, progress, level_name):
         if progress <= 0:
