@@ -1058,6 +1058,75 @@ The project scope is appropriate for an intermediate-level college project and i
 
 The final goal of Memory Heist is to demonstrate that programming concepts can be transformed into an enjoyable and interactive learning experience.
 
+# 34. Implementation Notes
+
+This section describes how the game was actually built, from the integrator's side (Member 1, core system and integration). It is written for a reader who has the code open: every item names the file that implements it.
+
+## 34.1 How the game is put together
+
+The game is one loop in `core/game.py`. A `Game` object owns a small state machine (`menu`, `intro`, `briefing`, `playing`, `outro`, `win`, `lose`) plus a `paused` flag and a settings panel that can open over the menu or the pause screen. `core/level_manager.py` holds the six levels and moves from one to the next when `is_complete()` becomes true.
+
+Every level is a class with four methods: `update(dt)`, `render(surface)`, `handle_event(event)` and `is_complete()`. A level that wants the shared player movement also exposes `room_map.blocked(rect)`, and the game then moves and draws the players for it. This is the whole contract between a level and the rest of the game, which is why five people could build levels in parallel without touching each other's files.
+
+Systems that need to react to the game (sound effects, music, mood colouring, the radio feed, the floor results) do not live inside the levels. Each one is an observer: once per frame the game hands it a snapshot (state, score, security, level, gates passed) and it decides what to do. `SoundEvents`, `Atmosphere`, `MusicPlayer` and `CommsFeed` all work this way, so no level ever calls them.
+
+## 34.2 What was added to the game
+
+| Area | What it does | Where |
+| --- | --- | --- |
+| Shared look | One palette, one colour per floor, panels, buttons, dialogue box, text typing | `ui/theme.py`, `ui/kit.py` |
+| Motion | Easing curves, tweens, sprite animation, squash and stretch, screen shake | `core/easing.py`, `core/animation.py` |
+| Music | Adaptive background music made in code: one key per floor, three stems (pad, pulse, alert) that fade in and out with danger | `systems/music.py` |
+| Sound effects | Pickup, drop, footstep and door sounds made in code, on top of the original `.ogg` files | `systems/sfx.py`, `systems/audio.py` |
+| Radio feed | WARDEN and teammate lines that appear at the bottom of the screen when something happens | `core/comms.py`, `ui/comms.py` |
+| Characters | Ghost and Echo walking sprites, and animated portraits for Ghost, Echo and WARDEN | `core/hero_sprites.py`, `core/hero_portrait.py` |
+| Map tools | Tile maps drawn from text layouts, with a camera that follows and shakes | `core/tilemap.py` |
+| Reference floor | A fully rebuilt Floor 1 (Reception Lobby): walk around, carry crates to the right data-type bin | `levels/floor1_lobby.py` |
+| HUD | Floor name in the floor's colour, counting-up score, cell security meter, timer pill | `ui/hud.py` |
+| Screens | Restyled menu, win and lose screens with a shared animated backdrop | `ui/menu.py`, `ui/screens.py`, `ui/backdrop.py` |
+| Between floors | Elevator-door transition, restyled pause panel, "floor cleared" panel with stars, points, time and mistakes | `ui/transitions.py`, `ui/overlays.py`, `core/floor_stats.py` |
+| Settings | Music volume, effects volume and mute, saved between runs | `systems/settings.py`, `ui/settings_screen.py` |
+
+## 34.3 Design decisions and why
+
+1. **Sound and music are generated, not downloaded.** No royalty-free music file was available, and every outside file is a licensing question. The music and effects are short numpy waveforms, so the repository stays small and nothing needs credit. The cost is a simpler sound than recorded music.
+2. **The tile map is our own, under 200 lines.** The usual library (pyscroll) is GPL-licensed, which would force the whole project under the same licence. The game only needs solid tiles, a camera and drawing, so writing it was cheaper than the licence question.
+3. **Teammates' levels were restyled, not rewritten.** Levels 3 and 4 in particular had a lot of debugged behaviour. The shared layer therefore only changes how a level looks and fits (palette, panels, free HUD and radio strips). Questions, hints, scoring, the drone and the gate logic are untouched, and a floor is only rebuilt when its owner agrees.
+4. **The rebuilt Floor 1 is opt-in.** It is switched on with the environment variable `MEMORY_HEIST_NEW_FLOOR1=1`. Without it the original Level 1 is used, so the finished game never depended on an unfinished replacement.
+5. **Audio channels are reserved.** The mixer was running out of channels once the music stems were playing, which silently dropped sound effects. Channels 0 to 5 now belong to the music and the rest to effects.
+6. **The floor results need no new game state.** The game stores a snapshot of score, time and mistakes when a floor starts and shows the difference on the next briefing card. Time spent reading cards is not counted, because the run clock is frozen there.
+7. **Settings never touch the tests.** A test fixture points the settings file at a temporary folder, so a developer's saved volume cannot change a test result and tests never write to `saves/`.
+
+## 34.4 Testing
+
+The suite has 61 test files and 889 passing tests (a few platform-dependent tests are skipped). The work followed one routine:
+
+1. Write the test first, including the awkward cases (empty input, out-of-range values, a missing audio device).
+2. Write the code until the tests pass.
+3. Break the code on purpose, one line at a time, and confirm a test fails. A test that still passes when the code is broken proves nothing, and several tests were rewritten for exactly that reason.
+4. Take a screenshot of anything visual (the game runs headless in tests, so the picture is saved and looked at) and fix overlaps that only show up on screen.
+
+A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the whole suite on every pull request, and a change is merged only when it is green. All work goes through one working branch and one pull request at a time.
+
+## 34.5 Running and controls
+
+| Action | How |
+| --- | --- |
+| Start the game | `python main.py` |
+| Try the rebuilt Floor 1 | `set MEMORY_HEIST_NEW_FLOOR1=1`, then `python main.py` (Windows) |
+| Run all tests | `python -m pytest tests -q` |
+| Pause | ESC while playing |
+| Settings | S on the menu, or S on the pause screen |
+| Fullscreen | F11 |
+| Use another settings file | set `MEMORY_HEIST_SETTINGS` to a file path |
+
+## 34.6 Known limits and next steps
+
+- Levels 1 to 5 and the Final Vault still use their original screen layouts. They share the HUD, transitions and sound, but only Floor 1 has the full new look.
+- Known layout problems in teammates' levels (overlapping labels, text drawing into the HUD bar) and one Final Vault input bug are listed per owner in the team plan document.
+- The music is deliberately simple; recorded tracks could replace it later through the same stem interface.
+- There is no gamepad support, and the game assumes a 960 by 640 window (scaled when fullscreen).
+
 ---
 
 # FINAL PROJECT SUMMARY
