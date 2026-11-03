@@ -3,14 +3,20 @@ import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
+import threading
+
 import numpy as np
 import pygame
 import pytest
 
 from core.level_manager import LEVEL_ORDER
-from systems import music
+from systems import composer, music
 from systems.music import (FLOOR_ROOTS, STEMS, MusicPlayer, approach, key_for,
-                           mix_for, synth_stem)
+                           mix_for, next_key, synth_stem)
+
+KEYS = list(FLOOR_ROOTS) + ["menu"]
+
+pytestmark = pytest.mark.real_music
 
 
 class FakeAudio:
@@ -34,10 +40,28 @@ def test_every_level_has_a_root_and_they_rise():
     assert roots == sorted(roots) and len(set(roots)) == len(roots)
 
 
-def test_calm_screens_are_pad_only():
+def test_calm_screens_have_no_drive_and_no_alarm():
     for state in ("menu", "intro", "outro", "win"):
-        assert mix_for(state, "level3", 1.0) == {"pad": 0.8, "pulse": 0.0, "alert": 0.0}
+        mix = mix_for(state, "level3", 1.0)
+        assert mix == {"pad": 0.8, "pulse": 0.0, "arp": 0.35, "lead": 0.45, "alert": 0.0}
         assert key_for(state, "level3") == "menu"
+
+
+def test_every_stem_has_a_volume_in_every_state():
+    for state in ("menu", "playing", "lose", "briefing"):
+        for level in LEVEL_ORDER:
+            assert set(mix_for(state, level, 0.5)) == set(STEMS)
+
+
+def test_the_melody_gives_way_to_the_alert_as_the_meter_rises():
+    leads = [mix_for("playing", "level3", a)["lead"] for a in (0, .25, .5, .75, 1)]
+    assert leads[0] > 0 and leads == sorted(leads, reverse=True) and leads[-1] == 0.0
+
+
+def test_arpeggio_thins_under_alert_but_never_vanishes():
+    calm = mix_for("playing", "level3", 0.0)["arp"]
+    tense = mix_for("playing", "level3", 1.0)["arp"]
+    assert 0 < tense < calm
 
 
 def test_pulse_grows_with_depth_alert_follows_meter():
@@ -50,6 +74,7 @@ def test_pulse_grows_with_depth_alert_follows_meter():
 def test_lose_is_all_alert_and_input_clamped():
     m = mix_for("lose", "level4", 0.0)
     assert m["alert"] == 1.0 and m["pulse"] == 0.0 and m["pad"] < 0.5
+    assert m["lead"] == 0.0 and m["arp"] == 0.0
     assert mix_for("playing", "level1", 9)["alert"] == 1.0
     assert mix_for("playing", "level1", -9)["alert"] == 0.0
 
@@ -67,17 +92,18 @@ def test_approach_never_overshoots():
 
 
 @pytest.mark.parametrize("stem", STEMS)
-def test_stem_is_stereo_int16_correct_length_and_loud_enough(stem):
-    data = synth_stem(stem, 55.0)
-    assert data.dtype == np.int16 and data.shape == (176400, 2)
+@pytest.mark.parametrize("key", ["menu", "level1", "final_vault"])
+def test_stem_is_stereo_int16_correct_length_and_loud_enough(stem, key):
+    data = synth_stem(stem, key)
+    assert data.dtype == np.int16 and data.shape == (composer.loop_samples(key), 2)
     assert np.abs(data).max() > 2000
     assert np.abs(data).max() < 32767
 
 
 @pytest.mark.parametrize("stem", STEMS)
-@pytest.mark.parametrize("root", list(FLOOR_ROOTS.values()) + [music.MENU_ROOT])
-def test_stem_loops_without_a_click(stem, root):
-    d = synth_stem(stem, root)[:, 0].astype(float)
+@pytest.mark.parametrize("key", KEYS)
+def test_stem_loops_without_a_click(stem, key):
+    d = synth_stem(stem, key)[:, 0].astype(float)
     jump = abs(d[0] - d[-1])
     typical = np.abs(np.diff(d)).max()
     assert jump <= typical * 1.5 + 1
@@ -85,7 +111,22 @@ def test_stem_loops_without_a_click(stem, root):
 
 def test_unknown_stem_rejected():
     with pytest.raises(ValueError):
-        synth_stem("kazoo", 55.0)
+        synth_stem("kazoo", "level1")
+
+
+def test_unknown_floor_rejected():
+    with pytest.raises(ValueError):
+        synth_stem("pad", "level9")
+
+
+def test_every_floor_has_a_theme_and_a_root():
+    assert set(KEYS) == set(composer.THEMES)
+
+
+def test_next_floor_follows_the_building_and_menu_leads_to_the_first():
+    assert next_key("menu") == LEVEL_ORDER[0]
+    assert [next_key(n) for n in LEVEL_ORDER[:-1]] == list(LEVEL_ORDER[1:])
+    assert next_key(LEVEL_ORDER[-1]) is None and next_key("nope") is None
 
 
 def test_player_inert_without_mixer():
@@ -94,7 +135,7 @@ def test_player_inert_without_mixer():
     assert p.voices == [] and p.key is None
 
 
-def test_player_starts_three_stems_and_fades_in(mixer):
+def test_player_starts_every_stem_and_fades_in(mixer):
     p = MusicPlayer(FakeAudio())
     p.update(0.0, "playing", "level2", 0.0)
     assert p.key == "level2" and {v.stem for v in p.voices} == set(STEMS)
@@ -104,6 +145,7 @@ def test_player_starts_three_stems_and_fades_in(mixer):
     vol = {v.stem: v.volume for v in p.voices}
     assert vol["pad"] == pytest.approx(0.8 * music.MASTER)
     assert vol["alert"] == 0.0 and vol["pulse"] > 0
+    assert vol["arp"] > 0 and vol["lead"] == pytest.approx(0.6 * music.MASTER)
 
 
 def test_player_alert_swells_with_security(mixer):
@@ -123,7 +165,7 @@ def test_floor_change_crossfades_and_retires_old_voices(mixer):
     for _ in range(300):
         p.update(1 / 60, "playing", "level2", 0.0)
     assert {v.key for v in p.voices} == {"level2"}
-    assert len(p.voices) == 3
+    assert len(p.voices) == len(STEMS)
 
 
 def test_mute_fades_to_silence_and_back(mixer):
@@ -151,7 +193,7 @@ def test_stop_clears_everything(mixer):
 def test_music_uses_reserved_channels_and_effects_cannot_steal_them(mixer):
     p = MusicPlayer(FakeAudio())
     p.update(0.0, "playing", "level1", 0.0)
-    assert sorted(v.index for v in p.voices) == [0, 1, 2]
+    assert sorted(v.index for v in p.voices) == list(range(len(STEMS)))
     for _ in range(10):                      # a hectic level's effects, after
         pygame.mixer.Sound(buffer=bytes(4000)).play(loops=-1)
     assert all(v.channel.get_busy() for v in p.voices)
@@ -171,7 +213,9 @@ def test_crossfade_never_needs_more_than_reserved_channels(mixer):
     for _ in range(60):
         p.update(1 / 60, "playing", "level1", 0.5)
     p.update(1 / 60, "playing", "level2", 0.5)
-    assert len(p.voices) == 6 and len({v.index for v in p.voices}) == 6
+    assert len(p.voices) == 2 * len(STEMS)
+    assert len({v.index for v in p.voices}) == 2 * len(STEMS)
+    assert all(v.index < music.MUSIC_CHANNELS for v in p.voices)
 
 
 def test_music_starting_never_cuts_off_a_playing_effect(mixer):
@@ -181,3 +225,57 @@ def test_music_starting_never_cuts_off_a_playing_effect(mixer):
     assert all(c is not None for c in playing)
     p.update(0.0, "playing", "level1", 0.0)  # music starts now
     assert all(c.get_sound() is snd for c, snd in zip(playing, sounds))
+
+
+# --- rendering ahead and memory ------------------------------------------------
+
+def test_next_floor_is_prepared_in_the_background(mixer):
+    p = MusicPlayer(FakeAudio())
+    p.update(0.0, "playing", "level1", 0.0)
+    p.wait_for_prefetch()
+    assert {stem for (key, stem) in p._arrays if key == "level2"} == set(STEMS)
+
+
+def test_arriving_on_a_prepared_floor_does_not_synthesise_on_the_spot(mixer, monkeypatch):
+    p = MusicPlayer(FakeAudio())
+    p.update(0.0, "playing", "level1", 0.0)
+    p.wait_for_prefetch()
+
+    real = music.synth_stem
+
+    def boom(stem, key):
+        if threading.current_thread() is threading.main_thread():
+            raise AssertionError("synthesised on the main thread")
+        return real(stem, key)               # the background thread may still work ahead
+
+    monkeypatch.setattr(music, "synth_stem", boom)
+    p.update(1 / 60, "playing", "level2", 0.0)
+    assert p.key == "level2" and {v.key for v in p.voices} == {"level2"}
+    assert len(p.voices) == len(STEMS)
+    p.wait_for_prefetch()
+
+
+def test_an_unprepared_floor_still_plays(mixer):
+    p = MusicPlayer(FakeAudio())
+    p.update(0.0, "playing", "level1", 0.0)
+    p.update(1 / 60, "playing", "level4", 0.0)        # skipped ahead
+    assert p.key == "level4" and {v.key for v in p.voices} == {"level4"}
+    assert len(p.voices) == len(STEMS)
+
+
+def test_only_nearby_floors_are_kept_in_memory(mixer):
+    p = MusicPlayer(FakeAudio())
+    for name in ("level1", "level2", "level3", "level4"):
+        p.update(0.0, "playing", name, 0.0)
+        p.wait_for_prefetch()
+    held = {key for key, _ in list(p._sounds) + list(p._arrays)}
+    assert held <= {"level3", "level4", "level5"}
+    assert "level1" not in held
+
+
+def test_prefetch_never_runs_twice_for_the_same_floor(mixer):
+    p = MusicPlayer(FakeAudio())
+    p.prefetch("level2")
+    p.prefetch("level2")
+    p.wait_for_prefetch()
+    assert len(p._threads) == 1

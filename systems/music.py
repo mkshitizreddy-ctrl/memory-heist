@@ -2,20 +2,26 @@
 systems/music.py
 Owner: Member 1 - Core Game System
 
-Adaptive music, generated in code (no music files are bundled).
+Adaptive music, composed in code (no music files are bundled).
 
-  * Every floor has its own key. Three looping stems play together:
-      pad    - slow chord, always there
-      pulse  - rhythmic bass, grows with depth (deeper floor = more drive)
+  * Every floor has its own theme (systems/composer.py): its own mode, tempo,
+    chords, bass line and melody. Five looping stems play together:
+      pad    - sustained chords, always there
+      pulse  - bass and drums, grows with depth (deeper floor = more drive)
+      arp    - arpeggiated chord tones
+      lead   - the melody; it steps back as the WARDEN closes in
       alert  - a tense tritone drone, rises with the WARDEN alert meter
   * `mix_for()` is pure: (state, level, alert) -> stem volumes. Easy to test.
   * `MusicPlayer` crossfades stems when the floor changes and glides volumes,
-    so the music never jumps. With no sound device it does nothing.
+    so the music never jumps. It renders the next floor's audio in the
+    background so a floor change never stalls. With no sound device it does
+    nothing.
 
 Levels never touch this; Game calls MusicPlayer.update() once a frame.
 """
 
-import math
+import threading
+from functools import lru_cache
 
 import pygame
 
@@ -23,16 +29,17 @@ from core.level_manager import LEVEL_ORDER
 
 try:
     import numpy as np
+    from systems import composer
 except ImportError:                    # numpy is in requirements.txt
     np = None
+    composer = None
 
 SAMPLE_RATE = 44100
-LOOP_SECONDS = 4.0
 MASTER = 0.5
 FADE_PER_SECOND = 0.6                   # volume units per second
-STEMS = ("pad", "pulse", "alert")
-MUSIC_CHANNELS = 6                      # two floors of three stems mid-crossfade
-TOTAL_CHANNELS = 16                     # leaves 10 for sound effects
+STEMS = ("pad", "pulse", "arp", "lead", "alert")
+MUSIC_CHANNELS = 2 * len(STEMS)         # two floors of stems mid-crossfade
+TOTAL_CHANNELS = MUSIC_CHANNELS + 10    # leaves 10 for sound effects
 
 # Root note per floor (Hz). Each floor sits a step higher and tenser.
 FLOOR_ROOTS = {
@@ -60,16 +67,23 @@ def key_for(state, level_name):
 
 
 def mix_for(state, level_name, alert):
-    """Stem volumes (0..1) for a screen. Calm screens are pad only."""
+    """Stem volumes (0..1) for a screen.
+
+    Calm screens get pad, a soft arpeggio and the melody. In play the bass
+    and drums grow with depth, and the melody gives way to the alert drone as
+    the WARDEN closes in.
+    """
     if state in _CALM_STATES or level_name not in LEVEL_ORDER:
-        return {"pad": 0.8, "pulse": 0.0, "alert": 0.0}
+        return {"pad": 0.8, "pulse": 0.0, "arp": 0.35, "lead": 0.45, "alert": 0.0}
     depth = LEVEL_ORDER.index(level_name) / max(1, len(LEVEL_ORDER) - 1)
     alert = _clamp(alert)
     if state == "lose":
-        return {"pad": 0.2, "pulse": 0.0, "alert": 1.0}
+        return {"pad": 0.2, "pulse": 0.0, "arp": 0.0, "lead": 0.0, "alert": 1.0}
     return {
         "pad": 0.8,
         "pulse": _clamp(0.25 + 0.65 * depth),
+        "arp": _clamp((0.4 + 0.3 * depth) * (1.0 - 0.5 * alert)),
+        "lead": _clamp(0.6 * (1.0 - alert)),
         "alert": _clamp(alert ** 1.5),
     }
 
@@ -81,38 +95,43 @@ def approach(current, target, step):
     return max(target, current - step)
 
 
-def _snap(freq):
-    """Nudge a frequency so a whole number of cycles fit the loop (no click)."""
-    return max(1, round(freq * LOOP_SECONDS)) / LOOP_SECONDS
+def root_for(key):
+    """The tonic (Hz) a screen plays in."""
+    if key == "menu":
+        return MENU_ROOT
+    if key not in FLOOR_ROOTS:
+        raise ValueError(f"unknown theme {key!r}")
+    return FLOOR_ROOTS[key]
 
 
-def synth_stem(stem, root):
-    """One seamless stereo int16 loop for a stem in the key of `root`."""
-    if np is None:
+RENDER_CACHE_SIZE = 16                  # about three screens of stems, roughly 30 MB
+
+
+@lru_cache(maxsize=RENDER_CACHE_SIZE)
+def _render(stem, key):
+    data = composer.render_stem(stem, key, root_for(key))
+    data.setflags(write=False)           # shared between callers: nobody may edit it
+    return data
+
+
+def synth_stem(stem, key):
+    """One seamless stereo int16 loop of a stem for a screen ("menu" or a level name).
+
+    Rendering is deterministic, so the most recent loops are remembered: a
+    second player (or a floor you return to) costs nothing.
+    """
+    if composer is None:
         raise RuntimeError("numpy is required for music synthesis")
-    n = int(SAMPLE_RATE * LOOP_SECONDS)
-    t = np.arange(n) / SAMPLE_RATE
-    two_pi = 2 * math.pi
+    return _render(stem, key)
 
-    if stem == "pad":
-        wave = sum(a * np.sin(two_pi * _snap(root * m) * t)
-                   for m, a in ((1, 0.30), (1.5, 0.20), (2, 0.14), (3, 0.06)))
-        wave = wave * (0.85 + 0.15 * np.sin(two_pi * 0.25 * t))
-    elif stem == "pulse":
-        beat = np.mod(t * 2.0, 1.0)                 # 2 beats a second
-        env = np.exp(-beat * 6.0)
-        wave = 0.6 * env * np.sin(two_pi * _snap(root) * t)
-        wave += 0.25 * env * np.sin(two_pi * _snap(root * 2) * t)
-    elif stem == "alert":
-        wave = 0.28 * np.sin(two_pi * _snap(root * 1.414) * t)   # tritone
-        wave += 0.22 * np.sin(two_pi * _snap(root * 2.0) * t)
-        wave *= 0.6 + 0.4 * np.sin(two_pi * 1.0 * t) ** 2         # throb
-    else:
-        raise ValueError(f"unknown stem {stem!r}")
 
-    mono = np.clip(wave, -1.0, 1.0)
-    data = (mono * 32767 * 0.5).astype(np.int16)
-    return np.ascontiguousarray(np.column_stack((data, data)))
+def next_key(key):
+    """The floor that follows `key`, whose audio is worth preparing early."""
+    if key == "menu":
+        return LEVEL_ORDER[0]
+    if key in LEVEL_ORDER and LEVEL_ORDER.index(key) + 1 < len(LEVEL_ORDER):
+        return LEVEL_ORDER[LEVEL_ORDER.index(key) + 1]
+    return None
 
 
 class _Voice:
@@ -133,6 +152,9 @@ class MusicPlayer:
         self.key = None
         self.voices = []
         self._sounds = {}
+        self._arrays = {}                 # (key, stem) -> audio rendered ahead of time
+        self._prefetching = set()
+        self._threads = []
         self.available = bool(
             getattr(audio, "mixer_ready", False) and np is not None
         )
@@ -156,12 +178,45 @@ class MusicPlayer:
     def _sound(self, key, stem):
         cached = self._sounds.get((key, stem))
         if cached is None:
-            root = MENU_ROOT if key == "menu" else FLOOR_ROOTS[key]
-            cached = pygame.sndarray.make_sound(synth_stem(stem, root))
+            data = self._arrays.pop((key, stem), None)
+            if data is None:
+                data = synth_stem(stem, key)
+            cached = pygame.sndarray.make_sound(data)
             self._sounds[(key, stem)] = cached
         return cached
 
+    def prefetch(self, key):
+        """Render a screen's stems in a background thread, ready for its turn.
+
+        Only numpy runs off the main thread; the mixer is touched on the main
+        thread alone.
+        """
+        if key is None or key in self._prefetching:
+            return
+        if all((key, stem) in self._sounds for stem in STEMS):
+            return
+        self._prefetching.add(key)
+        thread = threading.Thread(target=self._render_ahead, args=(key,), daemon=True)
+        self._threads.append(thread)
+        thread.start()
+
+    def _render_ahead(self, key):
+        for stem in STEMS:
+            if (key, stem) not in self._arrays:
+                self._arrays[(key, stem)] = synth_stem(stem, key)
+
+    def wait_for_prefetch(self):
+        """Block until background rendering finishes (used by tests)."""
+        for thread in self._threads:
+            thread.join()
+
+    def _forget_old(self, keep):
+        """Drop audio for screens other than `keep` (about 7 MB each)."""
+        self._sounds = {k: v for k, v in self._sounds.items() if k[0] in keep}
+        self._arrays = {k: v for k, v in self._arrays.items() if k[0] in keep}
+
     def _start_key(self, key):
+        previous = self.key
         for voice in self.voices:
             voice.target = 0.0
         for stem in STEMS:
@@ -173,6 +228,9 @@ class MusicPlayer:
             voice.channel.play(self._sound(key, stem), loops=-1)
             self.voices.append(voice)
         self.key = key
+        following = next_key(key)
+        self._forget_old({key, previous, following})
+        self.prefetch(following)
 
     def update(self, dt, state, level_name, alert):
         if not self.available:
