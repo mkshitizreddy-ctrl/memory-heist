@@ -68,3 +68,45 @@ def test_cache_is_dropped_when_pygame_quits():
     after = fonts.ui_font(24)
     assert after is not before
     assert after.render("alive", True, (255, 255, 255)).get_width() > 0
+
+
+def test_shadowed_text_is_bigger_by_the_offset_and_has_both_colours():
+    from ui.kit import shadowed
+
+    font = fonts.ui_font(30, bold=True)
+    plain = font.render("VAULT", True, (250, 250, 250))
+    out = shadowed(font, "VAULT", (250, 250, 250), shadow=(10, 20, 30), offset=(2, 3))
+    assert out.get_size() == (plain.get_width() + 2, plain.get_height() + 3)
+    pixels = [out.get_at((x, y)) for x in range(out.get_width()) for y in range(out.get_height())]
+    assert any(p[:3] == (250, 250, 250) and p[3] == 255 for p in pixels)  # the text
+    assert any(p[:3] == (10, 20, 30) and p[3] == 255 for p in pixels)     # the shadow
+    assert out.get_at((0, out.get_height() - 1))[3] == 0                  # corner stays clear
+
+
+def test_shadow_sits_behind_and_below_the_text():
+    from ui.kit import shadowed
+
+    font = fonts.ui_font(40, bold=True)
+    out = shadowed(font, "I", (250, 250, 250), shadow=(0, 0, 0), offset=(0, 4))
+    column = [out.get_at((x, y)) for y in range(out.get_height()) for x in range(out.get_width())]
+    bottom_rows = [out.get_at((x, out.get_height() - 1)) for x in range(out.get_width())]
+    assert all(p[:3] != (250, 250, 250) for p in bottom_rows if p[3] > 0)
+    assert any(p[:3] == (250, 250, 250) for p in column)
+
+
+def test_code_font_is_monospaced():
+    font = fonts.code_font(20)
+    assert font.size("iiii")[0] == font.size("WWWW")[0] == font.size("0.5.")[0]
+
+
+def test_code_font_keeps_the_decimal_point_visible():
+    """0.5 must not collapse into '05': the point gets its own full cell."""
+    font = fonts.code_font(20)
+    assert font.size("0.5")[0] == pytest.approx(1.5 * font.size("05")[0], abs=1)
+
+
+def test_code_font_is_cached_and_falls_back(monkeypatch, tmp_path):
+    assert fonts.code_font(20) is fonts.code_font(20)
+    fonts.clear_cache()
+    monkeypatch.setattr(fonts, "FONT_DIR", tmp_path)
+    assert fonts.code_font(20).render("0.5", True, (255, 255, 255)).get_width() > 0

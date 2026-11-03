@@ -174,6 +174,21 @@ class DialogueBox:
             y += font.get_linesize()
 
 
+def shadowed(font, text, colour, shadow=(4, 7, 16), offset=(1, 2)):
+    """Text with a dark drop shadow, as one surface.
+
+    The shadow keeps words readable when they sit over a light strip or a
+    busy background. The surface is `offset` bigger than the plain text.
+    """
+    face = font.render(str(text), True, colour)
+    back = font.render(str(text), True, shadow)
+    out = pygame.Surface((face.get_width() + offset[0], face.get_height() + offset[1]),
+                         pygame.SRCALPHA)
+    out.blit(back, offset)
+    out.blit(face, (0, 0))
+    return out
+
+
 def blit_centered(surface, image, centre):
     """Blit an image so its middle sits on `centre`; returns the rect used."""
     rect = image.get_rect(center=centre)
