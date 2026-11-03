@@ -28,8 +28,10 @@ def test_advancing_a_level_puts_both_players_back_at_the_start(game, monkeypatch
     game.update(DT)
 
     assert game.level_manager.current_name == LEVEL_ORDER[1]
-    assert game.player.rect.topleft == PLAYER_START_POS
-    assert game.player2.rect.topleft == PLAYER2_START_POS
+    spawns = getattr(game.level_manager.current, "spawn_points", None)
+    start1, start2 = spawns if spawns else (PLAYER_START_POS, PLAYER2_START_POS)
+    assert game.player.rect.topleft == start1
+    assert game.player2.rect.topleft == start2
 
 
 @pytest.mark.parametrize("name", LEVEL_ORDER)

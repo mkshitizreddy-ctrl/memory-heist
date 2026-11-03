@@ -28,7 +28,7 @@ COMMS = {
         "danger": ("WARDEN", ["Security has been notified. I am sorry about the inconvenience."]),
     },
     "level2": {
-        "enter": ("Echo", ["Maintenance grid. Every panel wants a number. Aim for 42."]),
+        "enter": ("Echo", ["Maintenance grid. Read the screen, then stand on the answer."]),
         "mistake": ("WARDEN", [
             "Incorrect operation. The grid remains locked.",
             "Arithmetic is not optional.",

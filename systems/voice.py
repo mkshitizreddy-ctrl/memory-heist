@@ -39,6 +39,7 @@ VOICES = {
     "echo": Voice(520.0, "bell", 55, 2, 1.00, 0.28),            # clean, digital, quick
     "warden": Voice(82.0, "saw", 90, 3, 0.96, 0.26),            # harsh machine growl
     "ghost": Voice(240.0, "breath", 80, 2, 0.90, 0.24),         # airy, falling
+    "technician": Voice(190.0, "tri", 75, 3, 0.94, 0.28),       # easy-going, mid-low
 }
 DEFAULT_VOICE = Voice(220.0, "tri", 70, 2, 1.0, 0.26)
 

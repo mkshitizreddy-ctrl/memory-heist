@@ -14,7 +14,8 @@ Adding a person: add a head, a body, a palette and an entry in _PARTS.
 from core.hero_sprites import _LEGS, _build
 
 # Legend: A cap, a cap shine, P brim, K skin, S sunglasses, U uniform, b badge,
-#         G hand, B boots, O hair, e eye, T headset, J blazer, L lapel.
+#         G hand, B boots, O hair, e eye, T headset, J blazer, L lapel,
+#         g goggles, V work vest, y reflective stripe, W work trousers.
 _GUARD_HEAD = [
     "................",
     "....AAAAAA......",
@@ -49,6 +50,23 @@ _RECEPTIONIST_BODY = [
     "..JJJJJJJJGG....",
     "...JJJJJJJJJ....",
 ]
+_TECHNICIAN_HEAD = [
+    "................",
+    "....AAAAAA......",
+    "...AAaaaaAA.....",
+    "..AAAAAAAAAAP...",
+    "...KKKKKKKK.....",
+    "...KgggggKK.....",
+    "...KKKKKKKK.....",
+    "....KKKKKK......",
+]
+_TECHNICIAN_BODY = [
+    "...VVVVVVVVV....",
+    "..VVVyVVVVVVV...",
+    "..VVVyVVVVVGG...",
+    "..VVVyVVVVGG....",
+    "...VVVVVVVVV....",
+]
 
 
 def _legs(letter):
@@ -67,15 +85,23 @@ PALETTES = {
         "T": (64, 214, 190), "J": (110, 70, 150), "L": (200, 170, 230),
         "G": (222, 170, 130), "B": (40, 30, 48),
     },
+    "technician": {
+        "A": (255, 196, 40), "a": (255, 228, 120), "P": (204, 142, 20),
+        "K": (206, 152, 112), "g": (96, 214, 240), "V": (236, 108, 40),
+        "y": (250, 240, 160), "G": (58, 58, 68), "W": (58, 68, 96),
+        "B": (30, 26, 24),
+    },
 }
 _PARTS = {
     "guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
     "receptionist": (_RECEPTIONIST_HEAD, _RECEPTIONIST_BODY, _legs("J")),
+    "technician": (_TECHNICIAN_HEAD, _TECHNICIAN_BODY, _legs("W")),
 }
 # What the eyes become in a blink. A guard in sunglasses has none to close.
 BLINK_COLOURS = {
     "guard": {},
     "receptionist": {"e": (222, 170, 130)},
+    "technician": {},                   # goggles never close
 }
 
 KINDS = tuple(PALETTES)

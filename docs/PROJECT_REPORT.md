@@ -1096,6 +1096,7 @@ Systems that need to react to the game (sound effects, music, mood colouring, th
 5. **Audio channels are reserved.** The mixer was running out of channels once the music stems were playing, which silently dropped sound effects. Channels 0 to 5 now belong to the music and the rest to effects.
 6. **The floor results need no new game state.** The game stores a snapshot of score, time and mistakes when a floor starts and shows the difference on the next briefing card. Time spent reading cards is not counted, because the run clock is frozen there.
 7. **Settings never touch the tests.** A test fixture points the settings file at a temporary folder, so a developer's saved volume cannot change a test result and tests never write to `saves/`.
+8. **Floor 2 is rebuilt as a walkable maintenance grid.** The rules of the old Level 2 are unchanged (same question pool, per-question clock, +points, security +20 / score -10 on a wrong pad, security +25 / score -15 on a timeout, +100 for walking out), so scores stay comparable. Only the presentation changed: three chambers, a wall screen showing the question, answer pads on the floor, energy gates that retract, and a technician who gives tips. The room is `levels/level2_grid.py`, its drawing is `levels/grid_decor.py`, and the plumbing shared with later floors is `levels/room_base.py`. The original returns with `MEMORY_HEIST_OLD_LEVEL2=1`.
 
 ## 34.4 Testing
 
