@@ -114,7 +114,8 @@ def test_win_screen_shows_the_final_score_and_breakdown(game):
     screen.big_font = RecordingFont(screen.big_font)
     screen.caption_font = RecordingFont(screen.caption_font)
 
-    game.render()
+    for _ in range(50):                              # let the score finish counting up
+        game.render()
 
     texts = screen.subtitle_font.texts + screen.row_font.texts + screen.prompt_font.texts
     assert "375" in screen.big_font.texts           # the big score number
