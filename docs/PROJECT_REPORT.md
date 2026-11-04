@@ -1101,6 +1101,7 @@ Systems that need to react to the game (sound effects, music, mood colouring, th
 10. **The main menu got a polish pass.** The title glows and shimmers now and then, the two hero portraits bob (out of step with each other), Echo fades in and out when co-op is toggled instead of snapping, the chosen difficulty chip flashes when it changes, and a line under the chips states what the difficulty really changes (timer, hints, security penalty and score multiplier, read from the presets). The how-to-play panel now describes the walkable Levels 1 and 2.
 11. **The HUD shows what just changed.** A gold "+50" or coral "-10" floats up and fades beside the score, a coral "+N" does the same beside the security meter, and the meter flashes bright for a moment when security rises. Big jumps (a run reset or bonus screen) are ignored so the HUD never spams.
 12. **The win and lose screens count the score up.** The final score ticks up over about three-quarters of a second instead of appearing at once, the win screen restarts that count each time it opens, and empty leaderboard slots show as dim "- - -" rows so the table never looks half-drawn.
+13. **Characters got depth.** Every hero and NPC sprite now has a shading pass (lit top edges, darker undersides and right edges, eyes and visors untouched), and the stride frames squash and stretch so the head bobs as they walk. Both come from the shared sprite builder, so Ghost, Echo, the guard, the receptionist and the technician all get them.
 
 ## 34.4 Testing
 
