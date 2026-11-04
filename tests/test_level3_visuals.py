@@ -1,0 +1,407 @@
+"""
+tests/test_level3_visuals.py
+
+Phase 1 presentation guards for Level 3: the question panel always fits
+under the lowest rail with its footer above y=585, answer text is never
+truncated, the gate animation is driven by render-side time only, and
+rendering never changes gameplay state.
+"""
+
+import json
+import os
+import random
+from pathlib import Path
+from types import SimpleNamespace
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
+import pygame
+import pytest
+
+from core.difficulty import get_difficulty
+from levels.level3_loops import Level3LaserLoop
+from systems.scoring import ScoreTracker
+
+PUZZLES = json.loads(
+    (Path(__file__).resolve().parent.parent / "data" / "puzzles.json")
+    .read_text(encoding="utf-8")
+)
+QUESTIONS = {
+    key: value
+    for key, value in PUZZLES.items()
+    if key.startswith("level3_loop_")
+}
+
+
+def make_level(room, question_id, difficulty="medium"):
+    pygame.font.init()
+    random.seed(1)
+
+    game = SimpleNamespace(
+        difficulty=get_difficulty(difficulty),
+        score=ScoreTracker(),
+        security=SimpleNamespace(increase=lambda amount: None),
+    )
+
+    level = Level3LaserLoop(game=game)
+    level.room_map.current_name = f"level3_room{room}"
+    level.current_question_number = room - 1
+    level.setup_room_hazards()
+    level.selected_questions[room - 1] = QUESTIONS[question_id]
+    level.load_current_question()
+
+    return level
+
+
+@pytest.mark.parametrize("question_id", sorted(QUESTIONS))
+def test_question_panel_fits_and_footer_is_above_585(question_id):
+    question = QUESTIONS[question_id]
+    level = make_level(question["room"], question_id)
+
+    layout = level._bottom_layout()
+    panel = layout["panel"]
+
+    assert panel.bottom == level.PANEL_BOTTOM
+    assert panel.height <= layout["available"]
+    assert panel.top >= level._lowest_rail_bottom() + 6
+
+    footer = layout["foot_font"].render("Progress: 0/3 gates/challenges", True, (255, 255, 255))
+    footer_bottom = layout["foot_y"] + footer.get_bounding_rect().bottom
+
+    assert footer_bottom <= 585
+
+    for button in layout["buttons"]:
+        assert panel.contains(button)
+
+    for first, second in zip(layout["buttons"], layout["buttons"][1:]):
+        assert not first.colliderect(second)
+
+
+@pytest.mark.parametrize("question_id", sorted(QUESTIONS))
+def test_answer_text_is_reconstructed_exactly_from_button_lines(question_id):
+    question = QUESTIONS[question_id]
+    level = make_level(question["room"], question_id)
+    lines = level._bottom_layout()["button_lines"]
+
+    assert len(lines) == len(level.options)
+
+    for option, button_lines in zip(level.options, lines):
+        assert option == " ".join(option.split())       # no hidden double spaces
+        assert " ".join(button_lines) == option          # nothing lost, nothing added
+        assert "..." not in " ".join(button_lines) or "..." in option
+
+
+def test_gate_progress_is_render_side_and_eased(monkeypatch):
+    level = make_level(1, "level3_loop_1")
+    clock = {"t": 100.0}
+    monkeypatch.setattr(level, "_seconds", lambda: clock["t"])
+
+    assert level._gate_progress(level.gate1) == 0.0
+
+    level.gate1.unlock()
+    assert level._gate_progress(level.gate1) == 0.0     # animation just started
+
+    clock["t"] += 0.3
+    middle = level._gate_progress(level.gate1)
+    clock["t"] += 1.0
+    finished = level._gate_progress(level.gate1)
+
+    assert 0.0 < middle < 1.0
+    assert finished == 1.0
+    assert level.gate1.state == "unlocking"              # gameplay state untouched
+
+
+def test_render_does_not_change_gameplay_state():
+    level = make_level(2, "level3_loop_7", "hard")
+    surface = pygame.Surface((960, 640))
+
+    def snapshot():
+        return (
+            level.feedback,
+            level.time_left,
+            level.robot_x,
+            level.robot_alert,
+            [laser["x"] for laser in level.lasers],
+            level.gate2.state,
+            level.game.score.get_score(),
+        )
+
+    before = snapshot()
+
+    for _ in range(3):
+        level.render(surface)
+
+    assert snapshot() == before
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_laser_labels_stay_out_of_the_robot_band(room):
+    question_id = next(
+        key for key, value in QUESTIONS.items() if value["room"] == room
+    )
+    level = make_level(room, question_id)
+
+    band = pygame.Rect(90, 154, 800, 62)
+
+    for rect in level._laser_label_rects():
+        assert not rect.colliderect(band)
+
+
+def test_gate_sparks_do_not_touch_private_gate_state_or_global_random():
+    source = (
+        Path(__file__).resolve().parent.parent / "levels" / "level3_loops.py"
+    ).read_text(encoding="utf-8")
+
+    assert "_particles" not in source
+
+    level = make_level(1, "level3_loop_1")
+    surface = pygame.Surface((960, 640))
+    level.render(surface)
+    level.gate1.unlock()
+    state = random.getstate()
+
+    for _ in range(4):
+        level.render(surface)
+
+    assert random.getstate() == state
+    assert level._vis_state()["sparks"]
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_drawn_beam_matches_collision_box(room):
+    question_id = next(
+        key for key, value in QUESTIONS.items() if value["room"] == room
+    )
+    level = make_level(room, question_id)
+    level.robot_x = 700
+
+    for index, laser in enumerate(level.lasers):
+        laser["x"] = 200.0 + 111 * index
+
+    surface = pygame.Surface((960, 640))
+    surface.fill((0, 0, 0))
+    level.render(surface)
+
+    for laser in level.lasers:
+        collision = pygame.Rect(
+            int(laser["x"]), int(laser["y"]),
+            level.laser_width, level.laser_height,
+        )
+        strip = pygame.Rect(
+            collision.left, collision.top - 4, collision.width, collision.height + 8
+        )
+        red = [
+            (x, y)
+            for x in range(strip.left, strip.right, 5)
+            for y in range(strip.top, strip.bottom)
+            if tuple(surface.get_at((x, y)))[:3] == (255, 45, 45)
+        ]
+
+        assert red
+        assert min(y for _, y in red) == collision.top
+        assert max(y for _, y in red) == collision.bottom - 1
+
+        # The rail is centred on the beam (8 px of housing each side).
+        rail_top = laser["y"] - level.RAIL_TOP_PAD
+        rail_bottom = rail_top + level.RAIL_HEIGHT
+
+        assert collision.top - rail_top == rail_bottom - collision.bottom == 8
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_exit_marker_never_meets_the_robot_band(room):
+    question_id = next(
+        key for key, value in QUESTIONS.items() if value["room"] == room
+    )
+    level = make_level(room, question_id)
+    gate = (level.gate1, level.gate2, level.gate3)[room - 1]
+    marker = pygame.Rect(gate.rect.centerx - 11, 134, 60, 18)
+
+    for x in range(level.robot_left_boundary, level.robot_right_boundary + 1, 5):
+        robot = pygame.Rect(x, 154, level.robot_width, 62)   # antenna to wheels
+
+        assert not marker.colliderect(robot)
+
+
+# ---------------------------------------------------------------------------
+# Final-review geometry checks
+# ---------------------------------------------------------------------------
+
+class _Spy(pygame.Surface):
+    """Surface that records every blit so text positions can be checked."""
+
+    log = []
+
+    def blit(self, source, dest, *args, **kwargs):
+        if not isinstance(dest, pygame.Rect):
+            dest = pygame.Rect(dest, source.get_size())
+
+        _Spy.log.append((dest.copy(), source))
+
+        return super().blit(source, dest, *args, **kwargs)
+
+
+def rendered_text_rects(level):
+    """Ink rectangles of every text blit (text surfaces are <= 26 px high)."""
+
+    _Spy.log = []
+    level.render(_Spy((960, 640)))
+    rects = []
+
+    for box, source in _Spy.log:
+        width, height = source.get_size()
+
+        if not 6 < height <= 26 or width > 860:
+            continue
+
+        ink = source.get_bounding_rect()
+
+        if ink.width:
+            rects.append(ink.move(box.topleft))
+
+    return rects
+
+
+def rail_bodies(level):
+    return [
+        pygame.Rect(
+            level.track_x,
+            laser["y"] - level.RAIL_TOP_PAD,
+            level.track_width,
+            level.RAIL_HEIGHT,
+        )
+        for laser in level.lasers
+    ]
+
+
+def rail_emitters(level):
+    return [
+        pygame.Rect(x, laser["y"] - level.RAIL_TOP_PAD - 3, 22, level.RAIL_HEIGHT + 6)
+        for laser in level.lasers
+        for x in (level.track_x - 22, level.track_x + level.track_width)
+    ]
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_robot_label_never_touches_any_rail_along_the_whole_patrol(room):
+    question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
+    level = make_level(room, question_id)
+    font = level._font(24)
+    blocked = rail_bodies(level) + rail_emitters(level)
+
+    for x in range(level.robot_left_boundary, level.robot_right_boundary + 1, 2):
+        level.robot_x = x
+        size = (
+            max(font.size("SECURITY ROBOT")[0], font.size(f"SPEED {level.robot_speed}")[0]),
+            font.get_height() * 2,
+        )
+        label = level._robot_label_rect(size)
+
+        for rail in blocked:
+            assert not label.colliderect(rail), (room, x, label, rail)
+
+
+@pytest.mark.parametrize("question_id", sorted(QUESTIONS))
+def test_question_and_hint_never_extend_beyond_the_panel(question_id):
+    question = QUESTIONS[question_id]
+    level = make_level(question["room"], question_id)
+    level.show_hint = True
+    level.hint_used = True
+    level.feedback = "Hint revealed. Final score for this question is reduced by 15."
+
+    layout = level._bottom_layout()
+    panel = layout["panel"]
+    room_width = panel.width - 24
+
+    assert layout["question_font"].size(question["question"])[0] <= room_width
+    assert layout["hint_font"].size(f"HINT: {question['hint']}")[0] <= room_width
+    assert layout["hint_y"] is not None
+
+    for state in (
+        "Hint revealed. Final score for this question is reduced by 15.",
+        f"CORRECT! +60 points. GATE 3 UNLOCKED! REACH THE FINAL EXIT.  {question['explanation']}",
+    ):
+        level.feedback = state
+
+        for ink in rendered_text_rects(level):
+            if ink.top >= panel.top:
+                assert panel.contains(ink), (question_id, ink, panel)
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+@pytest.mark.parametrize("difficulty", ("easy", "medium", "hard"))
+@pytest.mark.parametrize("alert", (False, True))
+def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficulty, alert):
+    question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
+    level = make_level(room, question_id, difficulty)
+    level.robot_alert = alert
+    level.time_left = 20.0
+
+    header = pygame.Rect(60, 54, 840, 46)
+    lane = pygame.Rect(150, 102, 405, 32)
+    code_panel = pygame.Rect(562, 102, 256, 50)
+
+    texts = rendered_text_rects(level)
+    header_texts = [t for t in texts if 54 <= t.top < 100]
+    lane_texts = [t for t in texts if 150 <= t.left < 556 and 102 <= t.top < 136]
+    code_texts = [t for t in texts if 562 <= t.left < 830 and 102 <= t.top < 152]
+
+    assert len(header_texts) >= 4 and len(code_texts) >= 5
+
+    if alert:
+        # Banner text is drawn inside its own surface: check it fits the lane
+        # at the font size render() selects (18 px, falling back to 16 px).
+        for banner in ("LASER HIT! SECURITY +10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
+            font = level._font(level.BODY_SIZE)
+
+            if font.size(banner)[0] > lane.width - 16:
+                font = level._font(24)
+
+            assert font.size(banner)[0] <= lane.width - 16
+    else:
+        assert lane_texts
+
+    for area, items in ((header, header_texts), (lane, lane_texts), (code_panel, code_texts)):
+        for ink in items:
+            assert area.contains(ink), (area, ink)
+
+    for first in range(len(header_texts)):
+        for second in range(first + 1, len(header_texts)):
+            assert not header_texts[first].colliderect(header_texts[second])
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
+    question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
+    level = make_level(room, question_id)
+    hits = []
+    player = pygame.Rect(0, 0, 32, 32)
+    level.game = SimpleNamespace(
+        player=SimpleNamespace(rect=player),
+        security=SimpleNamespace(increase=lambda amount: hits.append(amount)),
+        score=SimpleNamespace(penalize=lambda amount: None),
+        coop=False,
+    )
+
+    for laser in level.lasers:
+        beam = pygame.Rect(int(laser["x"]), int(laser["y"]), level.laser_width, level.laser_height)
+        mid_x, mid_y = beam.centerx - 16, beam.centery - 16
+
+        for edge in ("left", "right", "above", "below"):
+            for inside in (0, 1):
+                if edge == "left":
+                    player.topleft = (beam.left - 32 + inside, mid_y)
+                elif edge == "right":
+                    player.topleft = (beam.right - inside, mid_y)
+                elif edge == "above":
+                    player.topleft = (mid_x, beam.top - 32 + inside)
+                else:
+                    player.topleft = (mid_x, beam.bottom - inside)
+
+                level.laser_penalty_cooldown = 0.0
+                hits.clear()
+                level.check_laser_collision(0.0)
+
+                assert bool(hits) == bool(inside), (room, edge, inside, tuple(beam))
+                assert player.colliderect(beam) == bool(inside)
