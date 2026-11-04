@@ -14,6 +14,16 @@ from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
 
 PORTRAIT_SIZE = 96
+COUNT_FRAMES = 45        # frames the final score takes to count up
+TABLE_ROWS = 5
+
+
+def shown_score(score, tick, frames=COUNT_FRAMES):
+    """The score as displayed `tick` frames after the screen opened (ease-out count-up)."""
+    if tick >= frames or score <= 0:
+        return score
+    progress = max(0, tick) / frames
+    return int(score * (1 - (1 - progress) ** 3))
 
 
 class WinScreen:
@@ -37,6 +47,7 @@ class WinScreen:
         self.name = ""
         self.entering = True
         self.rank = None
+        self.tick = 0
 
     def skip_entry(self):
         """Leave name entry without saving a leaderboard entry."""
@@ -91,7 +102,7 @@ class WinScreen:
                            border=theme.TEAL)
         blit_centered(surface, self.caption_font.render("FINAL SCORE", True, theme.MIST),
                       (panel.centerx, panel.y + 18))
-        blit_centered(surface, self.big_font.render(f"{score}", True, theme.GOLD),
+        blit_centered(surface, self.big_font.render(f"{shown_score(score, self.tick)}", True, theme.GOLD),
                       (panel.centerx, panel.y + 56))
         if self.breakdown:
             parts = self.breakdown
@@ -131,7 +142,12 @@ class WinScreen:
                           (table.centerx, table.y + 22))
             y = table.y + 48
             left = table.x + 28
-            for position, entry in enumerate(self.leaderboard.top(5), start=1):
+            entries = list(self.leaderboard.top(TABLE_ROWS))
+            for position in range(len(entries) + 1, TABLE_ROWS + 1):     # empty slots stay visible
+                slot_y = table.y + 48 + (position - 1) * 38
+                surface.blit(self.row_font.render(f"{position}.", True, theme.SLATE), (left, slot_y))
+                surface.blit(self.row_font.render("- - -", True, theme.SLATE), (left + 40, slot_y))
+            for position, entry in enumerate(entries, start=1):
                 tag = " (co-op)" if entry.get("coop") else ""
                 mine = position == self.rank
                 color = theme.GOLD if mine else theme.PAPER
@@ -199,7 +215,7 @@ class LoseScreen:
                            border=theme.CORAL)
         blit_centered(surface, self.caption_font.render("SCORE", True, theme.MIST),
                       (panel.centerx, panel.y + 24))
-        blit_centered(surface, self.big_font.render(f"{score}", True, theme.PAPER),
+        blit_centered(surface, self.big_font.render(f"{shown_score(score, self.tick)}", True, theme.PAPER),
                       (panel.centerx, panel.y + 68))
 
         tip = lay["tip"]
