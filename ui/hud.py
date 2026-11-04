@@ -36,6 +36,24 @@ SECURITY_DANGER = 80      # from here it is red and pulses
 # The timer turns red when this many seconds (or fewer) are left.
 WARNING_SECONDS = 60
 
+# Floating "+50" / "-10" / "+20" popups beside the score and the security meter.
+POPUP_LIFE = 50           # frames a popup stays up
+POPUP_RISE = 18           # pixels it drifts upward over its life
+MAX_POPUPS = 4
+MAX_POPUP_DELTA = 200     # bigger jumps are a run reset or a bonus screen, not an event
+SEC_FLASH = 12            # frames the meter flashes after security rises
+
+
+def delta_label(delta):
+    """A change with its sign always shown: +50, -10."""
+    return f"{delta:+d}"
+
+
+def popup_state(age):
+    """(pixels risen, opacity 0..255) of a popup that is `age` frames old."""
+    progress = min(1.0, age / POPUP_LIFE)
+    return int(POPUP_RISE * progress), int(255 * (1.0 - progress) ** 2)
+
 
 def format_time(seconds):
     """Return seconds as M:SS, rounded up.
@@ -80,6 +98,38 @@ class HUD:
         self._shown_score = None      # score currently displayed (counts up)
         self._flash = 0               # frames left of the "points gained" glow
         self._last_score = None
+        self.popups = []              # floating change labels, see _track
+        self._prev_score = None
+        self._prev_security = None
+        self._sec_flash = 0           # frames left of the meter flash
+
+    def _track(self, score, security):
+        """Age the popups, then add one for each real change since the last frame."""
+        for popup in self.popups:
+            popup["age"] += 1
+        self.popups = [p for p in self.popups if p["age"] < POPUP_LIFE]
+        if self._prev_score is not None:
+            delta = score - self._prev_score
+            if delta and abs(delta) <= MAX_POPUP_DELTA:
+                self.popups.append({"text": delta_label(delta), "kind": "score", "age": 0,
+                                    "colour": theme.GOLD if delta > 0 else theme.CORAL})
+            rise = security - self._prev_security
+            if 0 < rise <= MAX_POPUP_DELTA:
+                self.popups.append({"text": delta_label(rise), "kind": "security", "age": 0,
+                                    "colour": theme.CORAL})
+                self._sec_flash = SEC_FLASH
+            self.popups = self.popups[-MAX_POPUPS:]
+        self._prev_score, self._prev_security = score, security
+
+    def _draw_popups(self, surface, kind, x, y):
+        for popup in self.popups:
+            if popup["kind"] != kind:
+                continue
+            rise, alpha = popup_state(popup["age"])
+            image = self.small.render(popup["text"], True, popup["colour"])
+            image.set_alpha(alpha)
+            surface.blit(image, (x, y - rise))
+            x += image.get_width() + 6
 
     def badge_rects(self, width, coop=False):
         """Where the hero badges go: just left of the timer, Ghost first."""
@@ -107,6 +157,7 @@ class HUD:
     def render(self, surface, level_name, score=0, security_level=0,
                security_max=100, timer_remaining=None, coop=False, tick=0):
         width = surface.get_width()
+        self._track(score, security_level)
         palette = theme.floor_palette(level_name)
         accent = palette["accent"]
 
@@ -127,7 +178,9 @@ class HUD:
         self._caption(surface, "SCORE", 200, 6)
         glow = self._flash / 24
         colour = theme.mix(theme.SKY, theme.GOLD, glow)
-        surface.blit(self.big.render(f"{shown}", True, colour), (200, 20))
+        score_image = self.big.render(f"{shown}", True, colour)
+        surface.blit(score_image, (200, 20))
+        self._draw_popups(surface, "score", 200 + score_image.get_width() + 10, 24)
 
         # Security meter: cells that light up, pulsing when in danger
         bar_x, bar_y, bar_w, bar_h = 360, 22, 160, 14
@@ -136,6 +189,9 @@ class HUD:
         base = security_colour(security_level)
         if security_level >= SECURITY_DANGER:
             base = theme.mix(base, theme.PAPER, 0.25 * (0.5 + 0.5 * math.sin(tick * 0.35)))
+        if self._sec_flash > 0:
+            base = theme.mix(base, theme.PAPER, 0.6 * self._sec_flash / SEC_FLASH)
+            self._sec_flash -= 1
         cell_w = bar_w / SEGMENTS
         for i in range(SEGMENTS):
             cell = pygame.Rect(int(bar_x + i * cell_w), bar_y, max(2, int(cell_w) - 2), bar_h)
@@ -145,6 +201,7 @@ class HUD:
                 pygame.draw.rect(surface, theme.mix(theme.NAVY, theme.INK, 0.3), cell, border_radius=2)
         sec_label = self.small.render(f"{security_level}/{security_max}", True, theme.MIST)
         surface.blit(sec_label, (bar_x + bar_w + 10, bar_y - 1))
+        self._draw_popups(surface, "security", bar_x + bar_w + 10 + sec_label.get_width() + 10, bar_y - 1)
 
         # Heroes: Ghost, plus Echo in co-op (both blink and pulse with tick).
         names = ["ghost", "echo"] if coop else ["ghost"]
