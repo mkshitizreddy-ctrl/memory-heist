@@ -11,7 +11,7 @@ and frame layout so they animate with the same code.
 Adding a person: add a head, a body, a palette and an entry in _PARTS.
 """
 
-from core.hero_sprites import _LEGS, _build
+from core.hero_sprites import _LEGS, _build, bob_rows
 
 # Legend: A cap, a cap shine, P brim, K skin, S sunglasses, U uniform, b badge,
 #         G hand, B boots, O hair, e eye, T headset, J blazer, L lapel,
@@ -115,7 +115,8 @@ def make_npc_frames(kind):
     palette = PALETTES[kind]
 
     def frame(key, colours=palette):
-        return _build(head + body + legs[key], colours)
+        upper = bob_rows(head, body) if key.startswith("step") else head + body
+        return _build(upper + legs[key], colours)
 
     frames = {
         "idle": frame("idle"),

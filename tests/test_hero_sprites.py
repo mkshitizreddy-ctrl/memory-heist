@@ -143,3 +143,48 @@ def test_game_players_are_ghost_and_echo():
     g.music.stop()
     pygame.mixer.stop()
     pygame.mixer.set_reserved(0)
+
+
+# --- walk bob and shading ---------------------------------------------------
+def _eye_row(img, colour):
+    return min(y for y in range(img.get_height()) for x in range(img.get_width())
+               if tuple(img.get_at((x, y)))[:3] == colour)
+
+
+@pytest.mark.parametrize("name,key", [("ghost", "V"), ("echo", "Y")])
+def test_stride_frames_lift_the_face_one_pixel_and_idle_does_not(name, key):
+    frames = make_hero_frames(name)
+    colour = hs.PALETTES[name][key]
+    idle_row = _eye_row(frames["idle"], colour)
+    assert _eye_row(frames["walk"][0], colour) == idle_row - hs.SCALE
+    assert _eye_row(frames["walk"][2], colour) == idle_row - hs.SCALE
+    assert _eye_row(frames["walk"][1], colour) == idle_row
+
+
+def test_npc_strides_differ_from_idle_above_the_waist():
+    from core.npc_sprites import KINDS, make_npc_frames
+    for kind in KINDS:
+        frames = make_npc_frames(kind)
+        top = lambda img: raw(img.subsurface((0, 0, 32, 20)))
+        assert top(frames["walk"][0]) != top(frames["idle"]), kind
+        assert top(frames["walk"][1]) == top(frames["idle"]), kind
+
+
+def test_bob_rows_keeps_the_sprite_the_same_height():
+    for head, body in ((hs._GHOST_HEAD, hs._GHOST_BODY), (hs._ECHO_HEAD, hs._ECHO_BODY)):
+        assert len(hs.bob_rows(head, body)) == len(head + body)
+
+
+def test_top_edges_are_lighter_and_undersides_darker_than_the_palette():
+    rows = ["....", ".HH.", ".HH.", ".HH.", "...."]
+    palette = {"H": (100, 100, 100)}
+    top = hs._shaded(rows, 1, 1, "H", palette)
+    middle = hs._shaded(rows, 1, 2, "H", palette)
+    bottom = hs._shaded(rows, 1, 3, "H", palette)
+    side = hs._shaded(rows, 2, 2, "H", palette)
+    assert sum(top) > sum(middle) == 300 > sum(side) > sum(bottom)
+
+
+def test_eyes_and_visors_are_never_shaded():
+    rows = ["....", ".V..", "...."]
+    assert hs._shaded(rows, 1, 1, "V", {"V": (90, 240, 255)}) == (90, 240, 255)

@@ -89,12 +89,42 @@ BLINK_COLOURS = {
 OUTLINE = (6, 10, 20, 255)
 
 
+# Pixels that keep their exact colour when the shading pass runs: eyes, visor,
+# goggles, the dark hood void, and the guard's badge.
+UNSHADED = frozenset("VYDegb")
+LIGHT_AMOUNT = 0.22      # top edges catch light
+SHADE_AMOUNT = 0.26      # undersides fall into shadow
+SIDE_SHADE = 0.12        # the right edge turns away from the light
+
+
+def _tone(colour, target, amount):
+    return tuple(round(c + (t - c) * amount) for c, t in zip(colour, target))
+
+
+def _filled(rows, x, y):
+    return 0 <= y < len(rows) and 0 <= x < len(rows[y]) and rows[y][x] != "."
+
+
+def _shaded(rows, x, y, ch, palette):
+    """One pixel's colour: lit on a top edge, darker on an underside or right edge."""
+    colour = palette[ch]
+    if ch in UNSHADED:
+        return colour
+    if not _filled(rows, x, y - 1):
+        return _tone(colour, (255, 255, 255), LIGHT_AMOUNT)
+    if not _filled(rows, x, y + 1):
+        return _tone(colour, (0, 0, 0), SHADE_AMOUNT)
+    if not _filled(rows, x + 1, y):
+        return _tone(colour, (0, 0, 0), SIDE_SHADE)
+    return colour
+
+
 def _build(rows, palette):
     surf = pygame.Surface((GRID, GRID), pygame.SRCALPHA)
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             if ch != ".":
-                surf.set_at((x, y), palette[ch] + (255,))
+                surf.set_at((x, y), _shaded(rows, x, y, ch, palette) + (255,))
     # 1px dark outline so the hero reads on light and dark floors alike.
     edge = []
     for y in range(GRID):
@@ -111,6 +141,12 @@ def _build(rows, palette):
     return pygame.transform.scale(surf, (GRID * SCALE, GRID * SCALE))
 
 
+def bob_rows(head, body):
+    """Squash-and-stretch on a stride: the crown row goes, so the face sits a pixel higher,
+    and the torso gains a row. The blank top row stays, so the outline still fits."""
+    return head[:1] + head[2:] + body + [body[-1]]
+
+
 def make_hero_frames(name):
     """{"idle": surf, "walk": [surf x4]} for 'ghost' or 'echo'."""
     if name not in _PARTS:
@@ -119,7 +155,8 @@ def make_hero_frames(name):
     palette = PALETTES[name]
 
     def frame(key):
-        return _build(head + body + legs[key], palette)
+        upper = bob_rows(head, body) if key.startswith("step") else head + body
+        return _build(upper + legs[key], palette)
 
     blink_palette = {**palette, **BLINK_COLOURS[name]}
     return {
