@@ -129,7 +129,8 @@ def test_echo_is_dim_until_co_op_is_on(surf):
     m.render(surf)
     off = pygame.image.tostring(surf.subsurface(echo), "RGB")
     m.coop = True
-    m.render(surf)
+    for _ in range(40):                          # Echo fades in over a few frames
+        m.render(surf)
     on = pygame.image.tostring(surf.subsurface(echo), "RGB")
     bright = lambda b: sum(b)
     assert bright(on) > bright(off) * 1.3
