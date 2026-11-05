@@ -13,6 +13,28 @@ from ui.hud import LEVEL_LABELS
 from ui.fonts import ui_font
 
 SEAM = 4
+STATE_FADE_SECONDS = 0.35        # fade in from black when a screen replaces another
+_FADE_LAYERS = {}
+
+
+def state_fade_alpha(progress):
+    """Black overlay opacity: 255 right after a screen change, easing to 0."""
+    p = clamp01(progress)
+    return int(255 * p * p)
+
+
+def draw_state_fade(surface, progress):
+    """Darken `surface` by the fade's current opacity (progress 1.0 down to 0.0)."""
+    alpha = state_fade_alpha(progress)
+    if alpha <= 0:
+        return
+    size = surface.get_size()
+    layer = _FADE_LAYERS.get(size)
+    if layer is None:
+        layer = _FADE_LAYERS[size] = pygame.Surface(size)
+        layer.fill((0, 0, 0))
+    layer.set_alpha(alpha)
+    surface.blit(layer, (0, 0))
 
 
 def door_edges(width, progress):

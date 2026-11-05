@@ -34,7 +34,7 @@ from systems.settings import Settings
 from ui.hud import HUD
 from ui.settings_screen import SettingsScreen
 from ui.overlays import PauseOverlay
-from ui.transitions import ElevatorWipe
+from ui.transitions import STATE_FADE_SECONDS, ElevatorWipe, draw_state_fade
 from ui.atmosphere import Atmosphere, mood_for
 from systems.audio import Audio
 from systems.voice import VoiceEvents, VoicePlayer
@@ -150,6 +150,7 @@ class Game:
         # Built on the first paused frame (see _get_pause_assets).
         self._pause_assets = None
         self._wipe = ElevatorWipe()
+        self._state_fade = 0.0      # 1.0 right after a screen change, fading to 0
         self._floor_snap = None     # score, time and mistakes when the floor began
         self.stats = Stats()
         self.stats_screen = StatsScreen()
@@ -574,6 +575,8 @@ class Game:
             self.voice.update(dt)
 
     def _update(self, dt):
+        if self._state_fade > 0:
+            self._state_fade = max(0.0, self._state_fade - dt / STATE_FADE_SECONDS)
         if self._fade_timer > 0:
             self._fade_timer = max(
                 0.0,
@@ -730,6 +733,8 @@ class Game:
         if self.state != "playing":
             self._apply_mood()
 
+        draw_state_fade(self.screen, self._state_fade)
+
         self.settings_screen.draw(self.screen, self._bg_tick)
 
         # Elevator doors open after a level change.
@@ -756,6 +761,9 @@ class Game:
         previous = self.state
         self.state = new_state
         self.paused = False
+        if new_state != previous and new_state != "playing":
+            # Screens fade in from black; levels arrive through the elevator doors instead.
+            self._state_fade = 1.0
 
         if new_state == "lose" and previous != "lose":
             self.stats.record_loss()
