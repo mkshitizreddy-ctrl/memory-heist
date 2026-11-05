@@ -233,8 +233,67 @@ class Level3LaserLoop:
     # LASER SYSTEM
     # =========================================================
 
+    # ---- laser cycle (Phase 2) ---------------------------------------
+    #
+    # Beams keep sweeping their rails all the time (movement is never
+    # paused or changed). What changes is when a beam can hurt:
+    #
+    #   off      safe, dim beam
+    #   warning  safe, flickering amber beam and amber emitters (1 s)
+    #   active   dangerous, bright red beam
+    #
+    # Every laser always goes warning -> active -> off, so a beam never
+    # fires without a warning. Every room (and every re-arm after a hit)
+    # starts with LASER_ENTRY_GRACE seconds in which nothing is dangerous,
+    # so a spawn point on a rail row can never be hit. Each further laser
+    # in a room starts LASER_STAGGER seconds after the previous one.
+
+    LASER_ENTRY_GRACE = 2.0
+    LASER_STAGGER = 1.0
+    LASER_ON = 3.0
+    LASER_OFF = 1.5
+    LASER_WARN = 1.0
+
+    def laser_phase(self, index):
+        """Return 'off' (safe), 'warning' (safe, about to fire) or 'active'."""
+
+        start = self.LASER_ENTRY_GRACE + index * self.LASER_STAGGER
+        clock = self.laser_clock
+
+        if clock < start - self.LASER_WARN:
+            return "off"
+
+        if clock < start:
+            return "warning"
+
+        position = (clock - start) % (
+            self.LASER_ON + self.LASER_OFF + self.LASER_WARN
+        )
+
+        if position < self.LASER_ON:
+            return "active"
+
+        if position < self.LASER_ON + self.LASER_OFF:
+            return "off"
+
+        return "warning"
+
+    def active_beam_rects(self):
+        """Collision rectangles of the beams that are dangerous right now."""
+
+        return [
+            pygame.Rect(
+                int(laser["x"]),
+                int(laser["y"]),
+                self.laser_width,
+                self.laser_height,
+            )
+            for index, laser in enumerate(self.lasers)
+            if self.laser_phase(index) == "active"
+        ]
+
     def check_laser_collision(self, dt):
-        """Apply a penalty when a player touches a laser."""
+        """Apply a penalty when a player touches an active laser."""
 
         if not self.game or not hasattr(self.game, "player"):
             return
@@ -256,13 +315,7 @@ class Level3LaserLoop:
 
         player_rects = self._player_rects()
 
-        for laser in self.lasers:
-            laser_rect = pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
+        for laser_rect in self.active_beam_rects():
 
             if any(r.colliderect(laser_rect) for r in player_rects):
                 self.laser_penalty_cooldown = self.laser_penalty_duration
@@ -272,6 +325,9 @@ class Level3LaserLoop:
 
                 self.game.security.increase(10)
                 self.game.score.penalize(10)
+
+                # Recovery: every laser re-arms, giving a safe window.
+                self.laser_clock = 0.0
 
                 break
 
@@ -365,6 +421,7 @@ class Level3LaserLoop:
 
         self.laser_penalty_cooldown = 0.0
         self.laser_hit_feedback_timer = 0.0
+        self.laser_clock = 0.0
 
     def try_room_transition(self):
         """Move through a gate after it has been unlocked."""
@@ -875,6 +932,7 @@ class Level3LaserLoop:
 
                 laser["direction"] = -1
 
+        self.laser_clock += max(0.0, dt)
         self.check_laser_collision(dt)
 
         # -------------------------
@@ -1472,7 +1530,9 @@ class Level3LaserLoop:
         glow = self._cached("glow", self._build_glow)
         pulse = 0.5 + 0.5 * math.sin(self._seconds() * 6.0)
 
-        for laser in self.lasers:
+        for index, laser in enumerate(self.lasers):
+
+            phase = self.laser_phase(index)
 
             rail = pygame.Rect(
                 self.track_x,
@@ -1498,15 +1558,18 @@ class Level3LaserLoop:
                     2,
                     border_radius=4,
                 )
-                pygame.draw.circle(
-                    surface, (255, 60, 60), (box.centerx, rail.centery), 5
-                )
-                pygame.draw.circle(
-                    surface, (255, 190, 190), (box.centerx - 1, rail.centery - 1), 2
-                )
+                lens, shine = {
+                    "active": ((255, 60, 60), (255, 190, 190)),
+                    "warning": ((255, 190, 60), (255, 235, 170)),
+                    "off": ((95, 95, 110), (150, 150, 165)),
+                }[phase]
 
-            glow.set_alpha(int(170 + 70 * pulse))
-            surface.blit(glow, (laser["x"] - 8, laser["y"] - 8))
+                pygame.draw.circle(
+                    surface, lens, (box.centerx, rail.centery), 5
+                )
+                pygame.draw.circle(
+                    surface, shine, (box.centerx - 1, rail.centery - 1), 2
+                )
 
             beam = pygame.Rect(
                 int(laser["x"]),
@@ -1515,14 +1578,35 @@ class Level3LaserLoop:
                 self.laser_height,
             )
 
-            pygame.draw.rect(surface, (255, 45, 45), beam)
-            pygame.draw.line(
-                surface,
-                (255, 175, 175),
-                (beam.x, beam.centery),
-                (beam.right - 1, beam.centery),
-                2,
-            )
+            if phase == "active":
+
+                glow.set_alpha(int(170 + 70 * pulse))
+                surface.blit(glow, (laser["x"] - 8, laser["y"] - 8))
+
+                pygame.draw.rect(surface, (255, 45, 45), beam)
+                pygame.draw.line(
+                    surface,
+                    (255, 175, 175),
+                    (beam.x, beam.centery),
+                    (beam.right - 1, beam.centery),
+                    2,
+                )
+
+            elif phase == "warning":
+
+                # Safe, but about to fire: flickering amber outline.
+                lit = int(self._seconds() * 8) % 2 == 0
+
+                pygame.draw.rect(
+                    surface, (110, 62, 30) if lit else (62, 32, 30), beam
+                )
+
+                if lit:
+                    pygame.draw.rect(surface, (255, 190, 60), beam, 1)
+
+            else:
+
+                pygame.draw.rect(surface, (52, 28, 36), beam)
 
         label_font = self._font(self.BODY_SIZE)
 

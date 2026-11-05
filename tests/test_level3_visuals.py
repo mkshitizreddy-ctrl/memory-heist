@@ -175,6 +175,7 @@ def test_drawn_beam_matches_collision_box(room):
     )
     level = make_level(room, question_id)
     level.robot_x = 700
+    level.laser_phase = lambda index: "active"      # beam drawn at full strength
 
     for index, laser in enumerate(level.lasers):
         laser["x"] = 200.0 + 111 * index
@@ -377,6 +378,7 @@ def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
     level = make_level(room, question_id)
     hits = []
     player = pygame.Rect(0, 0, 32, 32)
+    level.laser_phase = lambda index: "active"      # only active beams can hit
     level.game = SimpleNamespace(
         player=SimpleNamespace(rect=player),
         security=SimpleNamespace(increase=lambda amount: hits.append(amount)),
