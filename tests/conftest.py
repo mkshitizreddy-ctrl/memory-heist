@@ -20,6 +20,14 @@ def isolated_progress(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def isolated_stats(tmp_path, monkeypatch):
+    """Never read or write the player's real saves/stats.json in a test."""
+    from systems.achievements import ENV_VAR as STATS_ENV
+
+    monkeypatch.setenv(STATS_ENV, str(tmp_path / "stats.json"))
+
+
+@pytest.fixture(autouse=True)
 def fresh_fonts():
     """Some tests shut the font module down; a cached font would then crash."""
     from ui import fonts
