@@ -11,6 +11,7 @@ The global Easy/Medium/Hard difficulty is used to select questions.
 """
 
 import json
+import math
 import random
 from pathlib import Path
 
@@ -232,8 +233,67 @@ class Level3LaserLoop:
     # LASER SYSTEM
     # =========================================================
 
+    # ---- laser cycle (Phase 2) ---------------------------------------
+    #
+    # Beams keep sweeping their rails all the time (movement is never
+    # paused or changed). What changes is when a beam can hurt:
+    #
+    #   off      safe, dim beam
+    #   warning  safe, flickering amber beam and amber emitters (1 s)
+    #   active   dangerous, bright red beam
+    #
+    # Every laser always goes warning -> active -> off, so a beam never
+    # fires without a warning. Every room (and every re-arm after a hit)
+    # starts with LASER_ENTRY_GRACE seconds in which nothing is dangerous,
+    # so a spawn point on a rail row can never be hit. Each further laser
+    # in a room starts LASER_STAGGER seconds after the previous one.
+
+    LASER_ENTRY_GRACE = 2.0
+    LASER_STAGGER = 1.0
+    LASER_ON = 3.0
+    LASER_OFF = 1.5
+    LASER_WARN = 1.0
+
+    def laser_phase(self, index):
+        """Return 'off' (safe), 'warning' (safe, about to fire) or 'active'."""
+
+        start = self.LASER_ENTRY_GRACE + index * self.LASER_STAGGER
+        clock = self.laser_clock
+
+        if clock < start - self.LASER_WARN:
+            return "off"
+
+        if clock < start:
+            return "warning"
+
+        position = (clock - start) % (
+            self.LASER_ON + self.LASER_OFF + self.LASER_WARN
+        )
+
+        if position < self.LASER_ON:
+            return "active"
+
+        if position < self.LASER_ON + self.LASER_OFF:
+            return "off"
+
+        return "warning"
+
+    def active_beam_rects(self):
+        """Collision rectangles of the beams that are dangerous right now."""
+
+        return [
+            pygame.Rect(
+                int(laser["x"]),
+                int(laser["y"]),
+                self.laser_width,
+                self.laser_height,
+            )
+            for index, laser in enumerate(self.lasers)
+            if self.laser_phase(index) == "active"
+        ]
+
     def check_laser_collision(self, dt):
-        """Apply a penalty when a player touches a laser."""
+        """Apply a penalty when a player touches an active laser."""
 
         if not self.game or not hasattr(self.game, "player"):
             return
@@ -255,13 +315,7 @@ class Level3LaserLoop:
 
         player_rects = self._player_rects()
 
-        for laser in self.lasers:
-            laser_rect = pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
+        for laser_rect in self.active_beam_rects():
 
             if any(r.colliderect(laser_rect) for r in player_rects):
                 self.laser_penalty_cooldown = self.laser_penalty_duration
@@ -271,6 +325,9 @@ class Level3LaserLoop:
 
                 self.game.security.increase(10)
                 self.game.score.penalize(10)
+
+                # Recovery: every laser re-arms, giving a safe window.
+                self.laser_clock = 0.0
 
                 break
 
@@ -364,6 +421,7 @@ class Level3LaserLoop:
 
         self.laser_penalty_cooldown = 0.0
         self.laser_hit_feedback_timer = 0.0
+        self.laser_clock = 0.0
 
     def try_room_transition(self):
         """Move through a gate after it has been unlocked."""
@@ -874,6 +932,7 @@ class Level3LaserLoop:
 
                 laser["direction"] = -1
 
+        self.laser_clock += max(0.0, dt)
         self.check_laser_collision(dt)
 
         # -------------------------
@@ -1188,670 +1247,1177 @@ class Level3LaserLoop:
         )
 
     # =========================================================
+    # PHASE 1 VISUALS (presentation only)
+    #
+    # Nothing here changes gameplay state. Animation timing comes
+    # from pygame.time.get_ticks(), so update() stays untouched.
+    # =========================================================
+
+    LAYOUT_ACCENT = (150, 110, 255)  # Level 3 violet accent
+    PANEL_FILL = (10, 12, 22, 238)
+    BODY_SIZE = 27                   # about 18 px of text height
+    RAIL_TOP_PAD = 8                 # rail body starts 8 px above a laser
+    RAIL_HEIGHT = 30
+    PANEL_BOTTOM = 587               # footer text (with descenders) ends by y = 585
+    GATE_OPEN_SECONDS = 0.6          # matches the Gate unlock animation
+    ROBOT_LABEL_GAP = 16
+
+    # ---- small helpers ------------------------------------------------
+
+    def _vis_state(self):
+        if not hasattr(self, "_vis"):
+            self._vis = {
+                "fonts": {},
+                "gates": {},
+                "cache": {},
+                "sparks": [],
+                "rng": random.Random(7),
+            }
+
+        return self._vis
+
+    def _font(self, size):
+        fonts = self._vis_state()["fonts"]
+
+        if size not in fonts:
+            fonts[size] = pygame.font.Font(None, size)
+
+        return fonts[size]
+
+    def _cached(self, key, builder):
+        cache = self._vis_state()["cache"]
+
+        if key not in cache:
+            cache[key] = builder()
+
+        return cache[key]
+
+    @staticmethod
+    def _mix(a, b, t):
+        t = max(0.0, min(1.0, t))
+
+        return tuple(
+            int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3)
+        )
+
+    @staticmethod
+    def _ease_out_cubic(t):
+        t = max(0.0, min(1.0, t))
+
+        return 1 - (1 - t) ** 3
+
+    def _seconds(self):
+        return pygame.time.get_ticks() / 1000.0
+
+    def _draw_panel(self, surface, rect, fill=None):
+        """Dark translucent panel with a subtle violet border."""
+
+        panel = pygame.Surface(rect.size, pygame.SRCALPHA)
+
+        pygame.draw.rect(
+            panel,
+            fill or self.PANEL_FILL,
+            panel.get_rect(),
+            border_radius=8,
+        )
+        pygame.draw.rect(
+            panel,
+            self.LAYOUT_ACCENT,
+            panel.get_rect(),
+            2,
+            border_radius=8,
+        )
+
+        surface.blit(panel, rect.topleft)
+
+    def _wrap_text(self, font, text, max_width, max_lines):
+        """Split text into at most max_lines lines that fit max_width."""
+
+        lines = []
+        current = ""
+
+        for word in text.split():
+            trial = f"{current} {word}".strip()
+
+            if font.size(trial)[0] <= max_width or not current:
+                current = trial
+            else:
+                lines.append(current)
+                current = word
+
+        lines.append(current)
+
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            last = lines[-1]
+
+            while last and font.size(last + "...")[0] > max_width:
+                last = last[:-1]
+
+            lines[-1] = last.rstrip() + "..."
+
+        return lines
+
+    # ---- cached artwork (pygame drawing only, no image files) ---------
+
+    def _build_floor(self):
+        """Futuristic tiled floor with shaded edges and violet wall trim."""
+
+        width, height = self.room_width, self.room_height
+        tile = 40
+        floor = pygame.Surface((width, height))
+
+        dark, light = (17, 20, 36), (23, 27, 48)
+
+        for ty in range(0, height, tile):
+            for tx in range(0, width, tile):
+                checker = (tx // tile + ty // tile) % 2 == 0
+
+                pygame.draw.rect(
+                    floor,
+                    light if checker else dark,
+                    (tx, ty, tile, tile),
+                )
+
+        lines = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        for x in range(0, width, tile):
+            pygame.draw.line(lines, (130, 100, 230, 26), (x, 0), (x, height))
+
+        for y in range(0, height, tile):
+            pygame.draw.line(lines, (130, 100, 230, 26), (0, y), (width, y))
+
+        floor.blit(lines, (0, 0))
+
+        # Darker edges give the room depth.
+        shade = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        for i in range(40):
+            alpha = int(170 * (1 - i / 40) ** 2)
+
+            pygame.draw.rect(
+                shade,
+                (0, 0, 0, alpha),
+                (i, i, width - 2 * i, height - 2 * i),
+                1,
+            )
+
+        floor.blit(shade, (0, 0))
+
+        # Wall band, violet trim and a soft inner glow.
+        pygame.draw.rect(floor, (11, 12, 24), (0, 0, width, height), 8)
+        pygame.draw.rect(
+            floor,
+            self.LAYOUT_ACCENT,
+            (8, 8, width - 16, height - 16),
+            2,
+        )
+
+        glow = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        pygame.draw.rect(
+            glow,
+            (150, 110, 255, 40),
+            (10, 10, width - 20, height - 20),
+            3,
+        )
+        floor.blit(glow, (0, 0))
+
+        for cx in (0, width - 14):
+            for cy in (0, height - 14):
+                pygame.draw.rect(
+                    floor,
+                    self.LAYOUT_ACCENT,
+                    (cx, cy, 14, 14),
+                    border_radius=3,
+                )
+                pygame.draw.rect(
+                    floor,
+                    (11, 12, 24),
+                    (cx + 4, cy + 4, 6, 6),
+                    border_radius=2,
+                )
+
+        return floor
+
+    def _build_stripes(self):
+        """Yellow/black hazard stripe strip for the rail edges."""
+
+        strip = pygame.Surface((self.track_width, 4))
+        strip.fill((22, 22, 28))
+
+        for x in range(-4, self.track_width + 8, 8):
+            pygame.draw.polygon(
+                strip,
+                (240, 190, 40),
+                [(x, 4), (x + 4, 4), (x + 8, 0), (x + 4, 0)],
+            )
+
+        return strip
+
+    def _build_glow(self):
+        """Soft red halo drawn behind each laser beam."""
+
+        # The halo reaches at most 8 px beyond the beam: exactly the rail
+        # housing (RAIL_TOP_PAD), so it never suggests a larger hazard.
+        glow = pygame.Surface(
+            (self.laser_width + 16, self.laser_height + 16),
+            pygame.SRCALPHA,
+        )
+
+        for pad, alpha in ((8, 18), (6, 32), (4, 52)):
+            pygame.draw.rect(
+                glow,
+                (255, 50, 50, alpha),
+                glow.get_rect().inflate(-(8 - pad) * 2, -(8 - pad) * 2),
+                border_radius=8,
+            )
+
+        return glow
+
+    # ---- laser rails ----------------------------------------------------
+
+    def _lowest_rail_bottom(self):
+        return max(
+            (
+                laser["y"] - self.RAIL_TOP_PAD + self.RAIL_HEIGHT
+                for laser in self.lasers
+            ),
+            default=0,
+        )
+
+    def _laser_label_rects(self):
+        """'LASER n' label rects: above the rail, or below it when the
+        space above is inside the robot's patrol band."""
+
+        font = self._font(self.BODY_SIZE)
+
+        band = pygame.Rect(
+            self.robot_left_boundary - 10,
+            154,
+            self.robot_right_boundary
+            - self.robot_left_boundary
+            + self.robot_width
+            + 20,
+            62,
+        )
+
+        rects = []
+
+        for index, laser in enumerate(self.lasers):
+
+            width, height = font.size(f"LASER {index + 1}")
+            rail_top = laser["y"] - self.RAIL_TOP_PAD
+
+            rect = pygame.Rect(
+                self.track_x + 5,
+                rail_top - height - 3,
+                width,
+                height,
+            )
+
+            if rect.colliderect(band):
+                rect.y = rail_top + self.RAIL_HEIGHT + 3
+
+            rects.append(rect)
+
+        return rects
+
+    def _draw_rails(self, surface):
+        """Rails with hazard stripes and emitters, then beams and labels."""
+
+        stripes = self._cached("stripes", self._build_stripes)
+        glow = self._cached("glow", self._build_glow)
+        pulse = 0.5 + 0.5 * math.sin(self._seconds() * 6.0)
+
+        for index, laser in enumerate(self.lasers):
+
+            phase = self.laser_phase(index)
+
+            rail = pygame.Rect(
+                self.track_x,
+                laser["y"] - self.RAIL_TOP_PAD,
+                self.track_width,
+                self.RAIL_HEIGHT,
+            )
+
+            pygame.draw.rect(surface, (24, 27, 40), rail)
+            surface.blit(stripes, (rail.x, rail.y))
+            surface.blit(stripes, (rail.x, rail.bottom - 4))
+            pygame.draw.rect(surface, (80, 62, 135), rail, 1)
+
+            for ex in (rail.x - 22, rail.right):
+
+                box = pygame.Rect(ex, rail.y - 3, 22, rail.height + 6)
+
+                pygame.draw.rect(surface, (38, 34, 62), box, border_radius=4)
+                pygame.draw.rect(
+                    surface,
+                    self.LAYOUT_ACCENT,
+                    box,
+                    2,
+                    border_radius=4,
+                )
+                lens, shine = {
+                    "active": ((255, 60, 60), (255, 190, 190)),
+                    "warning": ((255, 190, 60), (255, 235, 170)),
+                    "off": ((95, 95, 110), (150, 150, 165)),
+                }[phase]
+
+                pygame.draw.circle(
+                    surface, lens, (box.centerx, rail.centery), 5
+                )
+                pygame.draw.circle(
+                    surface, shine, (box.centerx - 1, rail.centery - 1), 2
+                )
+
+            beam = pygame.Rect(
+                int(laser["x"]),
+                int(laser["y"]),
+                self.laser_width,
+                self.laser_height,
+            )
+
+            if phase == "active":
+
+                glow.set_alpha(int(170 + 70 * pulse))
+                surface.blit(glow, (laser["x"] - 8, laser["y"] - 8))
+
+                pygame.draw.rect(surface, (255, 45, 45), beam)
+                pygame.draw.line(
+                    surface,
+                    (255, 175, 175),
+                    (beam.x, beam.centery),
+                    (beam.right - 1, beam.centery),
+                    2,
+                )
+
+            elif phase == "warning":
+
+                # Safe, but about to fire: flickering amber outline.
+                lit = int(self._seconds() * 8) % 2 == 0
+
+                pygame.draw.rect(
+                    surface, (110, 62, 30) if lit else (62, 32, 30), beam
+                )
+
+                if lit:
+                    pygame.draw.rect(surface, (255, 190, 60), beam, 1)
+
+            else:
+
+                pygame.draw.rect(surface, (52, 28, 36), beam)
+
+        label_font = self._font(self.BODY_SIZE)
+
+        for index, rect in enumerate(self._laser_label_rects()):
+            surface.blit(
+                label_font.render(f"LASER {index + 1}", True, (255, 120, 120)),
+                rect.topleft,
+            )
+
+    # ---- robot label ----------------------------------------------------
+
+    def _robot_label_rect(self, size):
+        """Place the robot label beside the robot with a clear gap.
+
+        It prefers the robot's right; it flips to the left when that
+        side would reach the gate or touch a laser label.
+        """
+
+        width, height = size
+        gap = self.ROBOT_LABEL_GAP
+        top = int(self.robot_y - 12)
+
+        right_rect = pygame.Rect(
+            int(self.robot_x + self.robot_width) + gap,
+            top,
+            width,
+            height,
+        )
+        left_rect = pygame.Rect(
+            int(self.robot_x) - gap - width,
+            top,
+            width,
+            height,
+        )
+
+        blocked = [
+            rect.inflate(12, 6) for rect in self._laser_label_rects()
+        ]
+        gate_limit = self.final_exit_rect.left - 22
+
+        def fits(rect):
+            return (
+                rect.right <= gate_limit
+                and rect.left >= self.room_x + 20
+                and not any(rect.colliderect(b) for b in blocked)
+            )
+
+        if fits(right_rect) or not fits(left_rect):
+            return right_rect
+
+        return left_rect
+
+    # ---- exit gate ------------------------------------------------------
+
+    def _gate_progress(self, gate):
+        """Eased 0..1 opening progress, driven only by gate.state."""
+
+        gates = self._vis_state()["gates"]
+        entry = gates.setdefault(
+            id(gate), {"state": gate.state, "start": None}
+        )
+        now = self._seconds()
+
+        if gate.state == "locked":
+            entry["state"] = "locked"
+            entry["start"] = None
+
+            return 0.0
+
+        if entry["state"] == "locked":
+            entry["start"] = now
+            self._spawn_sparks(gate.rect.center)
+
+        entry["state"] = gate.state
+
+        if entry["start"] is None:
+            return 1.0
+
+        return self._ease_out_cubic(
+            (now - entry["start"]) / self.GATE_OPEN_SECONDS
+        )
+
+    def _draw_lock(self, surface, center):
+        cx, cy = center
+        colour = (235, 235, 242)
+
+        pygame.draw.arc(
+            surface,
+            colour,
+            (cx - 5, cy - 11, 10, 14),
+            0,
+            3.14159,
+            2,
+        )
+        pygame.draw.rect(
+            surface, colour, (cx - 7, cy - 3, 14, 11), border_radius=2
+        )
+        pygame.draw.circle(surface, (60, 20, 24), (cx, cy + 1), 2)
+        pygame.draw.rect(surface, (60, 20, 24), (cx - 1, cy + 1, 2, 4))
+
+    def _spawn_sparks(self, center):
+        """Start a small spark burst (own RNG: never touches random's state)."""
+
+        vis = self._vis_state()
+        rng = vis["rng"]
+
+        for _ in range(18):
+            angle = rng.uniform(0.0, 6.2832)
+            speed = rng.uniform(50.0, 170.0)
+
+            vis["sparks"].append(
+                {
+                    "x": float(center[0]),
+                    "y": float(center[1]),
+                    "vx": math.cos(angle) * speed,
+                    "vy": math.sin(angle) * speed,
+                    "life": rng.uniform(0.35, 0.8),
+                    "age": 0.0,
+                }
+            )
+
+        vis["spark_time"] = self._seconds()
+
+    def _draw_sparks(self, surface):
+        vis = self._vis_state()
+
+        if not vis["sparks"]:
+            return
+
+        now = self._seconds()
+        dt = min(0.1, max(0.0, now - vis.get("spark_time", now)))
+        vis["spark_time"] = now
+        alive = []
+
+        for spark in vis["sparks"]:
+
+            spark["age"] += dt
+
+            if spark["age"] >= spark["life"]:
+                continue
+
+            spark["x"] += spark["vx"] * dt
+            spark["y"] += spark["vy"] * dt
+
+            fade = 1.0 - spark["age"] / spark["life"]
+
+            pygame.draw.circle(
+                surface,
+                self._mix((255, 230, 120), (60, 200, 120), 1.0 - fade),
+                (int(spark["x"]), int(spark["y"])),
+                max(1, int(3 * fade)),
+            )
+
+            alive.append(spark)
+
+        vis["sparks"] = alive
+
+    def _draw_gate(self, surface, gate):
+        """Framed gate: red when locked, green when open, door retracts."""
+
+        rect = gate.rect
+        progress = self._gate_progress(gate)
+        locked = gate.state == "locked"
+
+        red, amber, green = (200, 60, 60), (240, 200, 70), (60, 200, 120)
+
+        if locked:
+            tone = red
+        elif progress < 0.5:
+            tone = self._mix(red, amber, progress * 2)
+        else:
+            tone = self._mix(amber, green, (progress - 0.5) * 2)
+
+        frame = rect.inflate(16, 4)
+
+        pygame.draw.rect(surface, (12, 14, 26), frame, border_radius=6)
+        pygame.draw.rect(surface, tone, frame, 2, border_radius=6)
+
+        door_height = int(round(rect.height * (1 - progress)))
+
+        if door_height > 0:
+
+            door = pygame.Rect(rect.x, rect.y, rect.width, door_height)
+            slat = self._mix(tone, (0, 0, 0), 0.45)
+
+            pygame.draw.rect(surface, tone, door)
+
+            for y in range(door.y + 6, door.bottom - 2, 12):
+                pygame.draw.line(
+                    surface, slat, (door.x + 2, y), (door.right - 3, y), 2
+                )
+
+        if progress >= 1.0:
+            glow = pygame.Surface(frame.inflate(20, 20).size, pygame.SRCALPHA)
+
+            pygame.draw.rect(
+                glow, (60, 200, 120, 45), glow.get_rect(), border_radius=12
+            )
+            surface.blit(glow, frame.inflate(20, 20).topleft)
+
+        if locked:
+            self._draw_lock(surface, rect.center)
+
+        self._draw_sparks(surface)
+
+        # EXIT marker above the robot's patrol band (y 154-216), with a
+        # dotted guide and a down arrow pointing at the gate.
+        chip = pygame.Rect(rect.centerx - 11, 134, 60, 18)
+
+        for y in range(chip.bottom + 3, frame.top - 2, 6):
+            pygame.draw.line(
+                surface,
+                self._mix(tone, (12, 14, 26), 0.35),
+                (rect.centerx, y),
+                (rect.centerx, y + 2),
+                2,
+            )
+
+        pygame.draw.rect(surface, (12, 14, 26), chip, border_radius=9)
+        pygame.draw.rect(surface, tone, chip, 2, border_radius=9)
+
+        nudge = int(round(1.5 * math.sin(self._seconds() * 5.0)))
+        cy = chip.centery - 1 + nudge
+
+        pygame.draw.polygon(
+            surface,
+            tone,
+            [(rect.centerx - 5, cy - 3), (rect.centerx + 5, cy - 3), (rect.centerx, cy + 4)],
+        )
+
+        sign = self._font(22).render("EXIT", True, (238, 241, 248))
+        surface.blit(
+            sign, (chip.x + 21, chip.centery - sign.get_height() // 2)
+        )
+
+    # ---- question panel -------------------------------------------------
+
+    def _bottom_layout(self):
+        """Question panel geometry, rebuilt only when its inputs change."""
+
+        key = (
+            tuple(self.options),
+            self.feedback,
+            bool(self.show_hint),
+            self._lowest_rail_bottom(),
+            id(self.current_question),
+            self.current_hint,
+        )
+        cache = self._vis_state()["cache"]
+
+        if cache.get("layout_key") != key:
+            cache["layout"] = self._build_bottom_layout()
+            cache["layout_key"] = key
+
+        return cache["layout"]
+
+    def _message_texts(self):
+        """Longest hint and message each text size must hold untruncated."""
+
+        room = self.current_room_number()
+        tail = (
+            "GATE 3 UNLOCKED! REACH THE FINAL EXIT."
+            if room == 3
+            else f"GATE {room} UNLOCKED! CROSS THE GATE TO CONTINUE."
+        )
+        success = (
+            f"CORRECT! +{max(10, self.question_points)} points. "
+            f"{tail}  {self.current_explanation}"
+        )
+
+        return (
+            f"HINT: {self.current_hint}",
+            success,
+            "Hint revealed. Final score for this question is reduced by 15.",
+        )
+
+    def _footer_ink_bottom(self, size):
+        """Lowest ink row of the footer font, relative to its y."""
+
+        return self._cached(
+            ("foot_ink", size),
+            lambda: self._font(size)
+            .render("Progress: 0/3 gates/challenges | gHjpq", True, (255, 255, 255))
+            .get_bounding_rect()
+            .bottom,
+        )
+
+    def _build_bottom_layout(self):
+        """Geometry of the question panel (used by render and the tests).
+
+        The panel is sized to its content and anchored at y = 587, so the
+        footer text ends by y = 585 and the panel never touches a rail.
+        Answer text uses the largest size that fits (one line if possible,
+        otherwise two lines on buttons sized to their text), and the hint,
+        feedback and footer use the largest of three sizes that holds every
+        message for this question without truncation.
+        """
+
+        panel_x = self.room_x + 10
+        panel_w = self.room_width - 20
+        inner_w = panel_w - 24
+        available = self.PANEL_BOTTOM - (self._lowest_rail_bottom() + 6)
+
+        options = list(self.options)
+        count = max(1, len(options))
+        gap = 8
+
+        hint_text, success_text, revealed_text = self._message_texts()
+        text_tiers = ((27, 27, 27), (24, 24, 24), (23, 21, 21))
+
+        def tier_fits(tier):
+            fb_font, hint_font = self._font(tier[0]), self._font(tier[1])
+
+            return (
+                hint_font.size(hint_text)[0] <= inner_w
+                and len(self._wrap_text(fb_font, success_text, inner_w, 9)) <= 2
+                and len(self._wrap_text(fb_font, revealed_text, inner_w, 9)) <= 1
+            )
+
+        def plan(size, wrap):
+            """Button font, widths, lines and height; None if impossible."""
+
+            font = self._font(size)
+            line_h = font.get_height()
+
+            if not wrap:
+                equal = min(203, (inner_w - gap * (count - 1)) // count)
+
+                if all(font.size(o)[0] <= equal - 36 for o in options):
+                    widths = [equal] * count
+                else:
+                    needed = [font.size(o)[0] + 36 for o in options]
+                    spare = inner_w - gap * (count - 1) - sum(needed)
+
+                    if spare < 0:
+                        return None
+
+                    widths = [w + spare // count for w in needed]
+
+                return (font, widths, [[o] for o in options],
+                        line_h, max(24, line_h + 6))
+
+            needed = []
+
+            for option in options:
+                full = font.size(option)[0]
+                wrap_w = 60
+
+                while (
+                    wrap_w < full
+                    and len(self._wrap_text(font, option, wrap_w, 9)) > 2
+                ):
+                    wrap_w += 4
+
+                needed.append(min(wrap_w, full) + 36)
+
+            spare = inner_w - gap * (count - 1) - sum(needed)
+
+            if spare < 0:
+                return None
+
+            widths = [w + spare // count for w in needed]
+            lines = [
+                self._wrap_text(font, o, w - 36, 2)
+                for o, w in zip(options, widths)
+            ]
+            most = max((len(item) for item in lines), default=1)
+
+            return font, widths, lines, line_h, max(24, most * line_h + 6)
+
+        def stack(button_h, question_h, tier):
+            fb_h = self._font(tier[0]).get_height()
+            hint_h = self._font(tier[1]).get_height()
+            message_h = max(hint_h + 2 + fb_h, 2 * (fb_h + 1))
+            foot_ink = self._footer_ink_bottom(tier[2])
+
+            return (
+                2 + question_h + 2 + button_h + 3 + message_h + 3 + foot_ink + 2,
+                message_h,
+                foot_ink,
+            )
+
+        usable = [tier for tier in text_tiers if tier_fits(tier)] or [text_tiers[-1]]
+        chosen = None
+
+        for size in (27, 24, 22, 20, 18):
+            for wrap in (False, True):
+                attempt = plan(size, wrap)
+
+                if attempt is None:
+                    continue
+
+                for tier in usable:
+                    for question_size in (self.BODY_SIZE, 24, 22):
+                        question_h = self._font(question_size).get_height()
+                        total, message_h, foot_ink = stack(
+                            attempt[4], question_h, tier
+                        )
+
+                        if total <= available:
+                            chosen = (attempt, tier, question_size, question_h,
+                                      total, message_h, foot_ink)
+                            break
+
+                    if chosen:
+                        break
+
+                if chosen:
+                    break
+
+            if chosen:
+                break
+
+        if chosen is None:                  # last resort: smallest tiers
+            attempt = plan(18, True) or plan(18, False)
+            tier = text_tiers[-1]
+            question_h = self._font(22).get_height()
+            total, message_h, foot_ink = stack(attempt[4], question_h, tier)
+            chosen = (attempt, tier, 22, question_h, total, message_h, foot_ink)
+
+        (button_font, widths, button_lines, line_h, button_h), \
+            tier, question_size, question_h, total, message_h, foot_ink = chosen
+
+        fb_font = self._font(tier[0])
+        hint_font = self._font(tier[1])
+        foot_font = self._font(tier[2])
+        question_font = self._font(question_size)
+
+        fb_lines = []
+
+        if self.feedback:
+            fb_lines = self._wrap_text(fb_font, self.feedback, inner_w, 2)
+
+        show_hint = self.show_hint and len(fb_lines) < 2
+        fb_h = fb_font.get_height()
+
+        top = self.PANEL_BOTTOM - total
+        panel = pygame.Rect(panel_x, top, panel_w, total)
+
+        question_y = top + 2
+        button_y = question_y + question_h + 2
+        message_y = button_y + button_h + 3
+
+        group_w = sum(widths) + (count - 1) * gap
+        x = panel_x + 12 + (inner_w - group_w) // 2
+        buttons = []
+
+        for width in widths:
+            buttons.append(pygame.Rect(x, button_y, width, button_h))
+            x += width + gap
+
+        hint_y = message_y if show_hint else None
+
+        if len(fb_lines) == 2:
+            fb_rows = [message_y, message_y + fb_h + 1]
+        elif len(fb_lines) == 1 and show_hint:
+            fb_rows = [message_y + hint_font.get_height() + 2]
+        elif len(fb_lines) == 1:
+            fb_rows = [message_y + message_h - fb_h]
+        else:
+            fb_rows = []
+
+        return {
+            "panel": panel,
+            "question_font": question_font,
+            "question_y": question_y,
+            "button_font": button_font,
+            "buttons": buttons,
+            "button_lines": button_lines,
+            "line_h": line_h,
+            "hint_font": hint_font,
+            "hint_y": hint_y,
+            "fb_font": fb_font,
+            "fb_lines": fb_lines,
+            "fb_rows": fb_rows,
+            "foot_font": foot_font,
+            "foot_y": top + total - 2 - foot_ink,
+            "text_tier": tier,
+            "available": available,
+        }
+
+    def _draw_question_panel(self, surface):
+
+        layout = self._bottom_layout()
+        panel = layout["panel"]
+        center_x = panel.centerx
+
+        self._draw_panel(surface, panel)
+
+        if self.current_question:
+            question = layout["question_font"].render(
+                self.current_question["question"], True, (245, 245, 245)
+            )
+            surface.blit(
+                question,
+                question.get_rect(centerx=center_x, y=layout["question_y"]),
+            )
+
+        cap_font = self._font(22)
+
+        for index, rect in enumerate(layout["buttons"]):
+
+            fill, border, cap = (30, 26, 58), (110, 85, 190), self.LAYOUT_ACCENT
+
+            if self.selected_option == index + 1:
+
+                if index == self.correct_option_index:
+                    fill, border, cap = (22, 92, 58), (60, 230, 110), (60, 230, 110)
+                else:
+                    fill, border, cap = (112, 32, 40), (255, 100, 100), (255, 100, 100)
+
+            pygame.draw.rect(surface, fill, rect, border_radius=8)
+            pygame.draw.rect(surface, border, rect, 2, border_radius=8)
+
+            key = pygame.Rect(rect.x + 6, rect.centery - 9, 18, 18)
+
+            pygame.draw.rect(surface, cap, key, border_radius=4)
+
+            number = cap_font.render(str(index + 1), True, (16, 14, 32))
+            surface.blit(number, number.get_rect(center=key.center))
+
+            lines = layout["button_lines"][index]
+            text_top = rect.centery - len(lines) * layout["line_h"] // 2
+
+            for row, line in enumerate(lines):
+                surface.blit(
+                    layout["button_font"].render(line, True, (240, 240, 240)),
+                    (key.right + 6, text_top + row * layout["line_h"]),
+                )
+
+        if layout["hint_y"] is not None:
+            hint = layout["hint_font"].render(
+                f"HINT: {self.current_hint}", True, (255, 210, 80)
+            )
+            surface.blit(
+                hint, hint.get_rect(centerx=center_x, y=layout["hint_y"])
+            )
+
+        if self.feedback:
+
+            if self.complete or "CORRECT" in self.feedback:
+                colour = (60, 230, 110)
+            elif "SECURITY ALERT" in self.feedback:
+                colour = (255, 180, 60)
+            elif "GATE" in self.feedback:
+                colour = (255, 220, 80)
+            else:
+                colour = (255, 100, 100)
+
+            for line, y in zip(layout["fb_lines"], layout["fb_rows"]):
+                text = layout["fb_font"].render(line, True, colour)
+                surface.blit(text, text.get_rect(centerx=center_x, y=y))
+
+        foot = layout["foot_font"]
+
+        surface.blit(
+            foot.render(
+                "Press 1-4 to answer  |  H = hint", True, (180, 180, 190)
+            ),
+            (panel.x + 16, layout["foot_y"]),
+        )
+
+        progress = foot.render(
+            f"Progress: {self.current_question_number}"
+            f"/{self.total_questions} gates/challenges",
+            True,
+            (180, 200, 210),
+        )
+        surface.blit(
+            progress,
+            progress.get_rect(topright=(panel.right - 16, layout["foot_y"])),
+        )
+
+    # =========================================================
     # RENDER
+    #
+    # Layout zones (960 x 640, shared HUD covers y 0-48):
+    #   y  54-100  header panel (title, timer, question, progression)
+    #   y 102-152  top lane: objective / banners + security code panel
+    #   y 136      laser heading (below the spawn at 100,100)
+    #   y 154-480  gameplay: robot, rails, lasers, gate
+    #   y ~478-587 question panel (sized to its content, footer < 585)
+    #   y 592-640  reserved for the shared radio toast
     # =========================================================
 
     def render(self, surface):
 
+        # Existing drawing (floor, gates and their spark particles) first;
+        # the tiled floor and restyled gate below are drawn over it.
         self.room_map.draw(surface)
+
+        surface.blit(
+            self._cached("floor", self._build_floor),
+            (self.room_x, self.room_y),
+        )
 
         room_number = self.current_room_number()
 
+        left = self.room_x + 20
+        right = self.room_x + self.room_width - 20
+
         # -------------------------
-        # Title
+        # Header panel (y 54-100)
         # -------------------------
 
-        title_text = self.title_font.render(
-            f"LEVEL 3 - THE LASER LOOP | ROOM {room_number}",
-            True,
-            (255, 255, 255),
-        )
+        self._draw_panel(surface, pygame.Rect(left, 54, right - left, 46))
 
         surface.blit(
-            title_text,
-            (
-                self.room_x + 25,
-                self.room_y + 50,
+            self.title_font.render(
+                f"LEVEL 3 - THE LASER LOOP | ROOM {room_number}",
+                True,
+                (255, 255, 255),
             ),
+            (left + 12, 56),
         )
 
-        # -------------------------
-        # Question counter
-        # -------------------------
+        timer_text = self.timer_font.render(
+            f"SECURITY TIMER: {self.time_left:.1f}s",
+            True,
+            (255, 210, 60),
+        )
+        surface.blit(
+            timer_text, timer_text.get_rect(topright=(right - 12, 58))
+        )
 
-        question_text = self.timer_font.render(
+        counter = self._font(self.BODY_SIZE).render(
             f"QUESTION: {self.current_question_number + 1}"
             f"/{self.total_questions}",
             True,
             (90, 220, 255),
         )
+        surface.blit(counter, (left + 12, 80))
 
-        surface.blit(
-            question_text,
-            (
-                self.room_x + 25,
-                self.room_y + 25,
-            ),
+        difficulty_text = (
+            f"DIFFICULTY: {self.current_difficulty.upper()}  |  "
+            f"POINTS: {self.question_points}"
         )
+        progression_text = f"SECURITY PROGRESSION: ROOM {room_number}/3"
 
-        # -------------------------
-        # Difficulty / points
-        # -------------------------
+        for info_size in (self.BODY_SIZE, 24):
 
-        difficulty_text = self.instruction_font.render(
-            f"DIFFICULTY: "
-            f"{self.current_difficulty.upper()}  |  "
-            f"POINTS: {self.question_points}",
-            True,
-            (210, 190, 120),
-        )
-
-        difficulty_rect = difficulty_text.get_rect(
-            top=self.room_y + 105,
-            right=self.room_x
-            + self.room_width
-            - 25,
-        )
-
-        surface.blit(
-            difficulty_text,
-            difficulty_rect,
-        )
-
-        # -------------------------
-        # Progression
-        # -------------------------
-
-        progression_text = self.instruction_font.render(
-            f"SECURITY PROGRESSION: "
-            f"ROOM {room_number}/3",
-            True,
-            (180, 220, 240),
-        )
-
-        surface.blit(
-            progression_text,
-            (
-                self.room_x + 25,
-                self.room_y + 80,
-            ),
-        )
-
-        # -------------------------
-        # Timer
-        # -------------------------
-
-        timer_text = self.timer_font.render(
-            f"SECURITY TIMER: "
-            f"{self.time_left:.1f}s",
-            True,
-            (255, 210, 60),
-        )
-
-        timer_rect = timer_text.get_rect(
-            topright=(
-                self.room_x
-                + self.room_width
-                - 25,
-                self.room_y + 25,
+            info_font = self._font(info_size)
+            difficulty = info_font.render(
+                difficulty_text, True, (210, 190, 120)
             )
-        )
+            progression = info_font.render(
+                progression_text, True, (180, 220, 240)
+            )
+            difficulty_x = left + 12 + counter.get_width() + 20
 
+            if (
+                difficulty_x + difficulty.get_width() + 18
+                <= right - 12 - progression.get_width()
+            ):
+                break
+
+        row_y = 80 + (counter.get_height() - difficulty.get_height()) // 2
+
+        surface.blit(difficulty, (difficulty_x, row_y))
         surface.blit(
-            timer_text,
-            timer_rect,
+            progression, progression.get_rect(topright=(right - 12, row_y))
         )
 
         # -------------------------
-        # Objective
+        # Top lane (x 150-555, y 102-134): banners or objective.
+        # Starts right of the spawn so a banner never hides the player.
         # -------------------------
 
-        objective_text = self.objective_font.render(
-            "Objective: Solve the loop challenge "
-            "to unlock the gate.",
-            True,
-            (190, 195, 205),
-        )
+        lane = pygame.Rect(150, 102, 405, 32)
+        banner_text = None
 
-        surface.blit(
-            objective_text,
-            (
-                self.room_x + 25,
-                self.room_y + 125,
-            ),
-        )
+        if self.laser_hit_feedback_timer > 0:
+            banner_text = "LASER HIT! SECURITY +10"
+            banner_fill, banner_ink = (170, 30, 30, 220), (255, 245, 245)
+        elif self.robot_alert:
+            banner_text = "!! SECURITY ALERT - ROBOT DETECTION !!"
+            banner_fill, banner_ink = (150, 20, 20, 210), (255, 240, 240)
 
-        # -------------------------
-        # Security heading
-        # -------------------------
+        if banner_text:
 
-        security_text = self.heading_font.render(
-            "LASER SECURITY SYSTEM",
-            True,
-            (255, 90, 90),
-        )
-
-        surface.blit(
-            security_text,
-            (
-                self.room_x + 25,
-                self.room_y + 150,
-            ),
-        )
-
-        # -------------------------
-        # Robot
-        # -------------------------
-
-        self.draw_robot_scan(surface)
-
-        robot_label = self.instruction_font.render(
-            f"SECURITY ROBOT - SPEED "
-            f"{self.robot_speed}",
-            True,
-            (255, 180, 80),
-        )
-
-        surface.blit(
-            robot_label,
-            (
-                self.robot_x - 10,
-                self.robot_y - 32,
-            ),
-        )
-
-        self.draw_robot(surface)
-
-        # -------------------------
-        # Laser tracks
-        # -------------------------
-
-        for index, laser in enumerate(
-            self.lasers
-        ):
-
-            track_y = laser["y"] - 13
+            banner = pygame.Surface(lane.size, pygame.SRCALPHA)
 
             pygame.draw.rect(
-                surface,
-                (42, 46, 58),
-                (
-                    self.track_x,
-                    track_y,
-                    self.track_width,
-                    self.track_height,
-                ),
+                banner, banner_fill, banner.get_rect(), border_radius=6
             )
 
-            pygame.draw.rect(
-                surface,
-                (65, 68, 80),
-                (
-                    self.track_x,
-                    track_y,
-                    self.track_width,
-                    self.track_height,
-                ),
+            banner_font = self._font(self.BODY_SIZE)
+
+            if banner_font.size(banner_text)[0] > lane.width - 16:
+                banner_font = self._font(24)
+
+            text = banner_font.render(banner_text, True, banner_ink)
+            banner.blit(text, text.get_rect(center=banner.get_rect().center))
+            surface.blit(banner, lane.topleft)
+
+        else:
+
+            objective_font = self._font(24)
+            lines = self._wrap_text(
+                objective_font,
+                "Objective: Solve the loop challenge to unlock the gate.",
+                lane.width - 110,               # balanced two-line wrap
                 2,
             )
 
-            pygame.draw.rect(
-                surface,
-                (255, 45, 45),
-                (
-                    laser["x"],
-                    laser["y"],
-                    self.laser_width,
-                    self.laser_height,
-                ),
-            )
+            for row, line in enumerate(lines):
+                surface.blit(
+                    objective_font.render(line, True, (205, 210, 220)),
+                    (lane.x + 4, lane.y - 1 + row * 16),
+                )
 
-            label = self.instruction_font.render(
-                f"LASER {index + 1}",
-                True,
-                (255, 120, 120),
-            )
+        # -------------------------
+        # Security code panel (top right, x 565-900, y 102-152)
+        # -------------------------
 
+        code_panel = pygame.Rect(562, 102, 256, 50)
+
+        self._draw_panel(surface, code_panel)
+
+        code_font = self._font(22)
+
+        for offset, word in enumerate(("SECURITY", "CODE")):
             surface.blit(
-                label,
-                (
-                    self.track_x + 5,
-                    track_y - 20,
-                ),
+                code_font.render(word, True, (240, 240, 240)),
+                (code_panel.x + 12, code_panel.y + 10 + offset * 15),
+            )
+
+        for row, line in enumerate(self.code_lines):
+            surface.blit(
+                code_font.render(line, True, (90, 220, 255)),
+                (code_panel.x + 102, code_panel.y + 3 + row * 15),
             )
 
         # -------------------------
-        # Gate status
+        # Laser heading (y 136, below the spawn)
+        # -------------------------
+
+        surface.blit(
+            self.heading_font.render(
+                "LASER SECURITY SYSTEM", True, (255, 90, 90)
+            ),
+            (left + 5, 136),
+        )
+
+        # -------------------------
+        # Rails, lasers and labels
+        # -------------------------
+
+        self._draw_rails(surface)
+
+        # -------------------------
+        # Exit gate and status
         # -------------------------
 
         if room_number == 1:
-
-            gate = self.gate1
-            gate_text = "GATE 1"
-
+            gate, gate_text = self.gate1, "GATE 1"
         elif room_number == 2:
-
-            gate = self.gate2
-            gate_text = "GATE 2"
-
+            gate, gate_text = self.gate2, "GATE 2"
         else:
+            gate, gate_text = self.gate3, "GATE 3"
 
-            gate = self.gate3
-            gate_text = "GATE 3"
+        self._draw_gate(surface, gate)
 
         if gate.state == "locked":
-
             gate_status = "LOCKED"
-
         elif gate.state == "unlocking":
-
             gate_status = "UNLOCKING"
-
         else:
-
             gate_status = "OPEN"
 
-        gate_surface = self.instruction_font.render(
-            f"{gate_text}: {gate_status}",
-            True,
-            (255, 220, 100),
+        gate_surface = self._font(22).render(
+            f"{gate_text}: {gate_status}", True, (255, 220, 100)
         )
-
         surface.blit(
             gate_surface,
-            (
-                790,
-                315,
+            gate_surface.get_rect(
+                topright=(gate.rect.right + 8, gate.rect.bottom + 4)
             ),
         )
 
         # -------------------------
-        # Security code
+        # Robot, with its speed on its own line beside it
         # -------------------------
 
-        panel_x = 220
-        panel_y = 275
-        panel_width = 520
-        panel_height = 125
+        self.draw_robot_scan(surface)
+        self.draw_robot(surface)
 
-        pygame.draw.rect(
-            surface,
-            (10, 13, 22),
+        label_font = self._font(24)
+        name_line = label_font.render("SECURITY ROBOT", True, (255, 180, 80))
+        speed_line = label_font.render(
+            f"SPEED {self.robot_speed}", True, (255, 180, 80)
+        )
+
+        label_rect = self._robot_label_rect(
             (
-                panel_x,
-                panel_y,
-                panel_width,
-                panel_height,
-            ),
+                max(name_line.get_width(), speed_line.get_width()),
+                name_line.get_height() + speed_line.get_height(),
+            )
         )
 
-        pygame.draw.rect(
-            surface,
-            (70, 105, 140),
-            (
-                panel_x,
-                panel_y,
-                panel_width,
-                panel_height,
-            ),
-            2,
-        )
-
-        code_heading = self.heading_font.render(
-            "SECURITY CODE",
-            True,
-            (240, 240, 240),
-        )
-
+        surface.blit(name_line, label_rect.topleft)
         surface.blit(
-            code_heading,
-            (
-                panel_x + 25,
-                panel_y + 15,
-            ),
-        )
-
-        code_y = panel_y + 50
-
-        for line in self.code_lines:
-
-            code_text = self.code_font.render(
-                line,
-                True,
-                (90, 220, 255),
-            )
-
-            surface.blit(
-                code_text,
-                (
-                    panel_x + 30,
-                    code_y,
-                ),
-            )
-
-            code_y += 23
-
-        # -------------------------
-        # Laser feedback
-        # -------------------------
-
-        if self.laser_hit_feedback_timer > 0:
-
-            laser_hit_surface = pygame.Surface(
-                (360, 42),
-                pygame.SRCALPHA,
-            )
-
-            pygame.draw.rect(
-                laser_hit_surface,
-                (170, 30, 30, 220),
-                laser_hit_surface.get_rect(),
-                border_radius=6,
-            )
-
-            laser_hit_text = self.feedback_font.render(
-                "LASER HIT! SECURITY +10",
-                True,
-                (255, 245, 245),
-            )
-
-            laser_hit_rect = laser_hit_text.get_rect(
-                center=(
-                    laser_hit_surface.get_width()
-                    // 2,
-                    laser_hit_surface.get_height()
-                    // 2,
-                )
-            )
-
-            laser_hit_surface.blit(
-                laser_hit_text,
-                laser_hit_rect,
-            )
-
-            surface.blit(
-                laser_hit_surface,
-                (
-                    self.room_x
-                    + self.room_width // 2
-                    - laser_hit_surface.get_width()
-                    // 2,
-                    125,
-                ),
-            )
-
-        # -------------------------
-        # Robot alert
-        # -------------------------
-
-        if self.robot_alert:
-
-            alert_surface = pygame.Surface(
-                (
-                    self.room_width - 80,
-                    38,
-                ),
-                pygame.SRCALPHA,
-            )
-
-            pygame.draw.rect(
-                alert_surface,
-                (150, 20, 20, 210),
-                alert_surface.get_rect(),
-                border_radius=6,
-            )
-
-            alert_text = self.feedback_font.render(
-                "!! SECURITY ALERT - "
-                "ROBOT DETECTION !!",
-                True,
-                (255, 240, 240),
-            )
-
-            alert_rect = alert_text.get_rect(
-                center=(
-                    alert_surface.get_width()
-                    // 2,
-                    alert_surface.get_height()
-                    // 2,
-                )
-            )
-
-            alert_surface.blit(
-                alert_text,
-                alert_rect,
-            )
-
-            surface.blit(
-                alert_surface,
-                (
-                    self.room_x + 40,
-                    170,
-                ),
-            )
-
-        # -------------------------
-        # Question
-        # -------------------------
-
-        if self.current_question:
-
-            question_text = (
-                self.current_question["question"]
-            )
-
-            question_surface = self.option_font.render(
-                question_text,
-                True,
-                (245, 245, 245),
-            )
-
-            question_rect = question_surface.get_rect(
-                centerx=(
-                    self.room_x
-                    + self.room_width // 2
-                ),
-                y=405,
-            )
-
-            surface.blit(
-                question_surface,
-                question_rect,
-            )
-
-        # -------------------------
-        # Answers
-        # -------------------------
-
-        option_y = 430
-
-        for index, option in enumerate(
-            self.options
-        ):
-
-            text_color = (
-                240,
-                240,
-                240,
-            )
-
-            if self.selected_option == index + 1:
-
-                if index == self.correct_option_index:
-
-                    text_color = (
-                        60,
-                        230,
-                        110,
-                    )
-
-                else:
-
-                    text_color = (
-                        255,
-                        100,
-                        100,
-                    )
-
-            option_text = self.option_font.render(
-                f"[{index + 1}]  {option}",
-                True,
-                text_color,
-            )
-
-            option_rect = option_text.get_rect(
-                centerx=(
-                    self.room_x
-                    + self.room_width // 2
-                ),
-                y=option_y,
-            )
-
-            surface.blit(
-                option_text,
-                option_rect,
-            )
-
-            option_y += 27
-
-        # -------------------------
-        # Hint
-        # -------------------------
-
-        if self.show_hint:
-
-            hint_text = self.instruction_font.render(
-                f"HINT: {self.current_hint}",
-                True,
-                (255, 210, 80),
-            )
-
-            hint_rect = hint_text.get_rect(
-                centerx=(
-                    self.room_x
-                    + self.room_width // 2
-                ),
-                y=520,
-            )
-
-            surface.blit(
-                hint_text,
-                hint_rect,
-            )
-
-        # -------------------------
-        # Progress
-        # -------------------------
-
-        progress_text = self.instruction_font.render(
-            f"Progress: "
-            f"{self.current_question_number}"
-            f"/{self.total_questions} "
-            f"gates/challenges",
-            True,
-            (180, 200, 210),
-        )
-
-        progress_rect = progress_text.get_rect(
-            center=(
-                self.room_x
-                + self.room_width // 2,
-                545,
-            )
-        )
-
-        surface.blit(
-            progress_text,
-            progress_rect,
+            speed_line,
+            (label_rect.x, label_rect.y + name_line.get_height()),
         )
 
         # -------------------------
-        # Feedback
+        # Question panel
         # -------------------------
 
-        if self.feedback:
-
-            if self.complete:
-
-                feedback_color = (
-                    60,
-                    230,
-                    110,
-                )
-
-            elif "CORRECT" in self.feedback:
-
-                feedback_color = (
-                    60,
-                    230,
-                    110,
-                )
-
-            elif "SECURITY ALERT" in self.feedback:
-
-                feedback_color = (
-                    255,
-                    180,
-                    60,
-                )
-
-            elif "GATE" in self.feedback:
-
-                feedback_color = (
-                    255,
-                    220,
-                    80,
-                )
-
-            else:
-
-                feedback_color = (
-                    255,
-                    100,
-                    100,
-                )
-
-            feedback_text = self.feedback_font.render(
-                self.feedback,
-                True,
-                feedback_color,
-            )
-
-            feedback_rect = feedback_text.get_rect(
-                center=(
-                    self.room_x
-                    + self.room_width // 2,
-                    570,
-                )
-            )
-
-            surface.blit(
-                feedback_text,
-                feedback_rect,
-            )
-
-        # -------------------------
-        # Instruction
-        # -------------------------
-
-        instruction_text = self.instruction_font.render(
-            "Press 1-4 to answer  |  H = hint",
-            True,
-            (180, 180, 190),
-        )
-
-        instruction_rect = instruction_text.get_rect(
-            center=(
-                self.room_x
-                + self.room_width // 2,
-                600,
-            )
-        )
-
-        surface.blit(
-            instruction_text,
-            instruction_rect,
-        )
+        self._draw_question_panel(surface)
 
     # =========================================================
     # HINT PENALTY
