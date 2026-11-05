@@ -28,6 +28,14 @@ def isolated_stats(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_recorded_voice(tmp_path_factory, monkeypatch):
+    """Tests hear the blip voices, whether or not clips are generated in assets/voice."""
+    from systems import voice_clips
+
+    monkeypatch.setattr(voice_clips, "CLIP_DIR", str(tmp_path_factory.mktemp("no_clips")))
+
+
+@pytest.fixture(autouse=True)
 def fresh_fonts():
     """Some tests shut the font module down; a cached font would then crash."""
     from ui import fonts

@@ -16,9 +16,12 @@ Blips go through Audio.play, so they follow the effects slider and the mute
 switch.  Like SoundEvents, VoiceEvents is handed a snapshot once a frame.
 """
 
+import os
 from collections import namedtuple
 
 import pygame
+
+from systems import voice_clips
 
 try:
     import numpy as np
@@ -142,9 +145,12 @@ class _Track:
 class VoicePlayer:
     """Plays blip schedules.  Each named track is one speaking voice at a time."""
 
-    def __init__(self, audio):
+    def __init__(self, audio, clip_dir=None):
         self.audio = audio
+        self.clip_dir = clip_dir
         self._tracks = {}
+        self._clips = {}            # track -> mixer channel playing a recorded line
+        self._loaded = {}           # path -> pygame Sound, or None for an unreadable file
 
     # --- control ----------------------------------------------------------
     def speak(self, track, speaker, text, cps):
@@ -156,16 +162,62 @@ class VoicePlayer:
         self._tracks[track] = _Track(speaker, events)
         return True
 
+    def speak_clip(self, track, speaker, text):
+        """Play the recorded line for (speaker, text) if its file exists.
+
+        Returns True when a recording started (the caller then skips the
+        blips), False when there is none, sound is muted or the file is bad.
+        """
+        path = voice_clips.clip_path(speaker, text, self.clip_dir)
+        sound = self._load(path)
+        if sound is None or not getattr(self.audio, "enabled", False):
+            return False
+        self.stop(track)
+        try:
+            sound.set_volume(max(0.0, min(1.0, getattr(self.audio, "sfx_volume", 1.0))))
+            channel = sound.play()
+        except pygame.error:
+            return False
+        if channel is None:
+            return False
+        self._clips[track] = channel
+        return True
+
+    def _load(self, path):
+        if path not in self._loaded:
+            sound = None
+            if getattr(self.audio, "mixer_ready", False) and os.path.isfile(path):
+                try:
+                    sound = pygame.mixer.Sound(path)
+                except pygame.error:
+                    sound = None
+            self._loaded[path] = sound
+        return self._loaded[path]
+
     def stop(self, track=None):
         if track is None:
             self._tracks.clear()
+            for channel in self._clips.values():
+                channel.stop()
+            self._clips.clear()
         else:
             self._tracks.pop(track, None)
+            channel = self._clips.pop(track, None)
+            if channel is not None:
+                channel.stop()
 
     def speaking(self, track=None):
-        return bool(self._tracks) if track is None else track in self._tracks
+        self._forget_finished_clips()
+        if track is None:
+            return bool(self._tracks) or bool(self._clips)
+        return track in self._tracks or track in self._clips
+
+    def _forget_finished_clips(self):
+        for name in [n for n, ch in self._clips.items() if not ch.get_busy()]:
+            del self._clips[name]
 
     def update(self, dt):
+        self._forget_finished_clips()
         for name in list(self._tracks):
             track = self._tracks[name]
             track.clock += max(0.0, dt)
@@ -208,6 +260,7 @@ class VoiceEvents:
         self._comms = None
         self._said = {}
         self._serial = None
+        self._narrated = False      # the open story card has a recording playing
 
     def observe(self, state, comms=None, npcs=(), card=None):
         playing = state == "playing"
@@ -220,7 +273,8 @@ class VoiceEvents:
         elif comms is not self._comms:
             self._comms = comms
             speaker, box = comms
-            self.player.speak("comms", speaker, box.typer.text, box.typer.cps)
+            if not self._clip("comms", speaker, box.typer.text):
+                self.player.speak("comms", speaker, box.typer.text, box.typer.cps)
 
         # NPC speech: each NPC counts its lines in `said`.
         self._said = {n: s for n, s in self._said.items() if n in npcs}
@@ -234,12 +288,22 @@ class VoiceEvents:
                 if npc.speech:
                     self.player.speak(track, npc.kind, npc.speech, NPC_CPS)
 
-        # Story card text.
-        typing = (card is not None and state in ("intro", "briefing", "outro")
-                  and not card.done and not card.typing_done)
-        if not typing:
+        # Story card: a recording of the narrator if there is one (it plays on after the
+        # typing is skipped, until the card is left), else blips while the text types.
+        story_open = card is not None and state in ("intro", "briefing", "outro") and not card.done
+        if not story_open:
+            self._narrated = False
             self.player.stop("story")
         elif card.serial != self._serial:
             self._serial = card.serial
-            speaker = "warden" if card.warden else "echo"
-            self.player.speak("story", speaker, "".join(card.lines), card.CHARS_PER_SECOND)
+            self._narrated = self._clip("story", voice_clips.NARRATOR, voice_clips.story_text(card.lines))
+            if not self._narrated and not card.typing_done:
+                speaker = "warden" if card.warden else "echo"
+                self.player.speak("story", speaker, "".join(card.lines), card.CHARS_PER_SECOND)
+        elif card.typing_done and not self._narrated:
+            self.player.stop("story")
+
+    def _clip(self, track, speaker, text):
+        """Start a recorded line through the player, if it can; False when it cannot."""
+        play = getattr(self.player, "speak_clip", None)
+        return bool(play and play(track, speaker, text))
