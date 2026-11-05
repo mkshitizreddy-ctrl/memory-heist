@@ -44,6 +44,7 @@ from ui.comms import CommsFeed
 from systems.sound_events import SoundEvents
 
 from systems.scoring import ScoreTracker, final_score
+from systems.progress import clear_progress, describe, load_progress, save_progress
 from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
@@ -148,6 +149,43 @@ class Game:
         self._pause_assets = None
         self._wipe = ElevatorWipe()
         self._floor_snap = None     # score, time and mistakes when the floor began
+        self.saved_run = None       # the run the menu can continue, see _refresh_saved_run
+        self._refresh_saved_run()
+
+    def _refresh_saved_run(self):
+        """Look for a saved run and tell the menu about it."""
+        self.saved_run = load_progress()
+        self.menu.saved_text = describe(self.saved_run) if self.saved_run else None
+
+    def _save_run(self, level_name):
+        """Remember the floor just reached, so the menu can offer Continue."""
+        save_progress(level_name, self.score.get_score(),
+                      self.timer.get_remaining() if self.timer.active else 0,
+                      self.difficulty["label"].lower(), self.coop)
+
+    def _continue_run(self):
+        """Resume the saved run: same floor, score, time left, difficulty and co-op."""
+        saved = self.saved_run
+        if not saved:
+            return
+        self.menu.selected_difficulty = saved["difficulty"]
+        self.menu.coop = saved["coop"]
+        self.difficulty = get_difficulty(saved["difficulty"])
+        self.security.penalty_multiplier = self.difficulty["security_penalty_multiplier"]
+        self.coop = saved["coop"]
+        self.hints.enabled = self.difficulty["hints_enabled"]
+        self.score.reset()
+        self.score.add(saved["score"])
+        self.security.reset()
+        self.timer = Timer()
+        self.timer.start(saved["remaining"])
+        self._register_levels()
+        self.level_manager.start(saved["level"])
+        self._reset_player_position()
+        self._last_level_name = saved["level"]
+        self._floor_snap = self._take_snapshot()
+        self.change_state("playing")
+        self._open_briefing(saved["level"])
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -220,6 +258,8 @@ class Game:
             if self._is_next_floor(previous, current_name):
                 cleared = self._floor_summary(previous)
             self._floor_snap = self._take_snapshot()
+            if cleared is not None and self.state == "playing":
+                self._save_run(current_name)
             self._fade_timer = FADE_DURATION
             # No level places the players itself, so without this a level
             # starts wherever the previous one left them.
@@ -405,6 +445,10 @@ class Game:
                         self._begin_run()
                         # The key that starts a run must not reach Level 1.
                         continue
+
+                elif event.key == pygame.K_l and self.state == "menu" and self.saved_run:
+                    self._continue_run()
+                    continue
 
                 elif event.key == pygame.K_r:
                     if self.state == "lose" or self._win_screen_is_done():
@@ -695,7 +739,11 @@ class Game:
         self.state = new_state
         self.paused = False
 
+        if new_state == "menu":
+            self._refresh_saved_run()
+
         if new_state == "win":
+            clear_progress()        # a finished run is not something to continue
             # Time left and difficulty turn the run score into the final one.
             result = final_score(
                 self.score.get_score(),

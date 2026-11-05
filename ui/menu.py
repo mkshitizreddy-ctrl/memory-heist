@@ -82,6 +82,7 @@ class MainMenu:
         self.coop = False
         self.echo_alpha = ECHO_DIM
         self._flash = 0
+        self.saved_text = None      # "Floor 3 - 450 pts" when a run can be continued
 
     def handle_event(self, event):
         """Let the player switch difficulty with 1/2/3 while at the menu."""
@@ -186,8 +187,19 @@ class MainMenu:
         blit_centered(surface, self.prompt_font.render("Press ENTER to start", True,
                                                        theme.mix(theme.TEAL, theme.PAPER, 0.6)),
                       start.center)
-        blit_centered(surface, self.control_font.render(
-            "S: settings   |   F11: fullscreen", True, theme.MIST), lay["hint"].center)
+        self._draw_hint(surface, lay["hint"])
+
+    def _draw_hint(self, surface, rect):
+        """The key hints; with a saved run, a gold 'L: continue' leads the line."""
+        rest = self.control_font.render("S: settings   |   F11: fullscreen", True, theme.MIST)
+        if not self.saved_text:
+            blit_centered(surface, rest, rect.center)
+            return
+        gold = self.control_font.render(f"L: continue ({self.saved_text})", True, theme.GOLD)
+        gap = 22
+        x = rect.centerx - (gold.get_width() + gap + rest.get_width()) // 2
+        surface.blit(gold, (x, rect.centery - gold.get_height() // 2))
+        surface.blit(rest, (x + gold.get_width() + gap, rect.centery - rest.get_height() // 2))
 
     def _draw_shimmer(self, surface, centre):
         """A bright diagonal band that sweeps across the title now and then."""
