@@ -44,11 +44,13 @@ from ui.comms import CommsFeed
 from systems.sound_events import SoundEvents
 
 from systems.scoring import ScoreTracker, final_score
+from systems.achievements import Stats
 from systems.progress import clear_progress, describe, load_progress, save_progress
 from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
 from ui.fonts import ui_font
+from ui.stats_screen import StatsScreen
 
 
 SCREEN_WIDTH = 960
@@ -149,6 +151,9 @@ class Game:
         self._pause_assets = None
         self._wipe = ElevatorWipe()
         self._floor_snap = None     # score, time and mistakes when the floor began
+        self.stats = Stats()
+        self.stats_screen = StatsScreen()
+        self._continued = False     # this run was resumed from a save
         self.saved_run = None       # the run the menu can continue, see _refresh_saved_run
         self._refresh_saved_run()
 
@@ -174,6 +179,7 @@ class Game:
         self.security.penalty_multiplier = self.difficulty["security_penalty_multiplier"]
         self.coop = saved["coop"]
         self.hints.enabled = self.difficulty["hints_enabled"]
+        self._continued = True
         self.score.reset()
         self.score.add(saved["score"])
         self.security.reset()
@@ -412,6 +418,14 @@ class Game:
 
                 elif event.key == pygame.K_s and self._can_open_settings():
                     self.settings_screen.open()
+                    continue
+
+                elif event.key == pygame.K_b and self.state == "menu":
+                    self.change_state("stats")
+                    continue
+
+                elif event.key == pygame.K_ESCAPE and self.state == "stats":
+                    self.change_state("menu")
                     continue
 
                 elif event.key == pygame.K_ESCAPE:
@@ -704,6 +718,9 @@ class Game:
                 score=self.win_screen.score,
             )
 
+        elif self.state == "stats":
+            self.stats_screen.render(self.screen, self.stats, self._bg_tick)
+
         elif self.state == "lose":
             self.lose_screen.render(
                 self.screen,
@@ -736,8 +753,12 @@ class Game:
 
     def change_state(self, new_state: str):
         """Central place to switch between game states."""
+        previous = self.state
         self.state = new_state
         self.paused = False
+
+        if new_state == "lose" and previous != "lose":
+            self.stats.record_loss()
 
         if new_state == "menu":
             self._refresh_saved_run()
@@ -750,11 +771,21 @@ class Game:
                 self.timer.get_remaining() if self.timer.active else 0,
                 self.difficulty["score_multiplier"],
             )
+            remaining = self.timer.get_remaining() if self.timer.active else 0
+            earned, new = self.stats.record_win(result["total"], {
+                "mistakes": getattr(self.security, "mistakes", 0),
+                "time_left": remaining,
+                "run_seconds": run_time_seconds(self.difficulty),
+                "difficulty": self.difficulty["label"].lower(),
+                "coop": self.coop,
+                "continued": self._continued,
+            })
             self.win_screen.begin(
                 result["total"],
                 self.difficulty["label"].title(),
                 self.coop,
                 result,
+                badges=[(badge, badge in new) for badge in earned],
             )
 
     def _begin_run(self):
@@ -769,6 +800,7 @@ class Game:
 
     def _start_new_run(self):
         """Reset systems, player position, fresh levels, and start Level 1."""
+        self._continued = False
         self.score.reset()
         self.security.reset()
         self.timer = Timer()

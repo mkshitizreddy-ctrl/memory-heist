@@ -12,8 +12,10 @@ from ui import theme
 from ui.backdrop import draw_backdrop
 from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
+from systems.achievements import BADGE_NAMES
 
 PORTRAIT_SIZE = 96
+BADGE_GAP = 8
 COUNT_FRAMES = 45        # frames the final score takes to count up
 TABLE_ROWS = 5
 
@@ -34,14 +36,16 @@ class WinScreen:
         self.row_font = ui_font(26)
         self.big_font = ui_font(72, bold=True)
         self.caption_font = ui_font(20)
+        self.badge_font = ui_font(20)
         self.leaderboard = leaderboard or Leaderboard()
         self.tick = 0
         self.begin(0, "Medium", False)
 
-    def begin(self, score, difficulty, coop, breakdown=None):
+    def begin(self, score, difficulty, coop, breakdown=None, badges=None):
         """Start a fresh win screen: ask for a name, then show the table."""
         self.score = score
         self.breakdown = breakdown
+        self.badges = list(badges or [])        # [(badge id, is new this run)]
         self.difficulty = difficulty
         self.coop = coop
         self.name = ""
@@ -78,7 +82,25 @@ class WinScreen:
         score.midtop = (cx, 122)
         table = pygame.Rect(0, 0, 560, 254)
         table.midtop = (cx, score.bottom + 16)
-        return {"score": score, "table": table}
+        strip = pygame.Rect(0, 0, 900, 30)
+        strip.midtop = (cx, table.bottom + 14)
+        return {"score": score, "table": table, "badges": strip}
+
+    def _draw_badges(self, surface, strip):
+        """Chips for the badges this run earned; new ones are solid gold."""
+        if not self.badges:
+            return
+        chips = []
+        for badge_id, is_new in self.badges:
+            text = BADGE_NAMES.get(badge_id, badge_id)
+            if is_new:
+                text = "NEW " + text
+            chips.append((text, is_new, self.badge_font.size(text)[0] + 28))
+        x = strip.centerx - (sum(w for _, _, w in chips) + BADGE_GAP * (len(chips) - 1)) // 2
+        for text, is_new, w in chips:
+            draw_chip(surface, pygame.Rect(x, strip.y, w, strip.height), text, self.badge_font,
+                      fg=theme.GOLD, border=theme.GOLD, filled=is_new)
+            x += w + BADGE_GAP
 
     def render(self, surface, score=0):
         self.tick += 1
@@ -116,6 +138,8 @@ class WinScreen:
             blit_centered(surface, self.subtitle_font.render(
                 "Master Memory acquired. Mission complete.", True, theme.MIST),
                 (panel.centerx, panel.bottom - 18))
+
+        self._draw_badges(surface, lay["badges"])
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
         table = draw_panel(surface, lay["table"], fill=theme.mix(theme.INK, theme.NAVY, 0.6),

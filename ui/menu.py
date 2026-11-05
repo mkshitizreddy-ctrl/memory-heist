@@ -191,7 +191,7 @@ class MainMenu:
 
     def _draw_hint(self, surface, rect):
         """The key hints; with a saved run, a gold 'L: continue' leads the line."""
-        rest = self.control_font.render("S: settings   |   F11: fullscreen", True, theme.MIST)
+        rest = self.control_font.render("S: settings  |  B: badges  |  F11: fullscreen", True, theme.MIST)
         if not self.saved_text:
             blit_centered(surface, rest, rect.center)
             return
