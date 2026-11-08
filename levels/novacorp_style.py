@@ -196,3 +196,82 @@ class PA:
         fade = 0.4
         k = min(self._since / fade, (self.SHOW - self._since) / fade, 1.0)
         return int(255 * max(0.0, k))
+
+
+# --- walls that look like walls -------------------------------------------
+WALL_LIGHTNESS = 0.22      # how far a wall face is lightened from the floor colour
+CAP_HEIGHT = 7              # the lit top surface of a wall that faces the room from above
+BASEBOARD = 8               # the dark strip where a wall meets the floor
+SHADOW_BELOW = 30           # how far a wall's shadow falls on the floor south of it
+SHADOW_SIDE = 22            # and sideways, from a wall to the east or west
+
+
+def _is_wall(tilemap, tx, ty):
+    return tilemap.name_at(tx, ty) == "wall"
+
+
+def draw_walls(surface, tilemap, base):
+    """Turn flat wall tiles into solid-looking walls, seen from above and a little
+    in front: panelled faces, a lit cap where a wall's top shows, a baseboard where
+    it meets the floor, and soft shadows cast onto the floor beside it.
+
+    Draw this straight after the tiles and before anything stands on them."""
+    tile = tilemap.tile
+    face = theme.mix(base, theme.PAPER, WALL_LIGHTNESS)       # lighter than the floor: a raised plane
+    lit = theme.mix(face, theme.PAPER, 0.40)
+    dark = theme.mix(face, (0, 0, 0), 0.55)
+    panel = theme.mix(face, (0, 0, 0), 0.30)
+    for ty in range(tilemap.rows):
+        for tx in range(tilemap.cols):
+            if not _is_wall(tilemap, tx, ty):
+                continue
+            r = pygame.Rect(tx * tile, ty * tile, tile, tile)
+            surface.fill(face, r)
+            below_open = not _is_wall(tilemap, tx, ty + 1)
+            above_open = not _is_wall(tilemap, tx, ty - 1)
+            if not above_open and tx % 3 == 0:                      # panel seams down the face
+                pygame.draw.line(surface, dark, (r.x, r.y), (r.x, r.bottom - 1))
+                pygame.draw.line(surface, lit, (r.x + 1, r.y), (r.x + 1, r.bottom - 1))
+            if below_open and not above_open:                       # the foot of a tall face
+                surface.fill(panel, (r.x, r.y, tile, tile - BASEBOARD))     # the lower panel
+                surface.fill(lit, (r.x, r.y, tile, 2))                      # a chair rail on top of it
+                surface.fill(dark, (r.x, r.y + 2, tile, 2))
+                if tx % 3 == 0:                                             # bevelled panel edges
+                    surface.fill(dark, (r.x, r.y + 4, 2, tile - BASEBOARD - 4))
+                    surface.fill(lit, (r.x + 2, r.y + 4, 1, tile - BASEBOARD - 4))
+                surface.fill(dark, (r.x, r.bottom - BASEBOARD, tile, BASEBOARD))
+                surface.fill(lit, (r.x, r.bottom - BASEBOARD, tile, 1))     # lip of the baseboard
+            elif below_open and above_open:                         # a one-tile wall: both
+                surface.fill(dark, (r.x, r.bottom - BASEBOARD, tile, BASEBOARD))
+            if above_open:                                          # the lit top of the wall
+                surface.fill(lit, (r.x, r.y, tile, CAP_HEIGHT))
+                surface.fill(dark, (r.x, r.y + CAP_HEIGHT, tile, 2))
+            if not _is_wall(tilemap, tx - 1, ty) and not above_open:     # a bevelled edge facing the room
+                surface.fill(lit, (r.x, r.y, 3, tile))
+                surface.fill(dark, (r.x + 3, r.y, 1, tile))
+            if not _is_wall(tilemap, tx + 1, ty) and not above_open:
+                surface.fill(dark, (r.right - 4, r.y, 4, tile))
+                surface.fill(lit, (r.right - 5, r.y, 1, tile))
+    shade = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    for ty in range(tilemap.rows):
+        for tx in range(tilemap.cols):
+            if _is_wall(tilemap, tx, ty) or tilemap.name_at(tx, ty) == "void":
+                continue
+            x, y = tx * tile, ty * tile
+            if _is_wall(tilemap, tx, ty - 1):                       # in the shadow of a wall to the north
+                for i in range(min(SHADOW_BELOW, tile)):
+                    pygame.draw.line(shade, (0, 0, 0, int(150 * (1 - i / SHADOW_BELOW) ** 1.5)),
+                                     (x, y + i), (x + tile - 1, y + i))
+            if _is_wall(tilemap, tx, ty + 1):                       # contact shadow before a wall to the south
+                for i in range(8):
+                    pygame.draw.line(shade, (0, 0, 0, int(70 * (1 - i / 8))),
+                                     (x, y + tile - 1 - i), (x + tile - 1, y + tile - 1 - i))
+            if _is_wall(tilemap, tx - 1, ty):
+                for i in range(SHADOW_SIDE):
+                    pygame.draw.line(shade, (0, 0, 0, int(110 * (1 - i / SHADOW_SIDE) ** 1.5)),
+                                     (x + i, y), (x + i, y + tile - 1))
+            if _is_wall(tilemap, tx + 1, ty):
+                for i in range(SHADOW_SIDE):
+                    pygame.draw.line(shade, (0, 0, 0, int(110 * (1 - i / SHADOW_SIDE) ** 1.5)),
+                                     (x + tile - 1 - i, y), (x + tile - 1 - i, y + tile - 1))
+    surface.blit(shade, (0, 0))

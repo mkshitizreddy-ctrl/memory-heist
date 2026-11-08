@@ -28,7 +28,7 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lobby_decor, lobby_extras, novacorp_style
+from levels import lighting, lobby_decor, lobby_extras, novacorp_style
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -246,6 +246,8 @@ class FloorOneLobby:
         self.vending_used = False
         self._bell_rings = 0
         self._beam_overlay = None
+        self.lightlayer = lighting.LightLayer()
+        self._title = None
 
         self.font = ui_font(22)
         self.small = ui_font(20)
@@ -578,6 +580,7 @@ class FloorOneLobby:
         self.tilemap.render(bg, cam, self.tiles)
         pal = theme.floor_palette(LEVEL_KEY)
         accent = pal["accent"]
+        novacorp_style.draw_walls(bg, self.tilemap, pal["floor"])
         # reception desk
         draw_panel(bg, self.desk, fill=theme.mix(theme.NAVY, accent, 0.25),
                    border=accent, radius=6)
@@ -622,7 +625,43 @@ class FloorOneLobby:
         title = shadowed(ui_font(26, bold=True), "FLOOR 1 - RECEPTION LOBBY",
                          theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, TITLE_Y))
+        self._title = (title, (TILE * 2, TITLE_Y))
         self._background = bg
+
+    def _lights(self):
+        """Every light source on the floor: fixed lamps plus the moving ones."""
+        accent = theme.floor_palette(LEVEL_KEY)["accent"]
+        warm = theme.mix(accent, theme.PAPER, 0.6)
+        out = [lighting.Light((col * TILE, 2 * TILE + 30), 150, warm, 0.9) for col in range(4, 28, 4)]
+        out.append(lighting.Light((15 * TILE, 9 * TILE), 260, (210, 225, 255), 0.75))          # ceiling panel
+        out.append(lighting.Light((15 * TILE, 15 * TILE), 130, (255, 214, 140), 0.8))          # desk lamp
+        out.append(lighting.Light((self.vending.centerx, self.vending.centery), 120, (120, 230, 255), 0.9))
+        out.append(lighting.Light((2 * TILE, 4 * TILE + 16), 110, (90, 220, 200), 0.7))        # elevator
+        lamp = theme.mix(theme.CORAL, theme.TEAL, self.door_open)
+        out.append(lighting.Light((self.door.x - 10, self.door.centery), 100, lamp, 0.8))
+        alert = 1.0 if self._alerted() else 0.0
+        led = theme.mix(theme.CORAL, (255, 40, 40), alert)
+        out.append(lighting.Light(self.led_pos, 70, led, 0.7 + 0.3 * math.sin(self.time * 4.0)))
+        if not self.complete:
+            a = self.beam.angle(self.time)
+            reach = self.beam.length * 0.62
+            tip = (self.beam.origin[0] + math.cos(a) * reach, self.beam.origin[1] + math.sin(a) * reach)
+            danger = self.watch.danger()
+            out.append(lighting.Light((int(tip[0]), int(tip[1])), 120,
+                                      theme.mix(theme.TEAL, theme.CORAL, danger), 0.9))
+        for chip in self.chips:
+            if not chip.taken:
+                out.append(lighting.Light(chip.rect.center, 36, theme.TEAL, 0.8))
+        return out
+
+    def _draw_shadows(self, world):
+        for crate in self.crates:
+            if not crate.sorted and crate.carrier is None:
+                lighting.blob_shadow(world, crate.rect, 90)
+        for npc in self.npcs:
+            lighting.blob_shadow(world, npc.rect, 90)
+        for rect in (self.desk, self.vending, self.cooler, *self.cabinets, *self.plants):
+            lighting.blob_shadow(world, rect.inflate(10, 0), 60, squash=0.3)
 
     @staticmethod
     def _glow(radius, colour):
@@ -802,6 +841,7 @@ class FloorOneLobby:
             if not chip.taken:
                 lobby_extras.draw_chip(world, chip, self.time)
         self._draw_dust(world)
+        self._draw_shadows(world)
         prompted = self._prompted_crates()
         for crate in self.crates:
             if crate.sorted or crate.carrier is not None:
@@ -821,6 +861,9 @@ class FloorOneLobby:
         for s in self.sparks:
             size = max(1, int(4 * s["life"] / 0.6))
             pygame.draw.circle(world, s["colour"], (int(s["x"]), int(s["y"])), size)
+        self.lightlayer.apply(world, self._lights())
+        if self._title is not None:
+            world.blit(*self._title)           # the title stays readable above the lighting
         # message strip on the wall, under the HUD
         if self.message:
             msg = shadowed(self.font, self.message, self.message_tone)
