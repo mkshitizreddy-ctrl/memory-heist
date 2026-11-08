@@ -17,6 +17,7 @@ STEP = 0.1
 DEFAULT_MUSIC = 1.0
 DEFAULT_SFX = 1.0
 DEFAULT_VOICE = 1.0
+DEFAULT_FULLSCREEN = True       # a laptop/PC game: start full-screen, F11 returns to a window
 
 
 def settings_path():
@@ -39,11 +40,12 @@ def step(value, delta):
 
 class Settings:
     def __init__(self, music=DEFAULT_MUSIC, sfx=DEFAULT_SFX, muted=False, path=None,
-                 voice=DEFAULT_VOICE):
+                 voice=DEFAULT_VOICE, fullscreen=DEFAULT_FULLSCREEN):
         self.music = clamp(music, DEFAULT_MUSIC)
         self.sfx = clamp(sfx, DEFAULT_SFX)
         self.voice = clamp(voice, DEFAULT_VOICE)
         self.muted = bool(muted)
+        self.fullscreen = fullscreen if isinstance(fullscreen, bool) else DEFAULT_FULLSCREEN
         self.path = path or settings_path()
 
     # --- changing -----------------------------------------------------------
@@ -61,7 +63,8 @@ class Settings:
 
     # --- saving -------------------------------------------------------------
     def to_dict(self):
-        return {"music": self.music, "sfx": self.sfx, "voice": self.voice, "muted": self.muted}
+        return {"music": self.music, "sfx": self.sfx, "voice": self.voice, "muted": self.muted,
+                "fullscreen": self.fullscreen}
 
     @classmethod
     def load(cls, path=None):
@@ -79,6 +82,7 @@ class Settings:
             sfx=data.get("sfx", DEFAULT_SFX),
             voice=data.get("voice", DEFAULT_VOICE),
             muted=muted if isinstance(muted, bool) else False,
+            fullscreen=data.get("fullscreen", DEFAULT_FULLSCREEN),
             path=path,
         )
 

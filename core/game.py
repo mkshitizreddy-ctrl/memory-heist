@@ -10,6 +10,7 @@ import os
 
 import pygame
 
+from core import display
 from core.player import Player, ARROWS
 from core.level_manager import LevelManager
 from core.difficulty import (
@@ -377,25 +378,34 @@ class Game:
         return self.state == "win" and not self.win_screen.entering
 
     @staticmethod
-    def _create_window():
-        """Open the 960x640 window, scaled when the machine supports it.
+    def _create_window(fullscreen=None):
+        """Open the game window: full-screen by default, as saved in the settings.
 
-        SCALED keeps the drawing surface at 960x640 and lets F11 stretch it
-        to the screen, with mouse positions mapped back automatically. Setups
-        without a renderer (headless test runs) get a plain window instead.
+        The drawing surface stays 960x640. SCALED stretches it to the screen
+        (smoothed, see display.configure_scaling) and maps mouse positions
+        back. Setups without a renderer (headless test runs) fall back to
+        simpler windows instead of failing.
         """
+        if fullscreen is None:
+            fullscreen = Settings.load().fullscreen
         size = (SCREEN_WIDTH, SCREEN_HEIGHT)
-        try:
-            return pygame.display.set_mode(size, pygame.SCALED)
-        except pygame.error:
-            return pygame.display.set_mode(size)
+        display.configure_scaling()
+        flags = display.window_flags(fullscreen, pygame.display.get_driver())
+        for attempt in (flags, pygame.SCALED, 0):
+            try:
+                return pygame.display.set_mode(size, attempt)
+            except pygame.error:
+                continue
+        return pygame.display.set_mode(size)
 
     def _toggle_fullscreen(self):
-        """Switch between the window and fullscreen; ignore unsupported setups."""
+        """Switch between the window and fullscreen, remember the choice, ignore unsupported setups."""
         try:
             pygame.display.toggle_fullscreen()
         except pygame.error:
-            pass
+            return
+        self.settings.fullscreen = display.is_fullscreen()
+        self.settings.save()
 
     def _settings_changed(self, kind):
         """Apply a settings change live; effects get a sample blip to judge by."""
