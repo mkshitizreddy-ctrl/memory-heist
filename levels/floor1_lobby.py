@@ -81,13 +81,14 @@ START_MESSAGE = "File each parcel in the chute for its type."
 PICKUP_FORMAT = "Got {value}. Which chute?"
 FILED_FORMAT = "{value} is {kind}. Stamped!"
 INTAKE_NOTICE = "PARCEL INTAKE - FILE BY DECLARED TYPE"
-GREETINGS = ("Welcome to NovaCorp.", "Sign in before you wander.", "Mind the crates.")
+GREETINGS = ("Welcome to NovaCorp.", "Courier? Chutes are ahead.", "Mind the parcels.")
 CLEANER_ROUTE = [(6, 16), (11, 16)]
 CLEANER_LINES = ("Mind the wet floor.", "Nobody thanks the cleaner.", "Please keep moving.")
-GUARD_LINES = ("Move along, visitor.", "Badges stay visible.")
-PRAISE = ("Nice sorting.", "Spot on.")
-SCOLD = "Easy there, visitor."
+GUARD_LINES = ("Move along, courier.", "Badges stay visible.")
+PRAISE = ("Stamped. Next.", "Filed correctly.")
+SCOLD = "Wrong chute, courier."
 FAREWELL = "Have a good day."
+CLEARED_MESSAGE = "All parcels stamped. The elevator is waiting."
 
 # Text on the wall band (y 48..96, between the HUD and the floor).
 TITLE_Y = 48
@@ -570,7 +571,7 @@ class FloorOneLobby:
         self.receptionist.say(FAREWELL)
         if self.game:
             self.game.score.add(FINISH_BONUS)
-        self._say("Reception cleared. The elevator is waiting.", theme.GOLD)
+        self._say(CLEARED_MESSAGE, theme.GOLD)
 
     def is_complete(self):
         return self.complete
@@ -829,7 +830,9 @@ class FloorOneLobby:
             pygame.draw.polygon(surf, arrow, [(cx - 12, cy - 10), (cx + 8, cy), (cx - 12, cy + 10)])
         tag = self.small.render("EXIT", True, theme.MIST)
         surf.blit(tag, tag.get_rect(midbottom=(d.centerx, d.y - 12)))
-        for i in range(GATES):                       # one lamp per gate, above the door
+        stamps = self.small.render("STAMPS", True, theme.MIST)
+        surf.blit(stamps, stamps.get_rect(midbottom=(d.x - 2, d.y - 44)))
+        for i in range(GATES):                       # one lamp (stamp) per gate, above the door
             colour = theme.mix(theme.SLATE, theme.TEAL, self.lamps[i])
             pos = (d.x - 30 + i * 28, d.y - 34)
             pygame.draw.circle(surf, colour, pos, 8)

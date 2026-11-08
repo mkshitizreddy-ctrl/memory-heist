@@ -513,10 +513,10 @@ def test_background_draws_the_sofa():
 
 def all_wall_messages():
     """Every line the lobby can print on the wall."""
-    from levels.floor1_lobby import BIN_TYPES, FILED_FORMAT, HINTS, PICKUP_FORMAT, START_MESSAGE
+    from levels.floor1_lobby import BIN_TYPES, CLEARED_MESSAGE, FILED_FORMAT, HINTS, PICKUP_FORMAT, START_MESSAGE
     lines = [START_MESSAGE,
              "Badge reader online. The exit is open.",
-             "Reception cleared. The elevator is waiting."]
+             CLEARED_MESSAGE]
     for bin_type in BIN_TYPES:
         lines.append(f"Not {with_article(bin_type)}. {HINTS[bin_type]}")
         lines.append(FILED_FORMAT.format(value=display("x"), kind=with_article(bin_type)))
