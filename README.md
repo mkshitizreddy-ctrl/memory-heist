@@ -69,7 +69,8 @@ Close the window using its title bar (X) to quit at any time.
   Recorded clips live in `assets/voice/`; if a clip is missing, a short
   generated "blip" voice plays instead, so nothing breaks.
 - **Floors.** Levels 1, 2 and 5 and the Final Vault are rebuilt as walkable
-  floors (tile rooms, crates and bins, a maintenance grid, a server hall
+  floors (tile rooms, crates and bins with a sweeping camera beam and hidden
+  chips, a maintenance grid, a server hall
   and a master vault, both with a terminal you walk up to); Level 3 has
   laser rooms with a security robot; Level 4 has the memory vault with
   drones. Levels 3 and 4 are still being reworked by their owner.
