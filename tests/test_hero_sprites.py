@@ -188,3 +188,43 @@ def test_top_edges_are_lighter_and_undersides_darker_than_the_palette():
 def test_eyes_and_visors_are_never_shaded():
     rows = ["....", ".V..", "...."]
     assert hs._shaded(rows, 1, 1, "V", {"V": (90, 240, 255)}) == (90, 240, 255)
+
+
+# --- the courier disguise ----------------------------------------------------
+def _px(surface):
+    return pygame.image.tobytes(surface, "RGBA")
+
+
+@pytest.mark.parametrize("name", HEROES)
+def test_courier_outfit_changes_the_look_but_not_the_frame_set(name):
+    plain, courier = make_hero_frames(name), make_hero_frames(name, "courier")
+    assert _px(plain["idle"]) != _px(courier["idle"])
+    assert len(courier["walk"]) == 4 and "blink" in courier
+    assert courier["idle"].get_size() == plain["idle"].get_size()
+    assert _px(courier["walk"][0]) != _px(courier["walk"][2])
+
+
+@pytest.mark.parametrize("name", HEROES)
+def test_courier_outfit_shows_a_hi_vis_vest_a_reflective_stripe_and_a_red_cap(name):
+    img = make_hero_frames(name, "courier")["idle"]
+    colours = {tuple(img.get_at((x, y)))[:3] for x in range(img.get_width()) for y in range(img.get_height())}
+    near = lambda c: any(all(abs(a - b) < 40 for a, b in zip(c, got)) for got in colours)
+    assert near(hs.COURIER_COLOURS["R"])
+    assert near(hs.COURIER_COLOURS["r"])
+    assert near(hs.COURIER_COLOURS["P"])
+
+
+def test_courier_ghost_keeps_the_cyan_visor():
+    img = make_hero_frames("ghost", "courier")["idle"]
+    visor = hs.PALETTES["ghost"]["V"]
+    assert any(tuple(img.get_at((x, y)))[:3] == visor
+               for x in range(img.get_width()) for y in range(img.get_height()))
+
+
+def test_unknown_outfit_is_rejected():
+    with pytest.raises(ValueError):
+        make_hero_frames("ghost", "astronaut")
+
+
+def test_courier_disguise_is_different_for_each_hero():
+    assert _px(make_hero_frames("ghost", "courier")["idle"]) != _px(make_hero_frames("echo", "courier")["idle"])

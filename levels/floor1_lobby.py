@@ -28,7 +28,7 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lighting, lobby_decor, lobby_extras, novacorp_style
+from levels import lighting, lobby_decor, lobby_extras, lobby_juice, novacorp_style
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -77,17 +77,19 @@ EXIT_ROWS = (9, 10, 11)
 RECEPTIONIST_TILE = (15, 16)
 GUARD_ROUTE = [(19, 16), (25, 16), (25, 14)]
 # Parcel intake: reception is also the mail room, and Ghost walks in as a courier.
-START_MESSAGE = "File each parcel in the chute for its type."
+START_MESSAGE = "Belt jammed: file each parcel by type."
 PICKUP_FORMAT = "Got {value}. Which chute?"
 FILED_FORMAT = "{value} is {kind}. Stamped!"
-INTAKE_NOTICE = "PARCEL INTAKE - FILE BY DECLARED TYPE"
-GREETINGS = ("Welcome to NovaCorp.", "Sign in before you wander.", "Mind the crates.")
+BELT_SIGN = ("BELT OUT OF ORDER", "FILE BY HAND")
+BELT_JAM = (236, 106)            # where the jammed parcels sit on the belt
+GREETINGS = ("Welcome to NovaCorp.", "Courier? Chutes are ahead.", "Mind the parcels.")
 CLEANER_ROUTE = [(6, 16), (11, 16)]
 CLEANER_LINES = ("Mind the wet floor.", "Nobody thanks the cleaner.", "Please keep moving.")
-GUARD_LINES = ("Move along, visitor.", "Badges stay visible.")
-PRAISE = ("Nice sorting.", "Spot on.")
-SCOLD = "Easy there, visitor."
+GUARD_LINES = ("Move along, courier.", "Badges stay visible.")
+PRAISE = ("Stamped. Next.", "Filed correctly.")
+SCOLD = "Wrong chute, courier."
 FAREWELL = "Have a good day."
+CLEARED_MESSAGE = "All parcels stamped. The elevator is waiting."
 
 # Text on the wall band (y 48..96, between the HUD and the floor).
 TITLE_Y = 48
@@ -252,6 +254,11 @@ class FloorOneLobby:
         self._bell_rings = 0
         self._beam_overlay = None
         self.lightlayer = lighting.LightLayer()
+        self._dressed = False
+        for hero, _ in self._players():
+            hero.set_outfit(None)              # a fresh run starts in the usual look
+        self.juice = lobby_juice.Juice()
+        self.popup_font = ui_font(20, bold=True)
         self._title = None
 
         self.font = ui_font(22)
@@ -391,6 +398,7 @@ class FloorOneLobby:
         if crate.answer == bin_type:
             crate.sorted = True
             self.sorted_count += 1
+            self.juice.filed(crate.rect.center, centre, bin_type, f"+{CRATE_POINTS}", theme.TEAL)
             self._burst(centre, BIN_COLOURS[bin_type], 18)
             if self.game:
                 self.game.score.add(CRATE_POINTS)
@@ -399,6 +407,7 @@ class FloorOneLobby:
             self._npc_react("praise")
             self._check_gates()
         else:
+            self.juice.missed((centre[0], centre[1] - 26), f"-{WRONG_PENALTY}", theme.CORAL)
             crate.rect = crate.home.copy()
             self.shake.add(0.55)
             self._burst(centre, theme.CORAL, 12)
@@ -481,11 +490,13 @@ class FloorOneLobby:
     # --- update ---------------------------------------------------------
     def update(self, dt):
         dt = max(0.0, dt)
+        self._dress()
         self._sync_carried()
         self.time += dt
         self._message_age += dt
         self.shake.update(dt)
         self.crate_pop.update(dt)
+        self.juice.update(dt)
         for pulse in self.bin_pulse.values():
             pulse.update(dt)
         for s in self.sparks:
@@ -540,6 +551,7 @@ class FloorOneLobby:
         self._burst(chip.rect.center, theme.TEAL, 10)
         self._sfx("chip")
         points = lobby_extras.CHIP_POINTS
+        self.juice.pop((chip.rect.centerx, chip.rect.top - 6), f"+{points}", theme.TEAL)
         if self.chips_found == len(self.chips):
             points += lobby_extras.CHIP_BONUS
             self._say(f"All visitor chips found! +{points}", theme.GOLD)
@@ -567,10 +579,12 @@ class FloorOneLobby:
 
     def _finish(self):
         self.complete = True
+        for hero, _ in self._players():
+            hero.set_outfit(None)              # the disguise comes off in the elevator
         self.receptionist.say(FAREWELL)
         if self.game:
             self.game.score.add(FINISH_BONUS)
-        self._say("Reception cleared. The elevator is waiting.", theme.GOLD)
+        self._say(CLEARED_MESSAGE, theme.GOLD)
 
     def is_complete(self):
         return self.complete
@@ -624,7 +638,7 @@ class FloorOneLobby:
         novacorp_style.stencil(bg, "PLEASE REMAIN VISIBLE", (15 * TILE, 10 * TILE), stencil_font, alpha=70)
         novacorp_style.dashed_line(bg, (11 * TILE, 14 * TILE + 6), (19 * TILE, 14 * TILE + 6))
         novacorp_style.stencil(bg, "WAIT HERE", (15 * TILE, 13 * TILE + 10), ui_font(18, bold=True), alpha=90)
-        novacorp_style.stencil(bg, INTAKE_NOTICE, (15 * TILE, 3 * TILE + 14), ui_font(16, bold=True), alpha=95)
+        self._draw_belt(bg)
         poster_font = ui_font(12, bold=True)
         novacorp_style.draw_poster(bg, (4, 10 * TILE, 56, 88), ("SMILE!", "WE'RE", "WATCHING"), poster_font)
         novacorp_style.draw_poster(bg, (4, 13 * TILE + 4, 56, 88), ("A CLEAR", "DESK IS", "LOYAL"), poster_font)
@@ -639,7 +653,9 @@ class FloorOneLobby:
         """Every light source on the floor: fixed lamps plus the moving ones."""
         accent = theme.floor_palette(LEVEL_KEY)["accent"]
         warm = theme.mix(accent, theme.PAPER, 0.6)
-        out = [lighting.Light((col * TILE, 2 * TILE + 30), 150, warm, 0.9) for col in range(4, 28, 4)]
+        out = [lighting.Light((col * TILE, 2 * TILE + 30), 150, warm,
+                              0.9 * (lobby_juice.flicker(self.time, col) if col == 12 else 1.0))
+               for col in range(4, 28, 4)]
         out.append(lighting.Light((15 * TILE, 9 * TILE), 260, (210, 225, 255), 0.75))          # ceiling panel
         out.append(lighting.Light((15 * TILE, 15 * TILE), 130, (255, 214, 140), 0.8))          # desk lamp
         out.append(lighting.Light((self.vending.centerx, self.vending.centery), 120, (120, 230, 255), 0.9))
@@ -659,6 +675,8 @@ class FloorOneLobby:
         for chip in self.chips:
             if not chip.taken:
                 out.append(lighting.Light(chip.rect.center, 36, theme.TEAL, 0.8))
+        blink = 0.5 + 0.5 * math.sin(self.time * 5.0)
+        out.append(lighting.Light((BELT_JAM[0], BELT_JAM[1] - 4), 56, theme.CORAL, 0.35 + 0.55 * blink))   # jam lamp
         return out
 
     def _draw_shadows(self, world):
@@ -669,6 +687,32 @@ class FloorOneLobby:
             lighting.blob_shadow(world, npc.rect, 90)
         for rect in (self.desk, self.vending, self.cooler, *self.cabinets, *self.plants):
             lighting.blob_shadow(world, rect.inflate(10, 0), 60, squash=0.3)
+
+    def _dress(self):
+        """Ghost (and Echo) wear the courier vest for as long as this floor is running."""
+        if not self.complete:
+            for hero, _ in self._players():
+                hero.set_outfit("courier")
+
+    def _draw_belt(self, bg):
+        """The intake belt above the chutes: it feeds them, but it is jammed, which is
+        why the parcels are on the floor. A sign says so."""
+        belt = pygame.Rect(BELT_JAM[0] - 20, 98, 712 - (BELT_JAM[0] - 20), 14)
+        pygame.draw.rect(bg, (30, 34, 44), belt)
+        pygame.draw.rect(bg, (70, 78, 92), belt, 1)
+        for x in range(belt.x + 6, belt.right - 4, 8):               # rollers
+            pygame.draw.line(bg, (54, 60, 74), (x, belt.y + 2), (x, belt.bottom - 3), 2)
+        for dx, dy, w in ((0, 0, 16), (10, -6, 14), (22, 1, 12)):    # parcels stuck at the jam
+            box = pygame.Rect(BELT_JAM[0] - 8 + dx, 98 + dy, w, 12)
+            pygame.draw.rect(bg, (170, 128, 84), box, border_radius=2)
+            pygame.draw.rect(bg, (96, 70, 44), box, 1, border_radius=2)
+        plate = pygame.Rect(722, 100, 138, 38)
+        pygame.draw.rect(bg, theme.INK, plate, border_radius=4)
+        pygame.draw.rect(bg, theme.CORAL, plate, 1, border_radius=4)
+        font = ui_font(12, bold=True)
+        for i, line in enumerate(BELT_SIGN):
+            img = font.render(line, True, theme.PAPER if i else theme.CORAL)
+            bg.blit(img, img.get_rect(midtop=(plate.centerx, plate.y + 5 + i * 15)))
 
     @staticmethod
     def _glow(radius, colour):
@@ -745,6 +789,11 @@ class FloorOneLobby:
                            theme.CORAL, alert)
         pygame.draw.circle(world, colour, self.led_pos, 3)
 
+    def _draw_jam_lamp(self, world):
+        on = math.sin(self.time * 5.0) > 0
+        colour = theme.CORAL if on else theme.mix(theme.SLATE, theme.CORAL, 0.25)
+        pygame.draw.circle(world, colour, (BELT_JAM[0], BELT_JAM[1] - 14), 3)
+
     def _draw_beam(self, world):
         if self.complete:
             return
@@ -775,24 +824,27 @@ class FloorOneLobby:
                 pygame.draw.rect(surf, glow, r.inflate(8, 8), 2, border_radius=9)
 
     def _draw_crate(self, surf, crate, rect, highlight=False):
-        """A bigger wooden crate with a floating value tag (neutral colour: the
-        tag must not give away the bin)."""
+        """A cardboard parcel with packing tape, a shipping label and a floating value
+        tag (neutral colour: the tag must not give away the chute)."""
         hit = pygame.Rect(rect)
         body = pygame.Rect(0, 0, int(hit.w * 1.3), int(hit.h * 1.15))
         body.center = hit.center
         pal = theme.floor_palette(LEVEL_KEY)
-        wood = theme.mix((150, 100, 60), pal["floor"], 0.12)
+        wood = theme.mix((178, 136, 88), pal["floor"], 0.10)
         dark = theme.mix(wood, theme.INK, 0.5)
         pygame.draw.rect(surf, (0, 0, 0), body.move(2, 3), border_radius=4)
         pygame.draw.rect(surf, wood, body, border_radius=4)
-        for x in (body.x + body.w // 3, body.x + 2 * body.w // 3):
-            pygame.draw.line(surf, dark, (x, body.y + 3), (x, body.bottom - 3), 1)
-        pygame.draw.rect(surf, theme.mix(wood, theme.PAPER, 0.28),
-                         (body.x + 2, body.y + 2, body.w - 4, 5), border_radius=2)
+        pygame.draw.rect(surf, theme.mix(wood, theme.PAPER, 0.22),
+                         (body.x + 2, body.y + 2, body.w - 4, 5), border_radius=2)   # lit top flap
+        tape = pygame.Rect(0, body.y, 6, body.h)
+        tape.centerx = body.centerx
+        pygame.draw.rect(surf, (214, 190, 140), tape)                                # packing tape
+        label = pygame.Rect(body.x + 4, body.bottom - 13, 13, 9)
+        pygame.draw.rect(surf, (238, 238, 232), label)                               # shipping label
+        for bx in range(label.x + 2, label.right - 1, 2):
+            pygame.draw.line(surf, theme.INK, (bx, label.y + 4), (bx, label.bottom - 2), 1)
+        pygame.draw.rect(surf, (200, 60, 50), (label.x + 2, label.y + 1, 5, 2))
         pygame.draw.rect(surf, dark, body, 2, border_radius=4)
-        for cx, cy in ((body.x + 4, body.y + 4), (body.right - 5, body.y + 4),
-                       (body.x + 4, body.bottom - 5), (body.right - 5, body.bottom - 5)):
-            pygame.draw.circle(surf, theme.MIST, (cx, cy), 1)
         txt = self.code.render(display(crate.value), True, theme.PAPER)
         tag = txt.get_rect().inflate(10, 4)
         tag.midbottom = (body.centerx, body.top - 3)
@@ -829,7 +881,9 @@ class FloorOneLobby:
             pygame.draw.polygon(surf, arrow, [(cx - 12, cy - 10), (cx + 8, cy), (cx - 12, cy + 10)])
         tag = self.small.render("EXIT", True, theme.MIST)
         surf.blit(tag, tag.get_rect(midbottom=(d.centerx, d.y - 12)))
-        for i in range(GATES):                       # one lamp per gate, above the door
+        stamps = self.small.render("STAMPS", True, theme.MIST)
+        surf.blit(stamps, stamps.get_rect(midbottom=(d.x - 2, d.y - 44)))
+        for i in range(GATES):                       # one lamp (stamp) per gate, above the door
             colour = theme.mix(theme.SLATE, theme.TEAL, self.lamps[i])
             pos = (d.x - 30 + i * 28, d.y - 34)
             pygame.draw.circle(surf, colour, pos, 8)
@@ -840,14 +894,18 @@ class FloorOneLobby:
             self._build_background()
         world = self._background.copy()
         self.ambience.draw(world, self.desk, self.vending, self._alerted())
+        for t, rect in self.bins.items():
+            lobby_juice.draw_chute(world, rect, BIN_COLOURS[t], 96, self.time, self.juice.flash.get(t, 0.0))
         self._draw_bins(world, self._prompted_bins())
         self._draw_exit(world)
         self._draw_beam(world)
         self._draw_camera_led(world)
+        self._draw_jam_lamp(world)
         for chip in self.chips:
             if not chip.taken:
                 lobby_extras.draw_chip(world, chip, self.time)
         self._draw_dust(world)
+        lobby_juice.draw_fan_shadow(world, (15 * TILE, 10 * TILE), self.time)
         self._draw_shadows(world)
         prompted = self._prompted_crates()
         for crate in self.crates:
@@ -868,7 +926,9 @@ class FloorOneLobby:
         for s in self.sparks:
             size = max(1, int(4 * s["life"] / 0.6))
             pygame.draw.circle(world, s["colour"], (int(s["x"]), int(s["y"])), size)
+        self.juice.draw_flyers(world, self.small)
         self.lightlayer.apply(world, self._lights())
+        self.juice.draw_popups(world, self.popup_font)
         if self._title is not None:
             world.blit(*self._title)           # the title stays readable above the lighting
         # message strip on the wall, under the HUD
@@ -885,6 +945,9 @@ class FloorOneLobby:
         chips = shadowed(self.small, f"CHIPS {self.chips_found}/{len(self.chips)}",
                          theme.TEAL if self.chips_found else theme.MIST)
         world.blit(chips, (world.get_width() - chips.get_width() - TILE * 2, TITLE_Y + 24))
+        if self.juice.streak_visible():
+            streak = shadowed(self.small, f"STREAK x{self.juice.streak}", theme.GOLD)
+            world.blit(streak, (world.get_width() - chips.get_width() - streak.get_width() - TILE * 2 - 16, TITLE_Y + 24))
         ox, oy = self.shake.offset()
         surface.fill(theme.INK)
         surface.blit(world, (ox, oy))

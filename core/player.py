@@ -39,6 +39,8 @@ class Player:
         self.speed = speed
         self.controls = controls or WASD
         # 'ghost' / 'echo' are the story heroes; older palette names still work.
+        self.hero = palette if palette in HEROES else None
+        self.outfit = None
         if palette in HEROES:
             self.frames = make_hero_frames(palette)
         else:
@@ -52,6 +54,13 @@ class Player:
         # Sub-pixel part of a step that did not fit in a whole pixel.
         self._remainder_x = 0.0
         self._remainder_y = 0.0
+
+    def set_outfit(self, outfit=None):
+        """Change what a story hero wears ('courier' or None for the usual look). Others ignore it."""
+        if self.hero is None or outfit == self.outfit:
+            return
+        self.frames = make_hero_frames(self.hero, outfit)
+        self.outfit = outfit
 
     def reset_position(self, x, y):
         """Reset the player to the given position."""
