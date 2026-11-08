@@ -16,7 +16,7 @@ from systems.music import MASTER, MusicPlayer
 from ui import theme
 from ui.menu import MainMenu
 from ui.overlays import PauseOverlay
-from ui.settings_screen import (ROW_MUSIC, ROW_SFX, ROW_SOUND, SettingsScreen)
+from ui.settings_screen import (ROW_MUSIC, ROW_SFX, ROW_SOUND, ROW_VOICE, SettingsScreen)
 
 
 @pytest.fixture(autouse=True)
@@ -182,7 +182,7 @@ def test_an_open_panel_consumes_every_event(panel):
     assert screen.handle_event(mouse(pygame.MOUSEMOTION, (1, 1), 0)) is True
 
 
-def test_up_down_wrap_around_the_three_rows(panel):
+def test_up_down_wrap_around_the_four_rows(panel):
     screen, *_ = panel
     assert screen.selected == ROW_MUSIC
     screen.handle_event(key(pygame.K_UP))
@@ -283,7 +283,7 @@ def test_panel_layout_fits_and_rows_do_not_overlap(panel):
     screen, *_ = panel
     screen_rect = pygame.Rect(0, 0, 960, 640)
     rects = [screen.track_rect(ROW_MUSIC).inflate(0, 20), screen.track_rect(ROW_SFX).inflate(0, 20),
-             screen.sound_chip(), screen.done_chip()]
+             screen.track_rect(ROW_VOICE).inflate(0, 20), screen.sound_chip(), screen.done_chip()]
     for r in rects:
         assert screen.panel.contains(r) and screen_rect.contains(r)
     for i, a in enumerate(rects):
@@ -503,3 +503,100 @@ def test_muting_makes_no_sample_blip(game, monkeypatch):
     press(game, pygame.K_m)
     press(game, pygame.K_m)
     assert played == []
+
+
+# --- voice volume ------------------------------------------------------------
+def test_voice_defaults_to_full_and_is_saved_and_loaded(tmp_path):
+    assert S.Settings().voice == 1.0
+    path = str(tmp_path / "s.json")
+    S.Settings(voice=0.4, path=path).save()
+    assert S.Settings.load(path).voice == 0.4
+    assert json.loads(open(path).read())["voice"] == 0.4
+
+
+def test_an_old_settings_file_without_voice_gets_the_default(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"music": 0.2, "sfx": 0.3, "muted": True}))
+    loaded = S.Settings.load(str(path))
+    assert loaded.voice == 1.0 and loaded.music == 0.2 and loaded.muted is True
+
+
+def test_voice_setter_clamps_and_rejects_junk():
+    s = S.Settings(voice=0.4)
+    s.set_voice("loud")
+    assert s.voice == 0.4
+    s.set_voice(7)
+    assert s.voice == 1.0
+    s.set_voice(-1)
+    assert s.voice == 0.0
+
+
+def test_apply_settings_sets_the_voice_volume_apart_from_effects():
+    a = Audio(ambient=False)
+    a.apply_settings(S.Settings(sfx=0.6, voice=0.2))
+    assert (a.sfx_volume, a.voice_volume) == (0.6, 0.2)
+
+
+def test_audio_play_scales_by_the_sounds_group():
+    class Snd:
+        def __init__(self):
+            self.v, self.plays = 1.0, 0
+        def get_volume(self): return self.v
+        def set_volume(self, v): self.v = v
+        def play(self): self.plays += 1
+    a = Audio(ambient=False)
+    a.sounds = {"x": Snd()}
+    a.enabled, a.sfx_volume, a.voice_volume = True, 0.8, 0.25
+    a._base_volume = {}
+    a.play("x")
+    assert a.sounds["x"].v == pytest.approx(0.8)
+    a.play("x", group="voice")
+    assert a.sounds["x"].v == pytest.approx(0.25)
+    assert a.sounds["x"].plays == 2
+
+
+def test_the_voice_row_adjusts_with_the_keys_and_reports_voice(panel):
+    screen, s, calls = panel
+    music, sfx = s.music, s.sfx
+    screen.selected = ROW_VOICE
+    screen.handle_event(key(pygame.K_LEFT))
+    screen.handle_event(key(pygame.K_LEFT))
+    assert s.voice == 0.8 and calls == ["voice", "voice"]
+    assert (s.music, s.sfx) == (music, sfx)
+
+
+def test_the_voice_slider_works_with_the_mouse(panel):
+    screen, s, calls = panel
+    track = screen.track_rect(ROW_VOICE)
+    screen.handle_event(mouse(pygame.MOUSEBUTTONDOWN, (track.x + track.width // 4, track.centery), 1))
+    assert s.voice == 0.25 and screen.selected == ROW_VOICE and calls == ["voice"]
+    screen.handle_event(mouse(pygame.MOUSEMOTION, (track.x + track.width // 2, track.centery), 0))
+    assert s.voice == 0.5
+
+
+def test_the_voice_slider_is_drawn_with_its_label_and_percentage(panel):
+    screen, s, _ = panel
+    s.set_voice(0.3)
+    seen = []
+
+    class Rec:
+        def __init__(self, f): self.f = f
+        def render(self, t, *a, **k):
+            seen.append(t)
+            return self.f.render(t, *a, **k)
+        def __getattr__(self, n): return getattr(self.f, n)
+
+    screen.label_font, screen.small_font = Rec(screen.label_font), Rec(screen.small_font)
+    screen.draw(pygame.Surface((960, 640)))
+    assert "VOICE" in seen and "30%" in seen
+
+
+def test_changing_the_voice_slider_in_the_game_plays_a_preview_line(game, monkeypatch):
+    heard = []
+    monkeypatch.setattr(game.voice, "speak_clip", lambda *a: heard.append(a) or True)
+    game._settings_changed("voice")
+    assert heard and heard[0][1] == "echo"
+    heard.clear()
+    game._settings_changed("music")
+    game._settings_changed("sfx")
+    assert heard == []

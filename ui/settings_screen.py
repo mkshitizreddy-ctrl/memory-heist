@@ -1,4 +1,4 @@
-"""The settings panel: music volume, effects volume, mute.
+"""The settings panel: music, effects and voice volumes, and mute.
 
 It is drawn over whatever is behind it (the menu, or the paused game) and
 takes all input while open.  Keys: UP/DOWN choose a row, LEFT/RIGHT adjust,
@@ -13,9 +13,11 @@ from ui import theme
 from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
 
-ROW_MUSIC, ROW_SFX, ROW_SOUND = 0, 1, 2
-ROW_COUNT = 3
-PANEL_SIZE = (540, 360)
+ROW_MUSIC, ROW_SFX, ROW_VOICE, ROW_SOUND = 0, 1, 2, 3
+ROW_COUNT = 4
+SLIDER_ROWS = (ROW_MUSIC, ROW_SFX, ROW_VOICE)
+KINDS = {ROW_MUSIC: "music", ROW_SFX: "sfx", ROW_VOICE: "voice"}
+PANEL_SIZE = (540, 420)
 TRACK_HEIGHT = 12
 
 
@@ -70,16 +72,15 @@ class SettingsScreen:
         self.settings.save()
 
     def value(self, row):
-        return self.settings.music if row == ROW_MUSIC else self.settings.sfx
+        return {ROW_MUSIC: self.settings.music, ROW_SFX: self.settings.sfx,
+                ROW_VOICE: self.settings.voice}[row]
 
     def _set(self, row, value):
         before = self.value(row)
-        if row == ROW_MUSIC:
-            self.settings.set_music(value)
-        else:
-            self.settings.set_sfx(value)
+        {ROW_MUSIC: self.settings.set_music, ROW_SFX: self.settings.set_sfx,
+         ROW_VOICE: self.settings.set_voice}[row](value)
         if self.value(row) != before:
-            self._changed("music" if row == ROW_MUSIC else "sfx")
+            self._changed(KINDS[row])
 
     def _toggle_mute(self):
         self.settings.toggle_muted()
@@ -126,7 +127,7 @@ class SettingsScreen:
                 self.close()
 
     def _press(self, pos):
-        for row in (ROW_MUSIC, ROW_SFX):
+        for row in SLIDER_ROWS:
             if self.track_rect(row).inflate(16, 28).collidepoint(pos):
                 self.selected = row
                 self._dragging = row
@@ -149,7 +150,7 @@ class SettingsScreen:
                       (panel.centerx, panel.y + 42))
         muted = self.settings.muted
         for row, (name, colour) in enumerate((("MUSIC", theme.TEAL), ("EFFECTS", theme.SKY),
-                                              ("SOUND", theme.GOLD))):
+                                              ("VOICE", theme.CORAL), ("SOUND", theme.GOLD))):
             y = self.row_y(row)
             active = row == self.selected
             label = self.label_font.render(name, True, theme.PAPER if active else theme.MIST)

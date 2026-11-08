@@ -394,6 +394,8 @@ class Game:
         self.audio.apply_settings(self.settings)
         if kind == "sfx":
             self.audio.play("pickup")
+        elif kind == "voice":
+            self.voice.speak_clip("preview", "echo", "Good sum.")
 
     def _can_open_settings(self):
         return self.state == "menu" or (self.state == "playing" and self.paused)

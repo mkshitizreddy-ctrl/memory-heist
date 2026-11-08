@@ -1,4 +1,4 @@
-"""Player settings: music volume, effects volume and a mute switch.
+"""Player settings: music, effects and voice volumes and a mute switch.
 
 Saved as JSON next to the leaderboard (saves/settings.json).  A missing or
 damaged file simply gives the defaults, and a failed save never crashes the
@@ -16,6 +16,7 @@ ENV_VAR = "MEMORY_HEIST_SETTINGS"
 STEP = 0.1
 DEFAULT_MUSIC = 1.0
 DEFAULT_SFX = 1.0
+DEFAULT_VOICE = 1.0
 
 
 def settings_path():
@@ -37,9 +38,11 @@ def step(value, delta):
 
 
 class Settings:
-    def __init__(self, music=DEFAULT_MUSIC, sfx=DEFAULT_SFX, muted=False, path=None):
+    def __init__(self, music=DEFAULT_MUSIC, sfx=DEFAULT_SFX, muted=False, path=None,
+                 voice=DEFAULT_VOICE):
         self.music = clamp(music, DEFAULT_MUSIC)
         self.sfx = clamp(sfx, DEFAULT_SFX)
+        self.voice = clamp(voice, DEFAULT_VOICE)
         self.muted = bool(muted)
         self.path = path or settings_path()
 
@@ -50,12 +53,15 @@ class Settings:
     def set_sfx(self, value):
         self.sfx = clamp(value, self.sfx)
 
+    def set_voice(self, value):
+        self.voice = clamp(value, self.voice)
+
     def toggle_muted(self):
         self.muted = not self.muted
 
     # --- saving -------------------------------------------------------------
     def to_dict(self):
-        return {"music": self.music, "sfx": self.sfx, "muted": self.muted}
+        return {"music": self.music, "sfx": self.sfx, "voice": self.voice, "muted": self.muted}
 
     @classmethod
     def load(cls, path=None):
@@ -71,6 +77,7 @@ class Settings:
         return cls(
             music=data.get("music", DEFAULT_MUSIC),
             sfx=data.get("sfx", DEFAULT_SFX),
+            voice=data.get("voice", DEFAULT_VOICE),
             muted=muted if isinstance(muted, bool) else False,
             path=path,
         )
