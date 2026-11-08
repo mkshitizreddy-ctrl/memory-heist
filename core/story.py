@@ -27,8 +27,8 @@ STORY = {
         "title": "LEVEL 1 - THE RECEPTION LOBBY",
         "concept": "Data types",
         "lines": [
-            "Crates are piled across the lobby, each marked with a value.",
-            "Carry every crate to the bin for its data type to open the gates.",
+            "Reception is also the mail room. Ghost walks in as a courier.",
+            "File each parcel in the chute for its declared type to open the badge gate.",
         ],
     },
     "level2": {

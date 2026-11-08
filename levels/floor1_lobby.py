@@ -76,6 +76,11 @@ EXIT_ROWS = (9, 10, 11)
 # desk; the guard patrols the open floor to its right.
 RECEPTIONIST_TILE = (15, 16)
 GUARD_ROUTE = [(19, 16), (25, 16), (25, 14)]
+# Parcel intake: reception is also the mail room, and Ghost walks in as a courier.
+START_MESSAGE = "File each parcel in the chute for its type."
+PICKUP_FORMAT = "Got {value}. Which chute?"
+FILED_FORMAT = "{value} is {kind}. Stamped!"
+INTAKE_NOTICE = "PARCEL INTAKE - FILE BY DECLARED TYPE"
 GREETINGS = ("Welcome to NovaCorp.", "Sign in before you wander.", "Mind the crates.")
 CLEANER_ROUTE = [(6, 16), (11, 16)]
 CLEANER_LINES = ("Mind the wet floor.", "Nobody thanks the cleaner.", "Please keep moving.")
@@ -177,7 +182,7 @@ class FloorOneLobby:
         self.complete = False
         self.gates_passed = 0
         self.sorted_count = 0
-        self.message = "Carry each crate to the bin for its data type."
+        self.message = START_MESSAGE
         self.message_tone = theme.PAPER
         self._message_age = 0.0
 
@@ -364,7 +369,7 @@ class FloorOneLobby:
         self._sync_carried()
         self.crate_pop.trigger(0.35)
         self._sfx("pickup")
-        self._say(f"Got {display(best.value)}. Which bin?", theme.PAPER)
+        self._say(PICKUP_FORMAT.format(value=display(best.value)), theme.PAPER)
 
     def _put_down(self, player, crate):
         spot = pygame.Rect(0, 0, 28, 28)
@@ -389,7 +394,8 @@ class FloorOneLobby:
             self._burst(centre, BIN_COLOURS[bin_type], 18)
             if self.game:
                 self.game.score.add(CRATE_POINTS)
-            self._say(f"{display(crate.value)} is {with_article(bin_type)}. Correct!", theme.TEAL)
+            self._sfx("stamp")
+            self._say(FILED_FORMAT.format(value=display(crate.value), kind=with_article(bin_type)), theme.TEAL)
             self._npc_react("praise")
             self._check_gates()
         else:
@@ -618,6 +624,7 @@ class FloorOneLobby:
         novacorp_style.stencil(bg, "PLEASE REMAIN VISIBLE", (15 * TILE, 10 * TILE), stencil_font, alpha=70)
         novacorp_style.dashed_line(bg, (11 * TILE, 14 * TILE + 6), (19 * TILE, 14 * TILE + 6))
         novacorp_style.stencil(bg, "WAIT HERE", (15 * TILE, 13 * TILE + 10), ui_font(18, bold=True), alpha=90)
+        novacorp_style.stencil(bg, INTAKE_NOTICE, (15 * TILE, 3 * TILE + 14), ui_font(16, bold=True), alpha=95)
         poster_font = ui_font(12, bold=True)
         novacorp_style.draw_poster(bg, (4, 10 * TILE, 56, 88), ("SMILE!", "WE'RE", "WATCHING"), poster_font)
         novacorp_style.draw_poster(bg, (4, 13 * TILE + 4, 56, 88), ("A CLEAR", "DESK IS", "LOYAL"), poster_font)

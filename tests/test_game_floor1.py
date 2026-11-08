@@ -104,6 +104,6 @@ def test_the_level_1_briefing_describes_the_lobby_not_the_old_gate():
     from core.story import beat_for
     beat = beat_for("level1")
     text = " ".join([beat["title"], *beat["lines"]]).lower()
-    assert "lobby" in beat["title"].lower() and "crate" in text and "bin" in text
+    assert "lobby" in beat["title"].lower() and "parcel" in text and "chute" in text
     assert "gate checks" not in text and "clearance" not in text
     assert beat["concept"] == "Data types"
