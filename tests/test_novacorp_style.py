@@ -166,3 +166,111 @@ def test_the_caption_fades_in_holds_and_goes_away():
     assert 0 < pa.alpha() < 255
     pa.update(1.0)
     assert not pa.active and pa.alpha() == 0 and pa.caption == ""
+
+
+# --- walls ---------------------------------------------------------------
+def room(rows=None):
+    from core.tilemap import TILE, TileMap, make_tiles
+    rows = rows or ["#" * 12, "#" * 12, "#" * 12] + ["##" + "." * 8 + "##"] * 8 + ["#" * 12] * 2
+    tm = TileMap(rows)
+    surf = pygame.Surface(tm.pixel_size)
+    tiles = make_tiles("level1")
+    for y in range(tm.rows):
+        for x in range(tm.cols):
+            surf.blit(tiles[tm.grid[y][x]], (x * TILE, y * TILE))
+    return tm, surf, tiles
+
+
+def lum(surf, x, y):
+    r, g, b = surf.get_at((x, y))[:3]
+    return 0.3 * r + 0.59 * g + 0.11 * b
+
+
+def test_walls_become_lighter_than_the_floor_and_the_floor_stays_a_floor():
+    from ui import theme
+    tm, surf, _ = room()
+    S.draw_walls(surf, tm, theme.floor_palette("level1")["floor"])
+    wall = lum(surf, 5 * 32 + 16, 16)                      # inside the north wall
+    centre = lum(surf, 6 * 32, 7 * 32)                     # the middle of the room
+    assert wall > centre * 1.4
+
+
+def test_a_wall_casts_a_shadow_that_fades_with_distance():
+    from ui import theme
+    tm, before, _ = room()
+    after = before.copy()
+    S.draw_walls(after, tm, theme.floor_palette("level1")["floor"])
+    x = 6 * 32 + 5
+    y0 = 3 * 32                                            # first floor row, right under the north wall
+    near, mid, far = (lum(before, x, y0 + d) - lum(after, x, y0 + d) for d in (1, 14, 28))
+    assert near > mid > far >= 0 and near > 30 and far < 8
+    assert lum(after, 6 * 32, 7 * 32) == lum(before, 6 * 32, 7 * 32)        # nothing far from a wall
+
+
+def test_side_walls_cast_a_shorter_softer_shadow_and_the_south_wall_a_contact_shadow():
+    from ui import theme
+    tm, before, _ = room()
+    after = before.copy()
+    S.draw_walls(after, tm, theme.floor_palette("level1")["floor"])
+    y = 7 * 32 + 16
+    left = lum(before, 2 * 32 + 1, y) - lum(after, 2 * 32 + 1, y)
+    right = lum(before, 10 * 32 - 2, y) - lum(after, 10 * 32 - 2, y)
+    away = lum(before, 2 * 32 + 20, y) - lum(after, 2 * 32 + 20, y)
+    assert left > 8 and right > 8 and away < left
+    south = lum(before, 6 * 32, 11 * 32 - 2) - lum(after, 6 * 32, 11 * 32 - 2)
+    assert south > 8
+
+
+def test_a_wall_with_open_floor_above_shows_a_lit_cap_and_a_baseboard_below():
+    from ui import theme
+    tm, surf, _ = room()
+    S.draw_walls(surf, tm, theme.floor_palette("level1")["floor"])
+    cap = lum(surf, 5 * 32 + 16, 11 * 32 + 2)              # the top of the south wall
+    face = lum(surf, 5 * 32 + 16, 11 * 32 + 20)
+    assert cap > face * 1.2
+    rail = lum(surf, 5 * 32 + 16, 2 * 32)                  # chair rail at the foot of the north wall
+    below_rail = lum(surf, 5 * 32 + 16, 2 * 32 + 12)       # the lower panel
+    base = lum(surf, 5 * 32 + 16, 3 * 32 - 4)              # the baseboard
+    assert rail > below_rail * 1.15 and base < below_rail * 0.8
+
+
+def test_tall_walls_get_panel_seams_every_third_column_only():
+    from ui import theme
+    tm, surf, _ = room()
+    S.draw_walls(surf, tm, theme.floor_palette("level1")["floor"])
+    y = 48                                                 # up in the wall mass, below its cap
+    seam = lum(surf, 3 * 32, y)
+    plain = lum(surf, 4 * 32 + 8, y)
+    assert seam < plain * 0.8
+    assert lum(surf, 4 * 32, y) == lum(surf, 4 * 32 + 8, y) == lum(surf, 5 * 32, y)    # no seam on columns 4 and 5
+
+
+def test_void_tiles_are_not_shadowed_and_drawing_twice_is_stable():
+    from core.tilemap import TileMap
+    from ui import theme
+    tm = TileMap(["####", "#..#", "#  #", "####"])
+    a = pygame.Surface(tm.pixel_size)
+    a.fill((50, 60, 90))
+    b = a.copy()
+    base = theme.floor_palette("level1")["floor"]
+    S.draw_walls(a, tm, base)
+    S.draw_walls(b, tm, base)
+    assert pygame.image.tostring(a, "RGB") == pygame.image.tostring(b, "RGB")
+    assert a.get_at((40, 2 * 32 + 6))[:3] == (50, 60, 90)  # void tile right of a floor-less row stays as it was
+
+
+def test_side_walls_have_a_bevelled_edge_facing_the_room():
+    from ui import theme
+    tm, surf, _ = room()
+    S.draw_walls(surf, tm, theme.floor_palette("level1")["floor"])
+    y = 7 * 32 + 16
+    assert lum(surf, 10 * 32 + 1, y) > lum(surf, 10 * 32 + 20, y) * 1.2        # right wall: a lit edge
+    assert lum(surf, 2 * 32 - 2, y) < lum(surf, 32 + 8, y) * 0.8              # left wall: a shaded edge
+
+
+def test_a_wall_one_tile_thick_has_a_cap_and_a_baseboard():
+    from ui import theme
+    tm, surf, _ = room(["....", "####", "...."])
+    S.draw_walls(surf, tm, theme.floor_palette("level1")["floor"])
+    top, middle, bottom = lum(surf, 40, 32 + 2), lum(surf, 40, 32 + 14), lum(surf, 40, 64 - 3)
+    assert top > middle * 1.2 and bottom < middle * 0.8
