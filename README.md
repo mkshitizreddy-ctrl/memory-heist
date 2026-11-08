@@ -68,11 +68,11 @@ Close the window using its title bar (X) to quit at any time.
   ending, with the narrator and the radio lines (Echo and WARDEN) spoken.
   Recorded clips live in `assets/voice/`; if a clip is missing, a short
   generated "blip" voice plays instead, so nothing breaks.
-- **Floors.** Levels 1, 2 and 5 are rebuilt as walkable floors (tile rooms,
-  crates and bins, a maintenance grid, a server hall with a control
-  terminal); Level 3 has laser rooms with a security robot; Level 4 has
-  the memory vault with drones. Level 4 and the Final Vault are still
-  being reworked by their owners.
+- **Floors.** Levels 1, 2 and 5 and the Final Vault are rebuilt as walkable
+  floors (tile rooms, crates and bins, a maintenance grid, a server hall
+  and a master vault, both with a terminal you walk up to); Level 3 has
+  laser rooms with a security robot; Level 4 has the memory vault with
+  drones. Levels 3 and 4 are still being reworked by their owner.
 - **Characters.** Ghost and Echo (co-op) with walk animation and shading,
   animated portraits for Ghost, Echo and WARDEN, and staff NPCs on Floor 1.
   All sprites are drawn from character maps in code, so no image files are
@@ -91,9 +91,10 @@ Close the window using its title bar (X) to quit at any time.
   penalty and score multiplier.
 - **Co-op.** Press C on the menu to add a second player.
 
-Old Level 1, Level 2 and Level 5 can be switched back on for comparison with
-the environment variables `MEMORY_HEIST_OLD_LEVEL1=1`,
-`MEMORY_HEIST_OLD_LEVEL2=1` and `MEMORY_HEIST_OLD_LEVEL5=1`.
+Old Level 1, Level 2, Level 5 and Final Vault can be switched back on for
+comparison with the environment variables `MEMORY_HEIST_OLD_LEVEL1=1`,
+`MEMORY_HEIST_OLD_LEVEL2=1`, `MEMORY_HEIST_OLD_LEVEL5=1` and
+`MEMORY_HEIST_OLD_FINAL_VAULT=1`.
 
 ## Voice clips
 
