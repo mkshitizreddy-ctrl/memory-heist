@@ -28,7 +28,7 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lobby_decor
+from levels import lobby_decor, lobby_extras
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -223,6 +223,17 @@ class FloorOneLobby:
         self._dust_clock = {}
         self.time = 0.0
         self.ambience = lobby_decor.Ambience(seed=11)   # own rng: crate layout stays untouched
+        # The WARDEN camera sweeps the floor; visitor chips are hidden around it.
+        # Both use their own rng, so the crate layout above is unchanged.
+        self.beam = lobby_extras.SweepBeam((self.led_pos[0], self.led_pos[1] + 6))
+        self.watch = lobby_extras.Watch(self.beam)
+        extras_rng = random.Random(seed)
+        spots = [s for s in lobby_extras.CHIP_SPOTS if not self._spot_blocked(s)]
+        self.chips = [lobby_extras.Chip(s) for s in extras_rng.sample(spots, lobby_extras.CHIPS_HIDDEN)]
+        self.chips_found = 0
+        self.vending_used = False
+        self._bell_rings = 0
+        self._beam_overlay = None
 
         self.font = ui_font(22)
         self.small = ui_font(20)
@@ -230,6 +241,11 @@ class FloorOneLobby:
         self.code = code_font(20)       # crate values
         self.code_big = code_font(30)   # bin type names
         self._background = None
+
+    def _spot_blocked(self, spot):
+        probe = pygame.Rect(0, 0, lobby_extras.CHIP_SIZE, lobby_extras.CHIP_SIZE)
+        probe.center = (spot[0] * TILE + TILE // 2, spot[1] * TILE + TILE // 2)
+        return self.room_map.blocked(probe)
 
     # --- players --------------------------------------------------------
     def _players(self):
@@ -255,6 +271,8 @@ class FloorOneLobby:
     def _interact(self, player):
         crate = self.carried.get(id(player))
         if crate is None:
+            if self._pickup_target(player) is None and self._use_prop(player):
+                return
             self._pick_up(player)
             return
         bin_type = self._bin_in_reach(player)
@@ -262,6 +280,27 @@ class FloorOneLobby:
             self._drop_in_bin(player, crate, bin_type)
             return
         self._put_down(player, crate)
+
+    def _use_prop(self, player):
+        """E with empty hands and no crate in reach: ring the bell or use the vending machine."""
+        if self._near(player, self.desk):
+            line = lobby_extras.BELL_LINES[self._bell_rings % len(lobby_extras.BELL_LINES)]
+            self._bell_rings += 1
+            self._sfx("click")
+            self.receptionist.say(line)
+            return True
+        if self._near(player, self.vending):
+            self._sfx("click")
+            if self.vending_used:
+                self._say(lobby_extras.VENDING_EMPTY, theme.MIST)
+            else:
+                self.vending_used = True
+                if self.game:
+                    self.game.score.add(lobby_extras.VENDING_POINTS)
+                self._burst(self.vending.center, theme.GOLD, 8)
+                self._say(lobby_extras.VENDING_LINE, theme.GOLD)
+            return True
+        return False
 
     def _bin_in_reach(self, player):
         for t, rect in self.bins.items():
@@ -438,6 +477,8 @@ class FloorOneLobby:
         self.ambience.update(dt)
         self._update_steps(dt)
         self._update_npcs(dt)
+        if not self.complete:
+            self._update_extras(dt)
         for i in range(GATES):
             target = 1.0 if i < self.gates_passed else 0.0
             self.lamps[i] += (target - self.lamps[i]) * min(1.0, dt * 8)
@@ -451,6 +492,38 @@ class FloorOneLobby:
                 if player.rect.colliderect(self.exit_zone):
                     self._finish()
                     break
+
+    def _update_extras(self, dt):
+        """The camera's beam and the hidden chips."""
+        points = {id(p): p.rect.center for p, _ in self._players()}
+        if self.watch.update(dt, self.time, points) is not None:
+            self.shake.add(0.3)
+            if self.game:
+                self.game.score.penalize(lobby_extras.SPOT_PENALTY)
+            self.guard.say("Hey! Stay out of the beam.")
+            self._sfx("wrong")
+            self._say(f"WARDEN spotted you! -{lobby_extras.SPOT_PENALTY}", theme.CORAL)
+        for chip in self.chips:
+            if chip.taken:
+                continue
+            for player, _ in self._players():
+                if player.rect.colliderect(chip.rect):
+                    self._take_chip(chip)
+                    break
+
+    def _take_chip(self, chip):
+        chip.taken = True
+        self.chips_found += 1
+        self._burst(chip.rect.center, theme.TEAL, 10)
+        self._sfx("correct")
+        points = lobby_extras.CHIP_POINTS
+        if self.chips_found == len(self.chips):
+            points += lobby_extras.CHIP_BONUS
+            self._say(f"All visitor chips found! +{points}", theme.GOLD)
+        else:
+            self._say(f"Visitor chip {self.chips_found}/{len(self.chips)}. +{points}", theme.TEAL)
+        if self.game:
+            self.game.score.add(points)
 
     def _update_dust(self, dt):
         for puff in self.dust:
@@ -598,6 +671,14 @@ class FloorOneLobby:
                            theme.CORAL, alert)
         pygame.draw.circle(world, colour, self.led_pos, 3)
 
+    def _draw_beam(self, world):
+        if self.complete:
+            return
+        if self._beam_overlay is None or self._beam_overlay.get_size() != world.get_size():
+            self._beam_overlay = pygame.Surface(world.get_size(), pygame.SRCALPHA)
+        lobby_extras.draw_beam(self._beam_overlay, self.beam, self.time, self.watch.danger())
+        world.blit(self._beam_overlay, (0, 0))
+
     def _draw_dust(self, world):
         for puff in self.dust:
             k = puff["age"] / DUST_LIFE
@@ -687,7 +768,11 @@ class FloorOneLobby:
         self.ambience.draw(world, self.desk, self.vending, self._alerted())
         self._draw_bins(world, self._prompted_bins())
         self._draw_exit(world)
+        self._draw_beam(world)
         self._draw_camera_led(world)
+        for chip in self.chips:
+            if not chip.taken:
+                lobby_extras.draw_chip(world, chip, self.time)
         self._draw_dust(world)
         prompted = self._prompted_crates()
         for crate in self.crates:
@@ -714,6 +799,9 @@ class FloorOneLobby:
             world.blit(msg, (TILE * 2, MESSAGE_Y))
         hint = shadowed(self.small, "E: pick up / put down", theme.MIST)
         world.blit(hint, (world.get_width() - hint.get_width() - TILE * 2, TITLE_Y + 2))
+        chips = shadowed(self.small, f"CHIPS {self.chips_found}/{len(self.chips)}",
+                         theme.TEAL if self.chips_found else theme.MIST)
+        world.blit(chips, (world.get_width() - chips.get_width() - TILE * 2, TITLE_Y + 24))
         ox, oy = self.shake.offset()
         surface.fill(theme.INK)
         surface.blit(world, (ox, oy))
