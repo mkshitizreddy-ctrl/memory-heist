@@ -659,3 +659,64 @@ def test_two_players_by_the_same_crate_prompt_it_once():
     stand_by(p1, c.rect)
     stand_by(game.player2, c.rect)
     assert level._prompted_crates() == [c]
+
+
+# --- the courier story ---------------------------------------------------------
+def test_ghost_wears_the_courier_vest_while_floor_1_runs_and_takes_it_off_after():
+    from core.player import Player
+    level, game, _ = make_level()
+    hero = Player(100, 100, palette="ghost")
+    level.player = hero
+    usual = pygame.image.tobytes(hero.frames["idle"], "RGBA")
+    level.update(0.016)
+    assert hero.outfit == "courier"
+    assert pygame.image.tobytes(hero.frames["idle"], "RGBA") != usual
+    level._finish()
+    assert hero.outfit is None
+    assert pygame.image.tobytes(hero.frames["idle"], "RGBA") == usual
+    level.update(0.016)
+    assert hero.outfit is None                      # a finished floor never re-dresses him
+
+
+def test_a_new_floor_1_starts_from_the_usual_look_so_a_continued_run_is_not_in_disguise():
+    from core.player import Player
+    from levels.floor1_lobby import FloorOneLobby
+    hero = Player(100, 100, palette="ghost")
+    hero.set_outfit("courier")
+    game = type("G", (), {"coop": False, "player2": None})()
+    FloorOneLobby(player=hero, game=game, seed=1)
+    assert hero.outfit is None
+
+
+def test_players_with_plain_palettes_ignore_outfits():
+    from core.player import Player
+    p = Player(0, 0)
+    p.set_outfit("courier")
+    assert p.outfit is None
+
+
+def test_the_story_explains_why_parcels_are_on_the_floor():
+    from core.story import beat_for
+    text = " ".join(beat_for("level1")["lines"]).lower()
+    assert "jammed" in text and "courier" in text and "parcel" in text
+
+
+def test_the_belt_sign_and_jam_are_drawn_in_the_background():
+    from levels.floor1_lobby import BELT_JAM
+    level, _, _ = make_level()
+    level._build_background()
+    bg = level._background
+    assert tuple(bg.get_at((BELT_JAM[0] + 20, 104)))[:3] != tuple(bg.get_at((BELT_JAM[0] + 20, 150)))[:3]
+    sign = bg.subsurface(pygame.Rect(722, 100, 138, 38))
+    assert any(tuple(sign.get_at((x, y)))[0] > 150 for x in range(138) for y in range(38))
+
+
+def test_parcels_are_drawn_with_tape_and_a_label():
+    level, _, _ = make_level()
+    surf = pygame.Surface((200, 200))
+    surf.fill((20, 20, 30))
+    crate = level.crates[0]
+    level._draw_crate(surf, crate, pygame.Rect(86, 90, 28, 28))
+    colours = {tuple(surf.get_at((x, y)))[:3] for x in range(60, 140) for y in range(60, 140)}
+    assert (214, 190, 140) in colours                 # packing tape
+    assert (238, 238, 232) in colours                 # shipping label

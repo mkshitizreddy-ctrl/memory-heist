@@ -79,6 +79,31 @@ _PARTS = {
 
 HEROES = tuple(PALETTES)
 
+# --- the courier disguise (Floor 1) ------------------------------------------
+# A red delivery cap with a brim over the hood or hair, and a hi-vis orange
+# vest with a silver reflective stripe over the coat. The visor, goggles and
+# silhouette stay, so the hero is still recognisable.
+# Legend: P cap, p brim, R hi-vis vest, r reflective stripe.
+OUTFITS = ("courier",)
+COURIER_COLOURS = {
+    "P": (196, 62, 52), "p": (112, 30, 28),
+    "R": (255, 150, 34), "r": (226, 232, 238),
+}
+_COURIER_CAP = ["....PPPPPP......", "...PPPPPPPPpp..."]
+_COURIER_VEST = [
+    "...CRRCCCRRC....",
+    "..CCRRRRRRRRC...",
+    "..CCrrrrrrGGC...",
+    "..CCRRRRRRGG....",
+    "...CRRRRRRRC....",
+]
+
+
+def _courier_parts(name):
+    head, body, legs = _PARTS[name]
+    vest = [row.replace("C", "J") for row in _COURIER_VEST] if name == "echo" else list(_COURIER_VEST)
+    return head[:1] + _COURIER_CAP + head[3:], vest, legs
+
 # What the eyes become mid-blink: the visor / goggles dim to a thin dark band.
 BLINK_COLOURS = {
     "ghost": {"V": (24, 70, 86)},
@@ -147,12 +172,17 @@ def bob_rows(head, body):
     return head[:1] + head[2:] + body + [body[-1]]
 
 
-def make_hero_frames(name):
-    """{"idle": surf, "walk": [surf x4]} for 'ghost' or 'echo'."""
+def make_hero_frames(name, outfit=None):
+    """{"idle": surf, "walk": [surf x4]} for 'ghost' or 'echo', optionally in an outfit."""
     if name not in _PARTS:
         raise ValueError(f"unknown hero {name!r}; expected one of {HEROES}")
+    if outfit is not None and outfit not in OUTFITS:
+        raise ValueError(f"unknown outfit {outfit!r}; expected one of {OUTFITS}")
     head, body, legs = _PARTS[name]
     palette = PALETTES[name]
+    if outfit == "courier":
+        head, body, legs = _courier_parts(name)
+        palette = {**palette, **COURIER_COLOURS}
 
     def frame(key):
         upper = bob_rows(head, body) if key.startswith("step") else head + body

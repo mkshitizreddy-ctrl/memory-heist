@@ -27,8 +27,8 @@ STORY = {
         "title": "LEVEL 1 - THE RECEPTION LOBBY",
         "concept": "Data types",
         "lines": [
-            "Reception is also the mail room. Ghost walks in as a courier.",
-            "File each parcel in the chute for its declared type to open the badge gate.",
+            "The intake belt is jammed and parcels are piled on the floor.",
+            "Ghost pulls on a courier vest. File each parcel in its chute for a stamp.",
         ],
     },
     "level2": {
