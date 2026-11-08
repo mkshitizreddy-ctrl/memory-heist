@@ -539,3 +539,12 @@ def test_guard_and_receptionist_banter_when_he_passes_her_desk():
     wait = level._banter_wait
     level._banter(0.1)
     assert level._banters == 1 and level._banter_wait < wait   # cooldown, no repeat
+
+
+def test_the_sofa_reads_out_the_waiting_list():
+    from levels import lobby_extras as le
+    from tests.test_floor1_lobby import make_level, stand_by, key
+    level, game, player = make_level()
+    stand_by(player, level.sofa)
+    level._interact(player)
+    assert level.message == le.SOFA_LINES[0]

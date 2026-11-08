@@ -215,6 +215,7 @@ class FloorOneLobby:
                                 facing_left=True)
         self._manifests_read = 0
         self._cooler_uses = 0
+        self._sofa_uses = 0
         self._banters = 0
         self._banter_wait = lobby_extras.BANTER_GAP / 2
         self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
@@ -331,6 +332,11 @@ class FloorOneLobby:
             if self._near(player, cab):
                 self._read_manifest()
                 return True
+        if self._near(player, self.sofa):
+            line = lobby_extras.SOFA_LINES[self._sofa_uses % len(lobby_extras.SOFA_LINES)]
+            self._sofa_uses += 1
+            self._say(line, theme.MIST)
+            return True
         if self._near(player, self.cooler):
             line = lobby_extras.COOLER_LINES[self._cooler_uses % len(lobby_extras.COOLER_LINES)]
             self._cooler_uses += 1

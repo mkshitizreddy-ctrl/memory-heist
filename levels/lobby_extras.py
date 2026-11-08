@@ -43,6 +43,10 @@ MANIFEST_TITLE = "Manifest {n}: "
 COOLER_LINES = ("Cold water. Nobody mentions the cameras.",
                 "Someone taped a note: 'Blink less.'",
                 "The cooler hums. So do the walls.")
+# The sofa is the visitor waiting area: the sign taped above it is the joke.
+SOFA_LINES = ("Visitors waiting: 212. Estimated wait: unknown.",
+              "The cushion is still warm. Nobody is here.",
+              "Sign-in sheet: every name is crossed out.")
 # The guard and the receptionist trade a line when he passes her desk.
 BANTER_GAP = 22.0
 BANTER_RANGE = 70
