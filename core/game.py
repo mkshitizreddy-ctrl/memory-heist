@@ -5,6 +5,7 @@ Owner: Member 1 - Core Game System
 Sets up the Pygame window and runs the main game loop.
 """
 
+import collections
 import os
 
 import pygame
@@ -22,6 +23,7 @@ from levels.level2_grid import GridRoom
 from levels.level3_loops import Level3LaserLoop
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
+from levels.level5_hall import ServerHall
 from levels.final_vault import FinalVault
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
@@ -84,6 +86,9 @@ class DifficultySecurityMeter(SecurityMeter):
         adjusted_amount = round(amount * self.penalty_multiplier)
         super().increase(adjusted_amount)
 
+
+# A key state with nothing pressed, for levels that freeze walking while the player types.
+NO_KEYS = collections.defaultdict(bool)
 
 class Game:
     """Owns the window, the clock, and the top-level game state."""
@@ -218,10 +223,11 @@ class Game:
             "level4",
             Level4MemoryVault(player=self.player, game=self)
         )
-        self.level_manager.register(
-            "level5",
-            Level5ControlCenter(game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL5") == "1":
+            level5 = Level5ControlCenter(game=self)               # escape hatch
+        else:
+            level5 = ServerHall(player=self.player, game=self)    # Floor 5 on the shared kit
+        self.level_manager.register("level5", level5)
         self.level_manager.register(
             "final_vault",
             FinalVault(game=self)
@@ -596,6 +602,9 @@ class Game:
         # Spatial movement for levels that use direct player movement.
         if self._uses_spatial_player():
             keys = pygame.key.get_pressed()
+            if getattr(self.level_manager.current, "movement_locked", False):
+                # The level is taking typed input (the Level 5 terminal): stand still.
+                keys = NO_KEYS
             blocked = self._get_spatial_blocked()
 
             self.player.handle_input(
