@@ -50,7 +50,7 @@ python -m pytest -q
 | C (menu) | Toggle local co-op |
 | B (menu) | Badges and stats |
 | S (menu or paused) | Settings: music, effects and voice volume, mute |
-| F11 | Fullscreen (works on every screen) |
+| F11 | Fullscreen or window (works on every screen). The game starts full-screen and remembers your choice |
 | WASD | Move on Levels 1-4 |
 | E | Pick up, drop or answer (Levels 1 and 2); collect or interact (Levels 3 and 4) |
 | 1 / 2 / 3 / 4 | Choose an answer on Levels 3, 5 and the Final Vault |
