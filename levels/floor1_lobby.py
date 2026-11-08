@@ -77,6 +77,8 @@ EXIT_ROWS = (9, 10, 11)
 RECEPTIONIST_TILE = (15, 16)
 GUARD_ROUTE = [(19, 16), (25, 16), (25, 14)]
 GREETINGS = ("Welcome to NovaCorp.", "Sign in before you wander.", "Mind the crates.")
+CLEANER_ROUTE = [(6, 16), (11, 16)]
+CLEANER_LINES = ("Mind the wet floor.", "Nobody thanks the cleaner.", "Please keep moving.")
 GUARD_LINES = ("Move along, visitor.", "Badges stay visible.")
 PRAISE = ("Nice sorting.", "Spot on.")
 SCOLD = "Easy there, visitor."
@@ -198,8 +200,10 @@ class FloorOneLobby:
         self.receptionist = NPC("receptionist", (RECEPTIONIST_TILE[0] * TILE, RECEPTIONIST_TILE[1] * TILE),
                                 facing_left=True)
         self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
-        self.npcs = [self.receptionist, self.guard]
-        self._lines_said = {"receptionist": 0, "guard": 0, "praise": 0}
+        self.cleaner = NPC("cleaner", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in CLEANER_ROUTE],
+                           speed=34.0, pause=1.6)
+        self.npcs = [self.receptionist, self.guard, self.cleaner]
+        self._lines_said = {"receptionist": 0, "guard": 0, "cleaner": 0, "praise": 0}
         self.led_pos = (20 * TILE + 16, 2 * TILE + 10)      # WARDEN camera light
         self.door = pygame.Rect(28 * TILE, EXIT_ROWS[0] * TILE, TILE * 2, TILE * len(EXIT_ROWS))
         self.door_block = self.door.copy()
@@ -441,7 +445,8 @@ class FloorOneLobby:
         for npc in self.npcs:
             npc.update(dt)
         for player, _ in self._players():
-            for npc, lines in ((self.receptionist, GREETINGS), (self.guard, GUARD_LINES)):
+            for npc, lines in ((self.receptionist, GREETINGS), (self.guard, GUARD_LINES),
+                               (self.cleaner, CLEANER_LINES)):
                 if npc.notice(player.rect, id(player)):
                     n = self._lines_said[npc.kind]
                     self._lines_said[npc.kind] = n + 1

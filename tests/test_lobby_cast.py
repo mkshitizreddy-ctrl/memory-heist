@@ -64,9 +64,9 @@ def far_from_everyone(level, player):
 
 # --- placement ---------------------------------------------------------------
 
-def test_the_lobby_has_a_receptionist_and_a_guard():
+def test_the_lobby_has_a_receptionist_a_guard_and_a_cleaner():
     level, _, _ = make_level()
-    assert [n.kind for n in level.npcs] == ["receptionist", "guard"]
+    assert [n.kind for n in level.npcs] == ["receptionist", "guard", "cleaner"]
 
 
 def test_the_receptionist_stands_behind_the_desk_on_open_floor():
@@ -243,3 +243,48 @@ def test_a_speech_bubble_reaches_the_screen():
     above = pygame.Rect(level.receptionist.rect.x - 40, level.receptionist.rect.y - 50, 120, 40)
     assert pygame.image.tostring(plain.subsurface(above), "RGB") != \
         pygame.image.tostring(spoken.subsurface(above), "RGB")
+
+
+# --- the cleaner -------------------------------------------------------------
+
+def test_the_whole_cleaner_route_is_clear_floor_and_starts_at_its_first_point():
+    level, _, _ = make_level()
+    points = f1.CLEANER_ROUTE
+    for (c1, r1), (c2, r2) in zip(points, points[1:] + points[:1]):
+        for i in range(21):
+            t = i / 20
+            x, y = (c1 + (c2 - c1) * t) * TILE, (r1 + (r2 - r1) * t) * TILE
+            assert not level.room_map.blocked(pygame.Rect(round(x), round(y), 32, 32)), (x, y)
+    assert level.cleaner.rect.topleft == (points[0][0] * TILE, points[0][1] * TILE)
+
+
+def test_the_cleaner_mops_back_and_forth_slower_than_the_guard():
+    level, _, _ = make_level()
+    assert level.cleaner.speed < level.guard.speed
+    xs = set()
+    for _ in range(60 * 14):
+        level.update(1 / 60)
+        xs.add(level.cleaner.rect.x)
+    lo, hi = f1.CLEANER_ROUTE[0][0] * TILE, f1.CLEANER_ROUTE[1][0] * TILE
+    assert min(xs) == lo and max(xs) == hi
+
+
+def test_the_cleaner_mutters_a_line_when_a_player_comes_close():
+    level, _, player = make_level()
+    player.rect.center = level.cleaner.rect.center
+    level.update(0.016)
+    assert level.cleaner.speech in f1.CLEANER_LINES
+    first = level.cleaner.speech
+    player.rect.center = (900, 120)
+    for _ in range(120):
+        level.update(1 / 60)
+    player.rect.center = level.cleaner.rect.center
+    level.update(0.016)
+    assert level.cleaner.speech in f1.CLEANER_LINES and level.cleaner.speech != first
+
+
+def test_the_cleaner_mops_a_long_straight_line_in_front_of_the_desk_side():
+    level, _, _ = make_level()
+    (c1, r1), (c2, r2) = f1.CLEANER_ROUTE
+    assert r1 == r2 and c2 - c1 >= 5                       # a good long stretch of floor
+    assert c2 * TILE + 32 <= level.desk.left               # stops short of the desk

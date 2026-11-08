@@ -68,6 +68,76 @@ _TECHNICIAN_BODY = [
     "...VVVVVVVVV....",
 ]
 
+# The rest of NovaCorp's staff. Their faces are left blank on purpose.
+_CLEANER_HEAD = [
+    "................",
+    "....AAAAAA......",
+    "...AAAAAAAA.....",
+    "..AAAAAAAAAA....",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "....KKKKKK......",
+]
+_CLEANER_BODY = [
+    "...UUUUUUUUU....",
+    "..UUUUUUUUUUU...",
+    "..UUUbbUUUUGG...",
+    "..UUUUUUUUGG....",
+    "...UUUUUUUUU....",
+]
+_ENGINEER_HEAD = [
+    "................",
+    "....AAAAAA......",
+    "...AAAaaAAA.....",
+    "..AAAAAAAAAAP...",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "....KKKKKK......",
+]
+_ENGINEER_BODY = [
+    "...VVVVVVVVV....",
+    "..VVVVVVVVVVV...",
+    "..VVbVVVVVVGG...",
+    "..VVVVVVVVGG....",
+    "...VVVVVVVVV....",
+]
+_SYSADMIN_HEAD = [
+    "................",
+    "...OOOOOOOO.....",
+    "..OOOOOOOOOO....",
+    "..OOKKKKKKO.....",
+    "..OOKKKKKKK.....",
+    "..OOKKKKKKT.....",
+    "..OOOKKKKK......",
+    "...OOKKKK.......",
+]
+_SYSADMIN_BODY = [
+    "...JJJJJJJJJ....",
+    "..JJJLLJJJJJJ...",
+    "..JJJLLJJJGGJ...",
+    "..JJJJJJJJGG....",
+    "...JJJJJJJJJ....",
+]
+_CURATOR_HEAD = [
+    "................",
+    ".....AAAAA......",
+    "....AAAAAAA.....",
+    "..PPPPPPPPPP....",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "...KKKKKKKK.....",
+    "....KKKKKK......",
+]
+_CURATOR_BODY = [
+    "...JJJJJJJJJ....",
+    "..JJJJLLJJJJJ...",
+    "..JJJJLLJJJGG...",
+    "..JJJJLJJJGG....",
+    "...JJJJJJJJJ....",
+]
+
 
 def _legs(letter):
     """The shared leg poses, in a different trouser colour."""
@@ -91,17 +161,39 @@ PALETTES = {
         "y": (250, 240, 160), "G": (58, 58, 68), "W": (58, 68, 96),
         "B": (30, 26, 24),
     },
+    "cleaner": {
+        "A": (96, 112, 120), "K": (200, 170, 140), "U": (112, 120, 96),
+        "b": (190, 170, 90), "G": (200, 170, 140), "W": (62, 66, 58), "B": (26, 26, 24),
+    },
+    "engineer": {
+        "A": (150, 152, 140), "a": (200, 200, 170), "P": (90, 92, 84), "K": (214, 170, 130),
+        "V": (70, 96, 130), "b": (230, 200, 80), "G": (60, 60, 64), "W": (50, 60, 84),
+        "B": (24, 24, 28),
+    },
+    "sysadmin": {
+        "O": (60, 56, 52), "K": (226, 184, 150), "T": (120, 200, 180), "J": (96, 104, 92),
+        "L": (200, 200, 180), "G": (226, 184, 150), "W": (44, 48, 60), "B": (22, 22, 28),
+    },
+    "curator": {
+        "A": (30, 30, 36), "P": (18, 18, 22), "K": (230, 196, 164), "J": (46, 40, 50),
+        "L": (170, 40, 40), "G": (220, 190, 160), "W": (40, 36, 44), "B": (16, 16, 20),
+    },
 }
 _PARTS = {
     "guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
     "receptionist": (_RECEPTIONIST_HEAD, _RECEPTIONIST_BODY, _legs("J")),
     "technician": (_TECHNICIAN_HEAD, _TECHNICIAN_BODY, _legs("W")),
+    "cleaner": (_CLEANER_HEAD, _CLEANER_BODY, _legs("W")),
+    "engineer": (_ENGINEER_HEAD, _ENGINEER_BODY, _legs("W")),
+    "sysadmin": (_SYSADMIN_HEAD, _SYSADMIN_BODY, _legs("W")),
+    "curator": (_CURATOR_HEAD, _CURATOR_BODY, _legs("W")),
 }
 # What the eyes become in a blink. A guard in sunglasses has none to close.
 BLINK_COLOURS = {
     "guard": {},
     "receptionist": {"e": (222, 170, 130)},
     "technician": {},                   # goggles never close
+    "cleaner": {}, "engineer": {}, "sysadmin": {}, "curator": {},     # no faces to blink
 }
 
 KINDS = tuple(PALETTES)

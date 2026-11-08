@@ -43,6 +43,10 @@ VOICES = {
     "warden": Voice(82.0, "saw", 90, 3, 0.96, 0.26),            # harsh machine growl
     "ghost": Voice(240.0, "breath", 80, 2, 0.90, 0.24),         # airy, falling
     "technician": Voice(190.0, "tri", 75, 3, 0.94, 0.28),       # easy-going, mid-low
+    "cleaner": Voice(150.0, "tri", 95, 3, 0.88, 0.26),          # tired, sighing downward
+    "engineer": Voice(130.0, "saw", 70, 2, 1.00, 0.22),         # gruff, buzzy
+    "sysadmin": Voice(440.0, "square", 50, 2, 1.06, 0.20),      # quick, nervous, rising
+    "curator": Voice(100.0, "tri", 105, 4, 0.97, 0.26),         # slow, pompous
 }
 DEFAULT_VOICE = Voice(220.0, "tri", 70, 2, 1.0, 0.26)
 

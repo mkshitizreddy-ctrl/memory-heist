@@ -252,3 +252,20 @@ def test_speech_bubble_sits_above_the_speaker_and_stays_on_screen():
     corner = pygame.Rect(0, 4, 32, 32)         # speaker at the very top-left
     box = draw_speech_bubble(surface, font, "Welcome to NovaCorp.", corner)
     assert surface.get_rect().contains(box)
+
+
+STAFF = ("cleaner", "engineer", "sysadmin", "curator")
+
+
+def test_the_new_staff_are_faceless_and_never_blink():
+    from core.npc_sprites import BLINK_COLOURS
+    for kind in STAFF:
+        assert kind in KINDS and BLINK_COLOURS[kind] == {}
+        assert "blink" not in make_npc_frames(kind)
+
+
+def test_the_new_staff_have_their_own_distinct_voices():
+    from systems.voice import DEFAULT_VOICE, VOICES
+    voices = [VOICES[k] for k in STAFF]
+    assert len(set(voices)) == len(STAFF) and DEFAULT_VOICE not in voices
+    assert len({VOICES[k] for k in VOICES}) == len(VOICES)
