@@ -29,7 +29,7 @@ CHIP_POINTS = 10
 CHIP_BONUS = 30                 # for finding all of them
 CHIPS_HIDDEN = 3
 # Tile spots (col, row) a chip may be hidden on: open floor, clear of props.
-CHIP_SPOTS = [(4, 5), (27, 7), (10, 13), (23, 10), (14, 9), (6, 16), (21, 14)]
+CHIP_SPOTS = [(4, 5), (25, 9), (10, 13), (23, 10), (14, 9), (6, 16), (21, 14)]
 
 VENDING_POINTS = 5
 BELL_LINES = ("Ding! Sign in, please.", "One moment, visitor.", "Please stop ringing that.")

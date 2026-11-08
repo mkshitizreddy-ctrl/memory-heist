@@ -337,3 +337,101 @@ def test_a_taken_chip_is_no_longer_drawn():
     chip.taken = True
     level.render(after)
     assert before.get_at(chip.rect.center) != after.get_at(chip.rect.center)
+
+
+# --- the NovaCorp look and sound on Floor 1 --------------------------------
+class Recorder:
+    def __init__(self):
+        self.played = []
+
+    def play(self, name):
+        self.played.append(name)
+
+
+def with_audio(level, game):
+    game.audio = Recorder()
+    return game.audio.played
+
+
+def test_cabinets_and_cooler_are_solid_and_inside_the_room():
+    level, _, _ = make_level()
+    room = pygame.Rect(0, 0, 960, 640)
+    for rect in level.cabinets + [level.cooler]:
+        assert level.room_map.blocked(rect) and room.contains(rect)
+        assert rect in level.props
+    assert len(level.cabinets) == 2
+
+
+def test_the_exit_and_every_crate_spot_stay_reachable_around_the_new_furniture():
+    level, _, _ = make_level()
+    tile = 32
+    blocked = lambda c, r: level.room_map.blocked(pygame.Rect(c * tile + 4, r * tile + 4, 24, 24))
+    start = (3, 4)
+    seen, todo = {start}, [start]
+    while todo:
+        c, r = todo.pop()
+        for nc, nr in ((c + 1, r), (c - 1, r), (c, r + 1), (c, r - 1)):
+            if (nc, nr) not in seen and 0 <= nc < 30 and 0 <= nr < 20 and not blocked(nc, nr):
+                seen.add((nc, nr))
+                todo.append((nc, nr))
+    for col, row in f1.CRATE_SPOTS + list(X.CHIP_SPOTS):
+        assert (col, row) in seen, (col, row)
+    assert (27, 10) in seen                                # in front of the exit door
+
+
+def test_the_pa_chimes_once_when_it_makes_an_announcement():
+    level, game, _ = make_level()
+    played = with_audio(level, game)
+    for _ in range(int(level.pa.FIRST_AT * 60) - 5):
+        level.update(1 / 60)
+    assert "chime" not in played
+    for _ in range(10):
+        level.update(1 / 60)
+    assert played.count("chime") == 1 and level.pa.caption in f1.PA_LINES
+    for _ in range(120):
+        level.update(1 / 60)
+    assert played.count("chime") == 1
+
+
+def test_the_caption_is_drawn_only_while_the_pa_speaks():
+    level, _, _ = make_level()
+    quiet, loud = pygame.Surface((960, 640)), pygame.Surface((960, 640))
+    level.render(quiet)
+    level.pa.update(level.pa.FIRST_AT)
+    level.pa.update(1.0)
+    level.render(loud)
+    area = pygame.Rect(f1.PA_CAPTION, (150, 18))
+    assert pygame.image.tostring(quiet.subsurface(area), "RGB") != pygame.image.tostring(loud.subsurface(area), "RGB")
+
+
+def test_each_prop_and_hazard_plays_its_own_sound():
+    level, game, p = make_level()
+    played = with_audio(level, game)
+    for c in level.crates:
+        c.rect.topleft = (40, 120)
+    p.rect.midtop = (level.desk.centerx, level.desk.bottom + 2)
+    press_e(level)
+    p.rect.midright = (level.vending.left - 2, level.vending.centery)
+    press_e(level)
+    p.rect.center = level.chips[0].rect.center
+    level.update(0.016)
+    hold_still_in_beam(level, p, X.SPOT_TIME + 0.2)
+    for name in ("bell", "vending", "chip", "alarm"):
+        assert name in played, name
+    assert "click" not in played and "wrong" not in played
+
+
+def test_the_background_is_graded_and_has_posters_on_the_left_wall():
+    level, _, _ = make_level()
+    calls = []
+    import levels.novacorp_style as nc
+    real = nc.grade
+    nc.grade = lambda *a, **k: calls.append(1) or real(*a, **k)
+    try:
+        level._background = None
+        level.render(pygame.Surface((960, 640)))
+    finally:
+        nc.grade = real
+    assert calls == [1]
+    poster = level._background.get_at((30, 10 * 32 + 20))[:3]
+    assert poster[0] > poster[2] + 15                       # a red-brown card, not wall grey

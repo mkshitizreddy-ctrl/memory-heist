@@ -28,7 +28,7 @@ from core.animation import Shake, SquashStretch
 from core.easing import Tween, ease_out_cubic
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lobby_decor, lobby_extras
+from levels import lobby_decor, lobby_extras, novacorp_style
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -88,6 +88,10 @@ MESSAGE_Y = 74
 DUST_EVERY = 0.12               # seconds between footstep puffs while walking
 DUST_LIFE = 0.45
 STEP_EVERY = 0.32                       # seconds between footstep sounds
+PA_LINES = ("PA: Remain visible.", "PA: Badges on show.", "PA: Smile, please.",
+            "PA: Stay in line.", "PA: Report. Relax.")
+PA_SPEAKER = (392, 60)                  # ceiling speaker on the wall band
+PA_CAPTION = (412, 52)                  # where its caption is written
 
 
 def type_name(value):
@@ -188,6 +192,9 @@ class FloorOneLobby:
         self.sofa = pygame.Rect(4 * TILE, 13 * TILE, 3 * TILE, TILE)
         self.vending = pygame.Rect(26 * TILE, 12 * TILE, TILE, 2 * TILE)
         self.props += self.plants + [self.sofa, self.vending]
+        self.cabinets = [pygame.Rect(2 * TILE, row * TILE, TILE, TILE) for row in (10, 11)]
+        self.cooler = pygame.Rect(27 * TILE, 5 * TILE, TILE, 2 * TILE)
+        self.props += self.cabinets + [self.cooler]
         self.receptionist = NPC("receptionist", (RECEPTIONIST_TILE[0] * TILE, RECEPTIONIST_TILE[1] * TILE),
                                 facing_left=True)
         self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
@@ -223,6 +230,7 @@ class FloorOneLobby:
         self._dust_clock = {}
         self.time = 0.0
         self.ambience = lobby_decor.Ambience(seed=11)   # own rng: crate layout stays untouched
+        self.pa = novacorp_style.PA(PA_LINES)
         # The WARDEN camera sweeps the floor; visitor chips are hidden around it.
         # Both use their own rng, so the crate layout above is unchanged.
         self.beam = lobby_extras.SweepBeam((self.led_pos[0], self.led_pos[1] + 6))
@@ -286,11 +294,11 @@ class FloorOneLobby:
         if self._near(player, self.desk):
             line = lobby_extras.BELL_LINES[self._bell_rings % len(lobby_extras.BELL_LINES)]
             self._bell_rings += 1
-            self._sfx("click")
+            self._sfx("bell")
             self.receptionist.say(line)
             return True
         if self._near(player, self.vending):
-            self._sfx("click")
+            self._sfx("vending")
             if self.vending_used:
                 self._say(lobby_extras.VENDING_EMPTY, theme.MIST)
             else:
@@ -479,6 +487,8 @@ class FloorOneLobby:
         self._update_npcs(dt)
         if not self.complete:
             self._update_extras(dt)
+        if self.pa.update(dt):
+            self._sfx("chime")
         for i in range(GATES):
             target = 1.0 if i < self.gates_passed else 0.0
             self.lamps[i] += (target - self.lamps[i]) * min(1.0, dt * 8)
@@ -501,7 +511,7 @@ class FloorOneLobby:
             if self.game:
                 self.game.score.penalize(lobby_extras.SPOT_PENALTY)
             self.guard.say("Hey! Stay out of the beam.")
-            self._sfx("wrong")
+            self._sfx("alarm")
             self._say(f"WARDEN spotted you! -{lobby_extras.SPOT_PENALTY}", theme.CORAL)
         for chip in self.chips:
             if chip.taken:
@@ -515,7 +525,7 @@ class FloorOneLobby:
         chip.taken = True
         self.chips_found += 1
         self._burst(chip.rect.center, theme.TEAL, 10)
-        self._sfx("correct")
+        self._sfx("chip")
         points = lobby_extras.CHIP_POINTS
         if self.chips_found == len(self.chips):
             points += lobby_extras.CHIP_BONUS
@@ -590,6 +600,19 @@ class FloorOneLobby:
             glow = self._glow(radius, colour)
             bg.blit(glow, (centre[0] - radius, centre[1] - radius),
                     special_flags=pygame.BLEND_RGB_ADD)
+        # the NovaCorp look: washed out, dark corners, grime, stencils, posters
+        for cab in self.cabinets:
+            novacorp_style.draw_cabinet(bg, cab)
+        novacorp_style.draw_cooler(bg, self.cooler)
+        novacorp_style.grade(bg, seed=4)
+        novacorp_style.stains(bg, (2 * TILE, 3 * TILE, 26 * TILE, 15 * TILE), seed=9)
+        stencil_font = ui_font(22, bold=True)
+        novacorp_style.stencil(bg, "PLEASE REMAIN VISIBLE", (15 * TILE, 10 * TILE), stencil_font, alpha=70)
+        novacorp_style.dashed_line(bg, (11 * TILE, 14 * TILE + 6), (19 * TILE, 14 * TILE + 6))
+        novacorp_style.stencil(bg, "WAIT HERE", (15 * TILE, 13 * TILE + 10), ui_font(18, bold=True), alpha=90)
+        poster_font = ui_font(12, bold=True)
+        novacorp_style.draw_poster(bg, (4, 10 * TILE, 56, 88), ("SMILE!", "WE'RE", "WATCHING"), poster_font)
+        novacorp_style.draw_poster(bg, (4, 13 * TILE + 4, 56, 88), ("A CLEAR", "DESK IS", "LOYAL"), poster_font)
         # title on the wall
         title = shadowed(ui_font(26, bold=True), "FLOOR 1 - RECEPTION LOBBY",
                          theme.mix(accent, theme.PAPER, 0.4))
@@ -797,6 +820,11 @@ class FloorOneLobby:
         if self.message:
             msg = shadowed(self.font, self.message, self.message_tone)
             world.blit(msg, (TILE * 2, MESSAGE_Y))
+        novacorp_style.draw_speaker(world, PA_SPEAKER, self.time, self.pa.active)
+        if self.pa.active:
+            line = shadowed(ui_font(16), self.pa.caption, theme.PAPER)
+            line.set_alpha(self.pa.alpha())
+            world.blit(line, PA_CAPTION)
         hint = shadowed(self.small, "E: pick up / put down", theme.MIST)
         world.blit(hint, (world.get_width() - hint.get_width() - TILE * 2, TITLE_Y + 2))
         chips = shadowed(self.small, f"CHIPS {self.chips_found}/{len(self.chips)}",
