@@ -14,11 +14,13 @@ SAMPLE_RATE = 44100
 # floor (step_metal, step_server, step_marble; plain "step" is tile and carpet).
 SFX_NAMES = ("pickup", "drop", "step", "door",
              "bell", "vending", "chip", "alarm", "switch", "zap", "drone", "laser",
-             "stamp", "chime", "fanfare", "step_metal", "step_server", "step_marble")
+             "stamp", "chime", "fanfare", "step_metal", "step_server", "step_marble",
+             "phone")
 SFX_VOLUME = {"pickup": 0.55, "drop": 0.7, "step": 0.22, "door": 0.6,
               "bell": 0.5, "vending": 0.65, "chip": 0.5, "alarm": 0.6, "switch": 0.55,
               "zap": 0.5, "drone": 0.35, "laser": 0.5, "stamp": 0.7, "chime": 0.45,
-              "fanfare": 0.6, "step_metal": 0.25, "step_server": 0.2, "step_marble": 0.24}
+              "fanfare": 0.6, "step_metal": 0.25, "step_server": 0.2, "step_marble": 0.24,
+              "phone": 0.45}
 
 
 def _t(duration):
@@ -144,6 +146,12 @@ def synth_sfx(name):
         d = int(SAMPLE_RATE * 0.06)
         echo[d:] = 0.3 * tick[: t.size - d]
         wave = tick + echo
+    elif name == "phone":                                   # desk phone: two quick electronic trills
+        t = _t(0.5)
+        pitch = np.where((t * 38).astype(int) % 2 == 0, 1400.0, 1100.0)
+        trill = np.sin(2 * np.pi * np.cumsum(pitch) / SAMPLE_RATE)
+        gate = ((t < 0.2) | ((t > 0.28) & (t < 0.48))).astype(float)
+        wave = _lowpass(trill * gate, 3)
     else:
         raise KeyError(name)
     wave = _fade_edges(wave)

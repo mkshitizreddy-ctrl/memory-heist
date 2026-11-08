@@ -244,7 +244,8 @@ def test_a_stuttering_light_dims_and_a_steady_one_does_not():
 # --- inside the real level --------------------------------------------------
 def test_decoration_adds_nothing_to_collide_with():
     level, _, _ = make_level()
-    assert len(level.props) == 14                     # 4 bins, desk, 4 plants, sofa, vending, 2 cabinets, cooler
+    # 4 bins, desk, 4 plants, sofa, vending, 2 cabinets, cooler, and the queue's 4 posts and 2 ropes
+    assert len(level.props) == 20
     assert level.room_map.blocked(pygame.Rect(D.RUG.centerx, D.RUG.centery, 8, 8)) is False
     for stripe in D.STRIPES:                          # floor decals are walked on, not around
         assert level.room_map.blocked(stripe) is False

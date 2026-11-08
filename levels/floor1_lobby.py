@@ -81,6 +81,9 @@ START_MESSAGE = "Belt jammed: file each parcel by type."
 PICKUP_FORMAT = "Got {value}. Which chute?"
 FILED_FORMAT = "{value} is {kind}. Stamped!"
 BELT_SIGN = ("BELT OUT OF ORDER", "FILE BY HAND")
+# The visitor queue: brass posts and red rope funnel people to the middle of the desk.
+QUEUE_Y = 14 * TILE + 6
+QUEUE_POSTS = (11 * TILE, 13 * TILE, 17 * TILE, 19 * TILE)      # x of the four posts
 BELT_JAM = (236, 106)            # where the jammed parcels sit on the belt
 GREETINGS = ("Welcome to NovaCorp.", "Courier? Chutes are ahead.", "Mind the parcels.")
 CLEANER_ROUTE = [(6, 16), (11, 16)]
@@ -204,6 +207,10 @@ class FloorOneLobby:
         self.cabinets = [pygame.Rect(2 * TILE, row * TILE, TILE, TILE) for row in (10, 11)]
         self.cooler = pygame.Rect(27 * TILE, 5 * TILE, TILE, 2 * TILE)
         self.props += self.cabinets + [self.cooler]
+        self.posts = [pygame.Rect(x - 5, QUEUE_Y - 6, 10, 12) for x in QUEUE_POSTS]
+        self.ropes = [pygame.Rect(QUEUE_POSTS[0] + 5, QUEUE_Y - 3, QUEUE_POSTS[1] - QUEUE_POSTS[0] - 10, 6),
+                      pygame.Rect(QUEUE_POSTS[2] + 5, QUEUE_Y - 3, QUEUE_POSTS[3] - QUEUE_POSTS[2] - 10, 6)]
+        self.props += self.posts + self.ropes
         self.receptionist = NPC("receptionist", (RECEPTIONIST_TILE[0] * TILE, RECEPTIONIST_TILE[1] * TILE),
                                 facing_left=True)
         self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
@@ -252,6 +259,7 @@ class FloorOneLobby:
         self.chips_found = 0
         self.vending_used = False
         self._bell_rings = 0
+        self.phone = lobby_extras.Phone()
         self._beam_overlay = None
         self.lightlayer = lighting.LightLayer()
         self._dressed = False
@@ -537,6 +545,11 @@ class FloorOneLobby:
             self.guard.say("Hey! Stay out of the beam.")
             self._sfx("alarm")
             self._say(f"WARDEN spotted you! -{lobby_extras.SPOT_PENALTY}", theme.CORAL)
+        event = self.phone.update(dt)
+        if event == "ring":
+            self._sfx("phone")
+        elif event == "answer":
+            self.receptionist.say(self.phone.line())
         for chip in self.chips:
             if chip.taken:
                 continue
@@ -631,6 +644,7 @@ class FloorOneLobby:
         # the NovaCorp look: washed out, dark corners, grime, stencils, posters
         for cab in self.cabinets:
             novacorp_style.draw_cabinet(bg, cab)
+        self._draw_queue(bg)
         novacorp_style.draw_cooler(bg, self.cooler)
         novacorp_style.grade(bg, seed=4)
         novacorp_style.stains(bg, (2 * TILE, 3 * TILE, 26 * TILE, 15 * TILE), seed=9)
@@ -687,12 +701,32 @@ class FloorOneLobby:
             lighting.blob_shadow(world, npc.rect, 90)
         for rect in (self.desk, self.vending, self.cooler, *self.cabinets, *self.plants):
             lighting.blob_shadow(world, rect.inflate(10, 0), 60, squash=0.3)
+        for rect in self.posts:
+            lighting.blob_shadow(world, rect, 70, squash=0.5)
 
     def _dress(self):
         """Ghost (and Echo) wear the courier vest for as long as this floor is running."""
         if not self.complete:
             for hero, _ in self._players():
                 hero.set_outfit("courier")
+
+    def _draw_queue(self, bg):
+        """Posts and sagging red rope: the visitor queue ends in a gap in front of the desk."""
+        pairs = ((QUEUE_POSTS[0], QUEUE_POSTS[1]), (QUEUE_POSTS[2], QUEUE_POSTS[3]))
+        for a, b in pairs:
+            top_a, top_b = (a, QUEUE_Y - 18), (b, QUEUE_Y - 18)
+            mid = ((a + b) // 2, QUEUE_Y - 18 + 7)
+            points = [((1 - u) ** 2 * top_a[0] + 2 * (1 - u) * u * mid[0] + u ** 2 * top_b[0],
+                       (1 - u) ** 2 * top_a[1] + 2 * (1 - u) * u * mid[1] + u ** 2 * top_b[1])
+                      for u in [i / 12 for i in range(13)]]
+            pygame.draw.lines(bg, (92, 18, 26), False, points, 5)
+            pygame.draw.lines(bg, (176, 44, 52), False, points, 3)
+        for x in QUEUE_POSTS:
+            pygame.draw.ellipse(bg, (14, 16, 22), (x - 8, QUEUE_Y + 1, 16, 7))                  # base
+            pygame.draw.line(bg, (150, 156, 168), (x, QUEUE_Y + 3), (x, QUEUE_Y - 16), 3)        # pole
+            pygame.draw.line(bg, (214, 220, 230), (x - 1, QUEUE_Y + 2), (x - 1, QUEUE_Y - 15), 1)
+            pygame.draw.circle(bg, (206, 168, 64), (x, QUEUE_Y - 18), 4)                        # brass cap
+            pygame.draw.circle(bg, (246, 218, 130), (x - 1, QUEUE_Y - 19), 1)
 
     def _draw_belt(self, bg):
         """The intake belt above the chutes: it feeds them, but it is jammed, which is
@@ -901,6 +935,7 @@ class FloorOneLobby:
         self._draw_beam(world)
         self._draw_camera_led(world)
         self._draw_jam_lamp(world)
+        lobby_extras.draw_phone(world, self.desk, self.phone.is_ringing, self.time)
         for chip in self.chips:
             if not chip.taken:
                 lobby_extras.draw_chip(world, chip, self.time)
