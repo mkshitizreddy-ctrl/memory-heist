@@ -156,7 +156,7 @@ class VoicePlayer:
     def speak(self, track, speaker, text, cps):
         """Start (or replace) `track`, blipping as `text` is typed at `cps`."""
         events = blip_schedule(text, cps, voice_for(speaker))
-        if not events or not self._ensure(speaker):
+        if not events or self._volume() <= 0.0 or not self._ensure(speaker):
             self._tracks.pop(track, None)
             return False
         self._tracks[track] = _Track(speaker, events)
@@ -170,11 +170,11 @@ class VoicePlayer:
         """
         path = voice_clips.clip_path(speaker, text, self.clip_dir)
         sound = self._load(path)
-        if sound is None or not getattr(self.audio, "enabled", False):
+        if sound is None or not getattr(self.audio, "enabled", False) or self._volume() <= 0.0:
             return False
         self.stop(track)
         try:
-            sound.set_volume(max(0.0, min(1.0, getattr(self.audio, "sfx_volume", 1.0))))
+            sound.set_volume(self._volume())
             channel = sound.play()
         except pygame.error:
             return False
@@ -182,6 +182,10 @@ class VoicePlayer:
             return False
         self._clips[track] = channel
         return True
+
+    def _volume(self):
+        """The player's voice volume (0 turns the voices off), 1.0 if unknown."""
+        return max(0.0, min(1.0, getattr(self.audio, "voice_volume", 1.0)))
 
     def _load(self, path):
         if path not in self._loaded:
@@ -225,7 +229,7 @@ class VoicePlayer:
             while track.events and track.events[0][0] <= track.clock:
                 due = track.events.pop(0)
             if due is not None and track.clock - due[0] <= LATE_LIMIT:
-                self.audio.play(sound_name(track.speaker, due[1]))
+                self.audio.play(sound_name(track.speaker, due[1]), group="voice")
             if not track.events:
                 del self._tracks[name]
 

@@ -169,7 +169,7 @@ def audio():
 def spy(audio, monkeypatch):
     """The real Audio, recording which sound names it was asked to play."""
     played = []
-    monkeypatch.setattr(audio, "play", lambda name: played.append(name))
+    monkeypatch.setattr(audio, "play", lambda name, group="sfx": played.append(name))
     return played
 
 
@@ -281,12 +281,13 @@ def test_without_numpy_the_player_is_silent(audio, monkeypatch):
     assert VoicePlayer(audio).speak("a", "echo", "hello there", 20) is False
 
 
-def test_blips_follow_the_effects_volume_and_the_mute_switch(audio):
+def test_blips_follow_the_voice_volume_and_the_mute_switch(audio):
     p = VoicePlayer(audio)
     p.speak("a", "guard", "ok", 20)
     fake = FakeSound()
     audio.sounds.update({sound_name("guard", s): fake for s in range(STEPS)})
-    audio.sfx_volume = 0.5
+    audio.sfx_volume = 0.9                                                 # effects do not matter
+    audio.voice_volume = 0.5
     p.update(0.06)
     assert fake.plays == 1 and fake.volume == pytest.approx(0.5)
     p.speak("a", "guard", "ok", 20)

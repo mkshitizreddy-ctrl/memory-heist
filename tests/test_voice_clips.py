@@ -103,7 +103,7 @@ def folder(tmp_path):
 def player(folder, monkeypatch):
     FakeSound.created = []
     monkeypatch.setattr(pygame.mixer, "Sound", FakeSound)
-    audio = SimpleNamespace(enabled=True, mixer_ready=True, sfx_volume=0.5, sounds={}, play=lambda n: None)
+    audio = SimpleNamespace(enabled=True, mixer_ready=True, sfx_volume=0.9, voice_volume=0.5, sounds={}, play=lambda n: None)
     return VoicePlayer(audio, clip_dir=folder)
 
 
@@ -118,12 +118,27 @@ def test_no_file_means_no_recording(player):
     assert not player.speaking("t")
 
 
-def test_an_existing_clip_plays_at_the_effects_volume(player, folder):
+def test_an_existing_clip_plays_at_the_voice_volume_not_the_effects_volume(player, folder):
     make_clip(folder, "echo", "Stay low.")
     assert player.speak_clip("t", "Echo", "Stay low.") is True
     assert player.speaking("t") and player.speaking()
     sound = player._loaded[vc.clip_path("echo", "Stay low.", folder)]
     assert sound.volume == 0.5
+
+
+def test_voice_volume_zero_turns_recordings_and_blips_off(player, folder):
+    make_clip(folder, "echo", "Stay low.")
+    player.audio.voice_volume = 0.0
+    assert player.speak_clip("t", "echo", "Stay low.") is False
+    assert player.speak("t", "echo", "Stay low.", 20) is False
+    assert not player.speaking()
+
+
+def test_a_player_whose_audio_has_no_voice_volume_plays_at_full(player, folder):
+    make_clip(folder, "echo", "Stay low.")
+    del player.audio.voice_volume
+    assert player.speak_clip("t", "echo", "Stay low.") is True
+    assert player._loaded[vc.clip_path("echo", "Stay low.", folder)].volume == 1.0
 
 
 def test_muted_sound_plays_nothing(player, folder):
