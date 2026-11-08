@@ -1,8 +1,11 @@
 # Memory Heist
 
-Memory Heist is a 2D Python learning game built with Pygame. Play as a
-hacker escaping a security facility by solving challenges about variables,
-operators, loops, lists, dictionaries, functions, and exception handling.
+Memory Heist is a 2D Python learning game built with Pygame. Play as Ghost,
+a hacker breaking into NovaCorp's tower to steal back the Master Memory chip
+from WARDEN, the building's security AI. Every floor teaches a Python idea
+(data types, operators, loops, lists and dictionaries, functions and
+exception handling), and you open the gates by answering questions about it.
+Echo, your partner on the radio, guides you; the story is narrated.
 
 The project was built for the **Coding for AI** course at Bennett
 University, under **Dr. Prateek**. The team is upgrading the existing game
@@ -31,92 +34,120 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Project Structure
+Run the automated tests (no window or sound device needed):
 
-```text
-memory-heist/
-├── main.py
-├── core/                      # Game loop, player, maps, difficulty, progression
-├── entities/                  # Gates, particles, character and drone sprites
-├── levels/                    # Level 1-5, Final Vault, shared drawing helpers
-├── systems/                   # Inventory, scoring, security, timer, audio, hints, leaderboard
-├── ui/                        # Menu, HUD, win/lose screens
-├── data/                      # Puzzle content
-├── assets/sounds/             # Sound effects
-├── saves/                     # Local leaderboard (created at runtime, not committed)
-└── docs/                      # Project report and team workflow
+```powershell
+python -m pytest -q
 ```
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| ENTER | Start game from menu |
+| ENTER | Start a new run from the menu |
+| L (menu) | Continue the saved run, when there is one (progress is saved at each floor) |
 | 1 / 2 / 3 (menu) | Select Easy / Medium / Hard |
-| Mouse | Answer Level 1 & 2 puzzles |
-| 1 / 2 / 3 / 4 | Answer Level 3, Level 5, and Final Vault puzzles |
-| WASD | Move in spatial levels (currently Levels 3 and 4) |
-| E | Collect items / interact in Level 4 |
 | C (menu) | Toggle local co-op |
-| Arrow keys | Player 2 movement (co-op) |
-| Right Shift | Player 2 interact in Level 4 (co-op) |
+| B (menu) | Badges and stats |
+| S (menu or paused) | Settings: music, effects and voice volume, mute |
+| F11 | Fullscreen (works on every screen) |
+| WASD | Move on Levels 1-4 |
+| E | Pick up, drop or answer (Levels 1 and 2); collect or interact (Levels 3 and 4) |
+| 1 / 2 / 3 / 4 | Choose an answer on Levels 3, 5 and the Final Vault |
+| Arrow keys, Right Shift | Player 2 move and interact (co-op) |
 | Q / X (Level 4) | Ally drone scan / distract the security drone |
+| ESC | Pause while playing; skip a story card; leave the badges page; quit from the menu |
+| R / M (win or lose screen) | Start a new run / return to the menu |
 | Type + ENTER (win screen) | Enter a name for the leaderboard |
-| ESC | Pause during gameplay; quit from the win/lose/menu screen |
-| R | Retry from the lose screen |
 
-Close the window using its title bar (X) to quit from the menu or mid-level.
+Close the window using its title bar (X) to quit at any time.
 
-## Current status
+## What the game has
 
-The base game has five learning levels and a Final Vault, connected through
-the game flow. The team is now adding Memory Heist 2.0 features incrementally.
+- **Story and voices.** An intro, a briefing before each floor and an
+  ending, with the narrator and the radio lines (Echo and WARDEN) spoken.
+  Recorded clips live in `assets/voice/`; if a clip is missing, a short
+  generated "blip" voice plays instead, so nothing breaks.
+- **Floors.** Levels 1 and 2 are rebuilt as walkable floors (tile rooms,
+  crates and bins, a maintenance grid); Level 3 has laser rooms with a
+  security robot; Level 4 has the memory vault with drones. Levels 4, 5
+  and the Final Vault are still being reworked by their owners.
+- **Characters.** Ghost and Echo (co-op) with walk animation and shading,
+  animated portraits for Ghost, Echo and WARDEN, and staff NPCs on Floor 1.
+  All sprites are drawn from character maps in code, so no image files are
+  needed.
+- **Sound.** A composed music loop per floor, generated sound effects and
+  the voices, with separate Music, Effects and Voice sliders and a mute
+  switch in Settings (saved between runs).
+- **Presentation.** One theme across all screens (NovaCorp palette, themed
+  fonts), a HUD with floating score and security popups, a skyline backdrop
+  with searchlights on the menu and end screens, fades between screens and
+  an elevator transition between floors.
+- **Progress.** Saved run per floor (L on the menu), six badges with a
+  Badges and Stats page, and a local leaderboard (top five with difficulty
+  and co-op tag).
+- **Difficulty.** Easy, Medium and Hard change the timers, hints, security
+  penalty and score multiplier.
+- **Co-op.** Press C on the menu to add a second player.
 
-### 2.0 work merged into main
+Old Level 1 and Level 2 can be switched back on for comparison with the
+environment variables `MEMORY_HEIST_OLD_LEVEL1=1` and
+`MEMORY_HEIST_OLD_LEVEL2=1`.
 
-- A reusable `Room` and `RoomMap` system supports named rooms, exits,
-  gates, configurable start rooms, reset, and safe room transitions.
-- Gates remain locked until unlocked, and an exit associated with a gate
-  cannot be used until the gate is open.
-- Core automatically enables player movement and rendering for levels that
-  provide room maps, bounds, or obstacles.
-- Easy, Medium, and Hard can be selected in the menu. Security penalties
-  scale with difficulty; the Level 3 room timer uses the selected time
-  multiplier.
-- Level 3 currently has a three-room progression with gates, lasers, and a
-  security robot. Other levels have not yet been converted to multi-room maps.
-- Local co-op: press C on the menu to add a second player (arrow keys,
-  Right Shift to interact). In Levels 3 and 4 either player can trigger
-  lasers, pass open gates, and interact; the robot scans whichever player
-  is closer.
-- Pixel-art player sprites (cyan and orange palettes) with a walk
-  animation, and sprite drones in Level 4 that change colour when alerted
-  or distracted. Sprites are drawn from character maps in code, so no image
-  files are needed.
-- Gate unlock sparks use the shared particle system.
-- Hints follow the difficulty: Easy and Medium show a hint after a wrong
-  answer, Hard does not (currently used in Level 1).
-- Local leaderboard: the win screen asks for a name and shows the top five
-  scores with difficulty and co-op tag. Scores are stored in
-  `saves/leaderboard.json` on each machine.
+## Voice clips
 
-### Features Working
+The spoken lines are mp3 files in `assets/voice/`, named by speaker and a
+short hash of the text (for example `echo_1d2150a78f.mp3`). Change a line in
+`core/story.py` or `core/comms.py` and that line falls back to the blip voice
+until its clip is regenerated.
 
-- Scoring system (points for correct answers + level completion bonuses)
-- Security meter that rises on wrong answers
-- Lockdown / lose condition when security reaches 100, with retry
-- Live HUD showing level, score, security, and an active timer
-- Sound effects (correct / wrong / unlock / click)
-- Procedurally generated ambient background audio (no royalty-free music
-  file was sourced, so a seamless ambient loop is synthesized in code)
-- Animated cyber-grid background and glowing text applied across the
-  menu, win/lose screens, and all gameplay levels (1-5 and Final Vault)
-- Fade transition between level changes
+To regenerate clips you need an ElevenLabs API key:
 
-### Still planned for 2.0
+1. Create a key at https://elevenlabs.io/app/api/api-keys.
+2. Put it in a file named `.env` in the project folder, as
+   `ELEVENLABS_API_KEY=your-key`. The file is ignored by git: never commit a
+   key and never paste one into chat or code.
+3. Run:
 
-- Multiple question pools and randomized question selection across levels
-- Multi-room layouts and gate progression for Levels 1, 2, 4, 5, and Final Vault
-- Easy / Medium / Hard effects for any additional timed challenges
-- Sprites for the remaining enemies and objects, and more particle effects
-- Additional backgrounds, music, and sound effects
+```powershell
+python tools/generate_voice.py --list     # what would be made and the credit cost (nothing is spent)
+python tools/generate_voice.py            # make every missing clip
+python tools/generate_voice.py --only echo --force   # remake one speaker's clips
+python tools/generate_voice.py --premade  # use ElevenLabs' built-in voices instead
+```
+
+The default cast (`CAST` in `systems/voice_clips.py`) uses voices created in
+the project owner's ElevenLabs account, which other accounts cannot use. On
+another account, run with `--premade`, or replace the voice ids in `CAST`.
+The whole set is about 2,700 characters, which is about 2,700 credits.
+
+## Project Structure
+
+```text
+memory-heist/
+├── main.py
+├── core/                      # Game loop, story, comms, player, NPCs, sprites, maps, difficulty
+├── entities/                  # Gates, particles, character and drone sprites
+├── levels/                    # Levels 1-5, Final Vault, shared room and drawing helpers
+├── systems/                   # Audio, music, voice, settings, progress, badges, scoring, hints, leaderboard
+├── ui/                        # Menu, HUD, story and end screens, settings, theme and fonts
+├── data/                      # Puzzle content
+├── assets/                    # fonts/, sounds/, voice/
+├── tools/                     # generate_voice.py (makes the voice clips)
+├── tests/                     # Automated tests (pytest)
+├── saves/                     # Settings, progress, badges and leaderboard (created at runtime, not committed)
+└── docs/                      # Project report and team workflow
+```
+
+## Still planned
+
+- Walkable floors with story and radio lines for Levels 3 to 5 and the
+  Final Vault, in the same style as Levels 1 and 2
+- More questions per level, with random selection
+- More music variety and a credits screen
+
+## Credits
+
+- Fonts: Chakra Petch and Share Tech Mono (SIL Open Font License; the
+  licence files are in `assets/fonts/`)
+- Voices: generated with ElevenLabs
