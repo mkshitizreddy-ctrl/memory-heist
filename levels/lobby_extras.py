@@ -36,6 +36,20 @@ BELL_LINES = ("Ding! Sign in, please.", "One moment, visitor.", "Please stop rin
 VENDING_LINE = "A cold coffee drops out. +5"
 VENDING_EMPTY = "Sold out."
 
+# Filing cabinets hold the intake manifests; E reads one (the chute rules).
+MANIFEST_OFF = "Manifest sealed on this difficulty."
+MANIFEST_TITLE = "Manifest {n}: "
+# The water cooler is where the staff talk.
+COOLER_LINES = ("Cold water. Nobody mentions the cameras.",
+                "Someone taped a note: 'Blink less.'",
+                "The cooler hums. So do the walls.")
+# The guard and the receptionist trade a line when he passes her desk.
+BANTER_GAP = 22.0
+BANTER_RANGE = 70
+BANTER = (("Quiet shift.", "Quiet is on file."),
+          ("Anyone in?", "Only the courier."),
+          ("Coffee later?", "Sold out. Again."))
+
 # The reception phone: it rings now and then and the receptionist takes the call.
 PHONE_FIRST_AT = 12.0
 PHONE_EVERY = 31.0

@@ -504,3 +504,38 @@ def test_a_visitor_badge_is_drawn_as_a_card_with_a_teal_stripe_and_a_clip():
     colours = {tuple(surf.get_at((x, y)))[:3] for x in range(28, 52) for y in range(26, 54)}
     assert tuple(theme.PAPER)[:3] in colours             # the white card
     assert any(c[1] > 150 and c[2] > 150 and c[0] < 130 for c in colours)   # the teal stripe
+
+
+# ---- purposeful props: manifests, cooler, banter ----------------------------------
+
+def _lobby():
+    from tests.test_floor1_lobby import make_level
+    return make_level()[0]
+
+
+def test_reading_a_manifest_shows_the_next_chute_rule():
+    from levels import floor1_lobby as f1
+    level = _lobby()
+    level._read_manifest()
+    assert level.message.endswith(f1.HINTS[f1.BIN_TYPES[0]])
+    level._read_manifest()
+    assert level.message.endswith(f1.HINTS[f1.BIN_TYPES[1]])
+
+
+def test_manifests_are_sealed_when_hints_are_off():
+    level = _lobby()
+    level.game = type("G", (), {"hints": type("H", (), {"enabled": False})()})()
+    level._read_manifest()
+    from levels import lobby_extras as le
+    assert level.message == le.MANIFEST_OFF
+
+
+def test_guard_and_receptionist_banter_when_he_passes_her_desk():
+    level = _lobby()
+    level.guard.rect.center = level.receptionist.rect.center
+    level._banter_wait = 0.0
+    level._banter(0.1)
+    assert level.guard.speech and level.receptionist.speech
+    wait = level._banter_wait
+    level._banter(0.1)
+    assert level._banters == 1 and level._banter_wait < wait   # cooldown, no repeat

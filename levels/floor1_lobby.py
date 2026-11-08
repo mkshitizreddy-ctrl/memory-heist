@@ -213,6 +213,10 @@ class FloorOneLobby:
         self.props += self.posts + self.ropes
         self.receptionist = NPC("receptionist", (RECEPTIONIST_TILE[0] * TILE, RECEPTIONIST_TILE[1] * TILE),
                                 facing_left=True)
+        self._manifests_read = 0
+        self._cooler_uses = 0
+        self._banters = 0
+        self._banter_wait = lobby_extras.BANTER_GAP / 2
         self.guard = NPC("guard", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in GUARD_ROUTE])
         self.cleaner = NPC("cleaner", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in CLEANER_ROUTE],
                            speed=34.0, pause=1.6)
@@ -322,6 +326,15 @@ class FloorOneLobby:
             self._bell_rings += 1
             self._sfx("bell")
             self.receptionist.say(line)
+            return True
+        for cab in self.cabinets:
+            if self._near(player, cab):
+                self._read_manifest()
+                return True
+        if self._near(player, self.cooler):
+            line = lobby_extras.COOLER_LINES[self._cooler_uses % len(lobby_extras.COOLER_LINES)]
+            self._cooler_uses += 1
+            self._say(line, theme.MIST)
             return True
         if self._near(player, self.vending):
             self._sfx("vending")
@@ -469,6 +482,7 @@ class FloorOneLobby:
     def _update_npcs(self, dt):
         for npc in self.npcs:
             npc.update(dt)
+        self._banter(dt)
         for player, _ in self._players():
             for npc, lines in ((self.receptionist, GREETINGS), (self.guard, GUARD_LINES),
                                (self.cleaner, CLEANER_LINES)):
@@ -476,6 +490,31 @@ class FloorOneLobby:
                     n = self._lines_said[npc.kind]
                     self._lines_said[npc.kind] = n + 1
                     npc.say(lines[n % len(lines)])
+
+    def _read_manifest(self):
+        """E at a filing cabinet: read the next chute rule (type hint) from the manifests."""
+        n = self._manifests_read
+        self._manifests_read += 1
+        if self.game and not self.game.hints.enabled:
+            self._say(lobby_extras.MANIFEST_OFF, theme.MIST)
+            return
+        kind = BIN_TYPES[n % len(BIN_TYPES)]
+        self._say(lobby_extras.MANIFEST_TITLE.format(n=n % len(BIN_TYPES) + 1) + HINTS[kind],
+                  BIN_COLOURS[kind])
+
+    def _banter(self, dt):
+        """The guard and receptionist swap a line when he walks past her desk."""
+        self._banter_wait = max(0.0, self._banter_wait - dt)
+        if self._banter_wait > 0 or self.complete:
+            return
+        gx, gy = self.guard.rect.center
+        rx, ry = self.receptionist.rect.center
+        if math.hypot(gx - rx, gy - ry) <= lobby_extras.BANTER_RANGE:
+            a, b = lobby_extras.BANTER[self._banters % len(lobby_extras.BANTER)]
+            self._banters += 1
+            self._banter_wait = lobby_extras.BANTER_GAP
+            self.guard.say(a)
+            self.receptionist.say(b)
 
     def _say(self, text, tone):
         self.message, self.message_tone, self._message_age = text, tone, 0.0
