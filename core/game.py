@@ -25,6 +25,7 @@ from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.level5_hall import ServerHall
 from levels.final_vault import FinalVault
+from levels.final_vault_hall import VaultHall
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
@@ -228,10 +229,11 @@ class Game:
         else:
             level5 = ServerHall(player=self.player, game=self)    # Floor 5 on the shared kit
         self.level_manager.register("level5", level5)
-        self.level_manager.register(
-            "final_vault",
-            FinalVault(game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_OLD_FINAL_VAULT") == "1":
+            vault = FinalVault(game=self)                          # escape hatch
+        else:
+            vault = VaultHall(player=self.player, game=self)       # Master Vault on the shared kit
+        self.level_manager.register("final_vault", vault)
 
     def _apply_difficulty_to_room_timer(self, level):
         """Scale a level's room countdown using the selected difficulty."""
