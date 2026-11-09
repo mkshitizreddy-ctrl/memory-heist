@@ -1138,3 +1138,11 @@ def test_the_corridor_floor_has_rivets_but_the_wall_does_not():
     assert len(set(region_pixels(bg, tile))) >= 3
     dot = (tile.x + 4, tile.y + 4)
     assert bg.get_at(dot)[:3] != bg.get_at((tile.x + 12, tile.y + 12))[:3]
+
+
+def test_waiting_screen_names_its_predecessor():
+    import pygame
+    surf = pygame.Surface((960, 640))
+    G.draw_screen(surf, G.screen_rect(1), 1, "standby", (200, 120, 60), time=0.0)
+    G.draw_screen(surf, G.screen_rect(2), 2, "standby", (200, 120, 60), time=0.0)
+    assert surf.get_at((G.screen_rect(1).centerx, G.screen_rect(1).centery - 4)) != (0, 0, 0)

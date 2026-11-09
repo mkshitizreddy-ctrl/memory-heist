@@ -26,7 +26,7 @@ import pygame
 
 from core.tilemap import TILE
 from levels.grid_decor import (                                    # shared pieces, re-exported for the level
-    _draw_rack, _glow, _hazard, draw_gate, draw_pad, draw_screen, draw_shutter, fit_font, fit_prompt,
+    _draw_rack, _glow, _hazard, draw_gate, draw_pad, draw_screen as _shared_screen, draw_shutter, fit_font, fit_prompt,
     led_state, pulse_points, rack_led_positions, timer_fraction)
 from levels.lobby_decor import Motes
 from ui import theme
@@ -249,8 +249,12 @@ def draw_static(bg, accent):
     draw_toolbox(bg, TOOLBOX)
     for gate, (_, last) in enumerate(BANDS):                     # relay stencils on the floor
         label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
-                                              theme.mix(theme.INK, accent, 0.55))
-        bg.blit(label, label.get_rect(center=(PAD_CENTRE_X[gate], (last + 1) * TILE - 10)))
+                                              theme.mix(theme.INK, accent, 0.9))
+        spot = label.get_rect(center=(PAD_CENTRE_X[gate], (last + 1) * TILE - 10))
+        plate = pygame.Surface((spot.w + 14, spot.h + 2), pygame.SRCALPHA)
+        pygame.draw.rect(plate, (*theme.INK, 170), plate.get_rect(), border_radius=3)
+        bg.blit(plate, (spot.x - 7, spot.y - 1))                 # dark plate so the stencil reads
+        bg.blit(label, spot)
 
 
 PANEL_SIGNS = (pygame.Rect(PANEL_COLS[0] * TILE + 8, SEPARATORS[0] * TILE + 5, 112, 22),       # under crossing 1
@@ -417,3 +421,21 @@ class Ambience:
             world.set_at((int(m["x"]), int(m["y"])), theme.mix(theme.INK, theme.MIST, 0.25 + 0.5 * twinkle))
 
 
+
+
+def draw_screen(surface, rect, gate, state, accent, prompt="", answer="", fraction=1.0,
+                seconds=0, time=0.0):
+    """Floor 2 wall screen: the shared screen, but a waiting relay says what it waits for."""
+    _shared_screen(surface, rect, gate, state, accent, prompt, answer, fraction, seconds, time)
+    if state != "standby":
+        return
+    cover = pygame.Rect(rect.x + 4, rect.y + 24, rect.w - 8, rect.h - 28)
+    pygame.draw.rect(surface, theme.mix(theme.INK, theme.SLATE, 0.10), cover)   # wipe the bare "STANDBY"
+    for y in range(cover.y + 2, cover.bottom, 4):                               # dead-screen scanlines
+        pygame.draw.line(surface, theme.mix(theme.INK, theme.SLATE, 0.22), (cover.x, y), (cover.right, y))
+    line = f"WAITING FOR RELAY {gate}" if gate > 0 else "STANDBY"
+    text = code_font(15).render(line, True, theme.SLATE)
+    surface.blit(text, text.get_rect(center=(cover.centerx, cover.centery - 4)))
+    if int(time * 1.6) % 2 == 0:                                                # blinking cursor
+        pygame.draw.rect(surface, theme.SLATE, (cover.centerx + text.get_width() // 2 + 4,
+                                               cover.centery - 10, 8, 12))
