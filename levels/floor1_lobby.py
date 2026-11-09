@@ -81,6 +81,8 @@ START_MESSAGE = "Belt jammed: file each parcel by type."
 PICKUP_FORMAT = "Got {value}. Which chute?"
 FILED_FORMAT = "{value} is {kind}. Stamped!"
 BELT_SIGN = ("BELT OUT OF ORDER", "FILE BY HAND")
+BELT_FIXED_SIGN = ("BELT RESTARTED", "THANK YOU")      # once every parcel is filed
+BELT_PLATE = (722, 100, 138, 38)
 # The visitor queue: brass posts and red rope funnel people to the middle of the desk.
 QUEUE_Y = 14 * TILE + 6
 QUEUE_POSTS = (11 * TILE, 13 * TILE, 17 * TILE, 19 * TILE)      # x of the four posts
@@ -635,6 +637,20 @@ class FloorOneLobby:
                 clock = 0.0
             self._dust_clock[id(player)] = clock
 
+    def _belt_restarted(self):
+        """Every parcel filed: the jammed belt is running again."""
+        return bool(self.crates) and all(crate.sorted for crate in self.crates)
+
+    @staticmethod
+    def _draw_belt_sign(world):
+        plate = pygame.Rect(BELT_PLATE)
+        pygame.draw.rect(world, theme.INK, plate, border_radius=4)
+        pygame.draw.rect(world, theme.TEAL, plate, 1, border_radius=4)
+        font = ui_font(12, bold=True)
+        for i, line in enumerate(BELT_FIXED_SIGN):
+            img = font.render(line, True, theme.TEAL if i == 0 else theme.PAPER)
+            world.blit(img, img.get_rect(midtop=(plate.centerx, plate.y + 5 + i * 15)))
+
     def _finish(self):
         self.complete = True
         for hero, _ in self._players():
@@ -785,7 +801,7 @@ class FloorOneLobby:
             box = pygame.Rect(BELT_JAM[0] - 8 + dx, 98 + dy, w, 12)
             pygame.draw.rect(bg, (170, 128, 84), box, border_radius=2)
             pygame.draw.rect(bg, (96, 70, 44), box, 1, border_radius=2)
-        plate = pygame.Rect(722, 100, 138, 38)
+        plate = pygame.Rect(BELT_PLATE)
         pygame.draw.rect(bg, theme.INK, plate, border_radius=4)
         pygame.draw.rect(bg, theme.CORAL, plate, 1, border_radius=4)
         font = ui_font(12, bold=True)
@@ -972,6 +988,8 @@ class FloorOneLobby:
         if self._background is None:
             self._build_background()
         world = self._background.copy()
+        if self._belt_restarted():
+            self._draw_belt_sign(world)
         self.ambience.draw(world, self.desk, self.vending, self._alerted())
         for t, rect in self.bins.items():
             lobby_juice.draw_chute(world, rect, BIN_COLOURS[t], 96, self.time, self.juice.flash.get(t, 0.0))

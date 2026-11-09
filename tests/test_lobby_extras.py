@@ -548,3 +548,15 @@ def test_the_sofa_reads_out_the_waiting_list():
     stand_by(player, level.sofa)
     level._interact(player)
     assert level.message == le.SOFA_LINES[0]
+
+
+def test_belt_sign_flips_once_every_parcel_is_filed():
+    import pygame
+    level, _, _ = make_level()
+    assert level._belt_restarted() is False
+    for crate in level.crates:
+        crate.sorted = True
+    assert level._belt_restarted() is True
+    surf = pygame.Surface((960, 640))
+    level._draw_belt_sign(surf)
+    assert surf.get_at((722, 100)) != (0, 0, 0) or surf.get_at((730, 110)) != (0, 0, 0)
