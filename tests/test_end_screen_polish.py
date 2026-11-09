@@ -107,3 +107,14 @@ def test_a_full_leaderboard_has_no_placeholders(surf):
     win.row_font = Rec(win.row_font)
     win.render(surf, 1)
     assert "- - -" not in win.row_font.texts
+
+
+def test_lose_tip_is_per_floor_and_falls_back():
+    from ui.screens import LOSE_TIPS, lose_tip, LOSE_TIP_DEFAULT
+    assert lose_tip("level2") == LOSE_TIPS["level2"] != LOSE_TIP_DEFAULT
+    assert lose_tip(None) == LOSE_TIP_DEFAULT and lose_tip("nope") == LOSE_TIP_DEFAULT
+    from ui.screens import LoseScreen
+    import pygame
+    pygame.init()
+    big = pygame.font.Font(None, 20)
+    assert all(LoseScreen().caption_font.size(t)[0] <= 620 for t in list(LOSE_TIPS.values()) + [LOSE_TIP_DEFAULT])

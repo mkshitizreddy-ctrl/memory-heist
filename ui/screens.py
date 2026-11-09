@@ -195,6 +195,22 @@ class WinScreen:
             blit_centered(surface, prompt, (width // 2, height - 50))
 
 
+LOSE_TIPS = {
+    "level1": "TIP: read the value, then pick the chute. int, str, float or bool.",
+    "level2": "TIP: step onto the breaker, read the relay, then throw it. Panels marked False zap.",
+    "level3": "TIP: work out what the loop prints before you move.",
+    "level4": "TIP: a dictionary looks things up by key, not by position.",
+    "level5": "TIP: check which arguments the function gets and what it returns.",
+    "final_vault": "TIP: every earlier floor shows up here. Take your time.",
+}
+LOSE_TIP_DEFAULT = "TIP: wrong answers raise security. Slow down and read the hints."
+
+
+def lose_tip(level_name):
+    """The tip for the floor where the run ended, or the general one."""
+    return LOSE_TIPS.get(level_name, LOSE_TIP_DEFAULT)
+
+
 class LoseScreen:
     def __init__(self):
         self.title_font = ui_font(68, bold=True)
@@ -214,7 +230,7 @@ class LoseScreen:
         tip.midtop = (cx, score.bottom + 22)
         return {"eye": eye, "score": score, "tip": tip}
 
-    def render(self, surface, score=0):
+    def render(self, surface, score=0, level=None):
         self.tick += 1
         width = surface.get_width()
         height = surface.get_height()
@@ -244,8 +260,7 @@ class LoseScreen:
 
         tip = lay["tip"]
         blit_centered(surface, self.caption_font.render(
-            "TIP: wrong answers raise security. Slow down and read the hints.",
-            True, theme.MIST), tip.center)
+            lose_tip(level), True, theme.MIST), tip.center)
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
         prompt = self.prompt_font.render(

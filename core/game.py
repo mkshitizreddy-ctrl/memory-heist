@@ -751,6 +751,7 @@ class Game:
             self.lose_screen.render(
                 self.screen,
                 score=self.score.get_score(),
+                level=self.level_manager.current_name,
             )
 
         if self.state != "playing":
