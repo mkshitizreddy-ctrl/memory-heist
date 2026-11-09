@@ -1046,3 +1046,43 @@ def test_the_engineer_turns_to_look_when_someone_is_zapped():
     player.rect.center = tile["rect"].center
     room.update(1 / 60)
     assert room.engineer._alert > 0
+
+
+def _safe_path_exists(room, start, goals):
+    """Walk free tiles from `start` to any of `goals` without stepping on a live panel."""
+    live = {(t["rect"].x // TILE + dx, t["rect"].y // TILE) for t in room.panels if t["live"]
+            for dx in range(G.PANEL_TILES_WIDE)}
+    seen, queue = {start}, deque([start])
+    while queue:
+        c, r = queue.popleft()
+        if (c, r) in goals:
+            return True
+        for nc, nr in ((c + 1, r), (c - 1, r), (c, r + 1), (c, r - 1)):
+            if (nc, nr) not in seen and (nc, nr) not in live and 0 <= nc < 30 and 0 <= nr < 20 and tile_free(room, nc, nr):
+                seen.add((nc, nr))
+                queue.append((nc, nr))
+    return False
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_every_corridor_can_be_crossed_without_stepping_on_a_live_panel(seed):
+    """No cabinet or wall may wall off the safe row: a fair run never forces a zap."""
+    room, _, _ = make_room(seed=seed)
+    room.gate_blocks[0].size = (0, 0)
+    room.gate_blocks[1].size = (0, 0)
+    room.gate_blocks[2].size = (0, 0)
+    crossings = (((3, 8), {(25, r) for r in range(G.BANDS[0][0], G.BANDS[0][1] + 1)}),   # corridor 1: spawn to gate 1
+                 ((26, 11), {(6, r) for r in range(G.BANDS[1][0], G.BANDS[1][1] + 1)}),  # corridor 2: shaft to gate 2
+                 ((3, 15), {(27, r) for r in range(G.BANDS[2][0], G.BANDS[2][1] + 1)}))  # corridor 3: shaft to the exit
+    for start, goals in crossings:
+        assert _safe_path_exists(room, start, goals), (seed, start)
+
+
+def test_each_crossing_has_a_true_equals_live_sign_on_the_wall_beneath_it():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    for corridor, sign in enumerate(G.PANEL_SIGNS):
+        crossing = next(t["rect"] for t in room.panels if t["corridor"] == corridor)
+        assert sign.top >= G.BANDS[corridor][1] * TILE + TILE and abs(sign.centerx - crossing.centerx) <= 70   # on the wall below it
+        assert room.room_map.blocked(sign)                                                                     # a wall, not floor
+        assert len(set(region_pixels(bg, sign))) > 3 and any(p[0] > 180 and p[1] < 120 for p in region_pixels(bg, sign))

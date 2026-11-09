@@ -77,7 +77,7 @@ STEAM_VENTS = tuple((col * TILE + TILE // 2, sep * TILE + TILE // 2) for sep, co
 
 def rack_rects():
     """Breaker cabinets on the north wall of corridor 1."""
-    return [pygame.Rect(col * TILE, BANDS[0][0] * TILE, TILE, 2 * TILE) for col in (6, 19)]
+    return [pygame.Rect(col * TILE, BANDS[0][0] * TILE, TILE, 2 * TILE) for col in (6, 17)]
 
 
 def desk_rects():
@@ -243,10 +243,25 @@ def draw_static(bg, accent):
     _exit_sign(bg, accent)
     draw_poster(bg, POSTER)
     draw_fuse_box(bg, FUSE_BOX)
+    draw_panel_signs(bg)
     for gate, (_, last) in enumerate(BANDS):                     # relay stencils on the floor
         label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
                                               theme.mix(theme.INK, accent, 0.55))
         bg.blit(label, label.get_rect(center=(PAD_CENTRE_X[gate], (last + 1) * TILE - 10)))
+
+
+PANEL_SIGNS = (pygame.Rect(PANEL_COLS[0] * TILE + 8, SEPARATORS[0] * TILE + 5, 112, 22),       # under crossing 1
+               pygame.Rect(PANEL_COLS[1] * TILE + 36, SEPARATORS[1] * TILE + 5, 92, 22),      # under crossing 2 (clear of the valve)
+               pygame.Rect(PANEL_COLS[2] * TILE + 8, (LAST_ROW + 1) * TILE + 5, 112, 22))     # under crossing 3
+
+
+def draw_panel_signs(surface):
+    """A small wall plate under each crossing that says how to read the panels."""
+    for rect in PANEL_SIGNS:
+        pygame.draw.rect(surface, theme.INK, rect, border_radius=3)
+        pygame.draw.rect(surface, theme.CORAL, rect, 1, border_radius=3)
+        text = ui_font(14, bold=True).render("TRUE = LIVE", True, theme.CORAL)
+        surface.blit(text, text.get_rect(center=rect.center))
 
 
 def draw_fuse_box(surface, rect, taken=False):
