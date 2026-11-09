@@ -12,7 +12,7 @@ import pytest
 
 from core.player import Player
 from core.tilemap import TILE
-from levels import grid_decor as G
+from levels import snake_decor as G
 from levels import level2_grid as L2
 from levels.level2 import Level2
 from levels.level2_grid import GridRoom
@@ -87,17 +87,18 @@ def settle(room, seconds=3.0):
 
 
 # --- geometry ---------------------------------------------------------------
-def test_the_map_is_one_screen_with_walls_lane_and_gaps():
+def test_the_map_is_one_screen_of_three_corridors_joined_by_two_shafts():
     rows = G.layout_rows()
     assert len(rows) == 20 and all(len(r) == 30 for r in rows)
     assert set(rows[0]) == {"#"} and set(rows[G.WALL_ROWS - 1]) == {"#"} and set(rows[19]) == {"#"}
-    for y in G.LANE_ROWS:
-        assert rows[y][2:28] == "," * 26                      # an unbroken lit lane
-        assert rows[y][28:] == ".."                            # and the exit gap
-    for y in range(G.WALL_ROWS, G.LAST_ROW + 1):
-        if y not in G.LANE_ROWS:
-            assert rows[y][0:2] == "##" and rows[y][28:] == "##"
-            assert all(rows[y][c] == "#" for c in G.PARTITIONS)
+    for row in G.LANE_ROW:
+        assert rows[row][2:28] == "," * 26                      # an unbroken lit lane in every corridor
+    for sep, (lo, hi) in zip(G.SEPARATORS, G.SHAFTS):
+        assert all(rows[sep][c] == ("," if lo <= c <= hi else "#") for c in range(30))   # a wall with one shaft
+    for y in range(G.BANDS[2][0], G.BANDS[2][1] + 1):
+        assert rows[y][28:] == ".."                            # the exit gap is at the end of corridor 3
+    for y in list(range(G.BANDS[0][0], G.BANDS[0][1] + 1)) + list(range(G.BANDS[1][0], G.BANDS[1][1] + 1)):
+        assert rows[y][0:2] == "##" and rows[y][28:] == "##"
 
 
 def tile_free(room, col, row):
@@ -119,58 +120,70 @@ def reachable(room, start, goal):
 
 def test_the_gates_really_gate_the_way_through():
     room, _, _ = make_room()
-    spawn = (3, 11)
-    exit_tile = (29, 11)
+    spawn = (3, 8)
+    corridor2_east, corridor2_west = (26, 12), (3, 12)
+    corridor3, exit_tile = (10, 16), (29, 16)
     assert tile_free(room, *spawn)
     assert not reachable(room, spawn, exit_tile)
-    assert reachable(room, spawn, (9, 11))                    # chamber 1 is open to walk in
-    assert not reachable(room, spawn, (11, 11))               # gate 1 holds
+    assert reachable(room, spawn, (22, 8))                    # corridor 1 is open to walk along
+    assert not reachable(room, spawn, (26, 8))                # power gate 1 holds
+    assert not reachable(room, spawn, corridor2_east)
     room.gate_blocks[0].size = (0, 0)
-    assert reachable(room, spawn, (11, 11)) and not reachable(room, spawn, (20, 11))
+    assert reachable(room, spawn, (26, 8)) and reachable(room, spawn, corridor2_east)
+    assert reachable(room, spawn, (8, 12)) and not reachable(room, spawn, corridor2_west)    # gate 2 holds
+    assert not reachable(room, spawn, corridor3)
     room.gate_blocks[1].size = (0, 0)
-    assert reachable(room, spawn, (20, 11)) and not reachable(room, spawn, exit_tile)
+    assert reachable(room, spawn, corridor2_west) and reachable(room, spawn, corridor3)
+    assert not reachable(room, spawn, exit_tile)               # the exit shutter holds
     room.gate_blocks[2].size = (0, 0)
     assert reachable(room, spawn, exit_tile)
 
 
-def test_every_chamber_has_its_pads_reachable_without_opening_anything_extra():
+def test_every_corridor_has_its_pads_reachable_without_opening_anything_extra():
     room, _, _ = make_room()
     for gate in range(3):
         for count in (2, 3, 4):
             for pad in G.pad_rects(gate, count):
                 col, row = pad.centerx // TILE, pad.centery // TILE
                 assert tile_free(room, col, row), (gate, count, pad)
-    assert reachable(room, (3, 11), (6, 14))
+    room.gate_blocks[0].size = (0, 0)
+    room.gate_blocks[1].size = (0, 0)
+    assert reachable(room, (3, 8), (13, 16))                    # corridor 3's plates, once both gates are open
 
 
 @pytest.mark.parametrize("count", [2, 3, 4])
-def test_pads_are_centred_apart_and_inside_their_chamber(count):
-    for gate, (first, last) in enumerate(G.CHAMBERS):
+def test_pads_are_centred_apart_and_inside_their_corridor(count):
+    for gate, (first, last) in enumerate(G.BANDS):
         pads = G.pad_rects(gate, count)
         assert len(pads) == count
-        chamber = pygame.Rect(first * TILE, 0, (last - first + 1) * TILE, 640)
-        assert all(chamber.contains(p) for p in pads)
+        corridor = pygame.Rect(2 * TILE, first * TILE, 26 * TILE, (last - first + 1) * TILE)
+        assert all(corridor.contains(p) for p in pads)
         assert all(not a.colliderect(b) for i, a in enumerate(pads) for b in pads[i + 1:])
-        assert abs((pads[0].left + pads[-1].right) / 2 - chamber.centerx) <= 1
-        assert all(p.y == G.PAD_Y for p in pads)
+        assert abs((pads[0].left + pads[-1].right) / 2 - G.PAD_CENTRE_X[gate]) <= 1
+        assert all(p.y == G.PAD_YS[gate] for p in pads)
 
 
 def test_screens_hang_on_the_wall_clear_of_the_text_band_and_hud():
-    for gate, (first, last) in enumerate(G.CHAMBERS):
+    for gate, (first, last) in enumerate(G.SCREEN_COLS):
         r = G.screen_rect(gate)
         assert r.top >= 96 and r.bottom <= G.WALL_ROWS * TILE
         assert r.left >= first * TILE and r.right <= (last + 1) * TILE
         assert r.width >= 224
 
 
-def test_racks_and_desks_stand_on_the_floor_and_off_the_lane_and_spawn():
-    lane = pygame.Rect(0, G.LANE_ROWS[0] * TILE, 960, 3 * TILE)
-    props = G.rack_rects() + G.desk_rects()
-    assert len(G.rack_rects()) == 6 and len(G.desk_rects()) == 3
+def test_racks_desk_and_transformers_stand_on_the_floor_and_off_pads_lanes_and_spawn():
+    props = G.rack_rects() + G.desk_rects() + G.transformer_rects()
+    assert len(G.rack_rects()) == 2 and len(G.desk_rects()) == 1 and len(G.transformer_rects()) == 2
+    pads = [p for gate in range(3) for p in G.pad_rects(gate, 4)]
     for p in props:
-        assert p.top >= G.WALL_ROWS * TILE and not p.colliderect(lane)
+        assert p.top >= G.WALL_ROWS * TILE
+        assert not any(p.colliderect(pad.inflate(8, 8)) for pad in pads)
     for spawn in G.SPAWNS:
         assert not any(pygame.Rect(spawn, (32, 32)).colliderect(p) for p in props)
+    for lane_row in G.LANE_ROW:                                  # a player-wide path stays open beside every prop
+        for p in props:
+            if p.top <= lane_row * TILE < p.bottom:
+                pytest.fail(f"{p} blocks lane row {lane_row}")
 
 
 def test_spawns_are_free_floor_apart_from_each_other():
@@ -329,7 +342,7 @@ def test_gates_open_gradually_and_stop_blocking_only_when_open():
     set_pool(room, QS)
     answer(room, player, "42")
     room.update(1 / 60)
-    assert 0 < room.gate_open[0] < 0.5 and room.gate_blocks[0].size == (TILE, 3 * TILE)
+    assert 0 < room.gate_open[0] < 0.5 and room.gate_blocks[0].size == (TILE, 4 * TILE)
     settle(room, 3)
     assert room.gate_open[0] > 0.9 and room.gate_blocks[0].size == (0, 0)
     assert room.gate_open[1] == 0.0 and room.gate_blocks[1].size == (TILE, 3 * TILE)
@@ -341,8 +354,8 @@ def test_a_half_open_gate_still_blocks_the_way():
     answer(room, player, "42")
     while room.gate_open[0] < 0.6:
         room.update(1 / 60)
-    assert room.gate_open[0] < 0.9 and room.gate_blocks[0].size == (TILE, 3 * TILE)
-    assert not reachable(room, (3, 11), (11, 11))
+    assert room.gate_open[0] < 0.9 and room.gate_blocks[0].size == (TILE, 4 * TILE)
+    assert not reachable(room, (3, 8), (26, 8))
 
 
 # --- input ------------------------------------------------------------------
@@ -644,7 +657,7 @@ def test_ambience_animates_the_leds_pulses_and_dust():
         return s
     rack = G.rack_rects()[0]
     assert region_pixels(frame(0.0), rack) != region_pixels(frame(1.7), rack)
-    lane = pygame.Rect(64, G.LANE_ROWS[0] * TILE, 832, 3 * TILE)
+    lane = pygame.Rect(64, G.LANE_ROW[0] * TILE, 832, TILE)
     assert region_pixels(frame(0.0), lane) != region_pixels(frame(2.0), lane)
     amb.update(-5)
     assert amb.time == 0.0
@@ -801,29 +814,29 @@ def static_background(room):
     return room._background
 
 
-def test_hazard_stripes_are_painted_under_the_two_gates_but_not_the_exit_or_plain_lane():
+def test_hazard_stripes_are_painted_under_the_two_gates_but_not_the_exit_or_plain_corridor():
     room, _, _ = make_room()
     bg = static_background(room)
-    plain = pygame.Rect(5 * TILE, G.LANE_ROWS[0] * TILE + 6, TILE, 20)        # clear of the dashed centre line
+    plain = pygame.Rect(9 * TILE, G.BANDS[0][0] * TILE + 6, TILE, 14)             # bare corridor floor, clear of props
     for rect in G.GATE_RECTS[:2]:
-        cell = pygame.Rect(rect.x, rect.y + 6, rect.w, 20)                             # clear of the dashed centre line
+        cell = pygame.Rect(rect.x, rect.y + 6, rect.w, 20)
         assert len(set(region_pixels(bg, cell))) >= 2
         assert any(p[0] > 120 and p[2] < 90 for p in region_pixels(bg, cell))          # a warm stripe colour
     assert not any(p[0] > 120 and p[2] < 90 for p in region_pixels(bg, plain))
 
 
-def test_there_is_an_exit_sign_above_the_door_and_a_label_on_each_bay_floor():
+def test_there_is_an_exit_sign_above_the_door_and_a_label_on_each_corridor_floor():
     room, _, _ = make_room()
     bg = static_background(room)
-    sign = pygame.Rect(28 * TILE + 4, 8 * TILE, 56, 26)
-    wall = pygame.Rect(28 * TILE + 4, 6 * TILE, 56, 26)
+    sign = pygame.Rect(28 * TILE + 4, G.SEPARATORS[1] * TILE + 3, 56, 26)
+    wall = pygame.Rect(28 * TILE + 4, 20 * TILE - 22, 56, 14)                       # bare bottom wall
     assert len(set(region_pixels(bg, sign))) > len(set(region_pixels(bg, wall)))
     assert any(p[1] > 150 and p[0] < 120 for p in region_pixels(bg, sign))               # teal letters
-    for first, last in G.CHAMBERS:
-        label = pygame.Rect(first * TILE + 40, 16 * TILE + 8, (last - first + 1) * TILE - 80, 28)
+    for gate, (_, last) in enumerate(G.BANDS):
+        y = (last + 1) * TILE - 10
+        label = pygame.Rect(G.PAD_CENTRE_X[gate] - 100, y - 8, 200, 16)
         assert len(set(region_pixels(bg, label))) > 4
-        centre = (first + last + 1) * TILE // 2
-        assert len(set(region_pixels(bg, pygame.Rect(centre - 44, 16 * TILE + 8, 10, 28)))) > 2   # the long label, not just "BAY"
+        assert len(set(region_pixels(bg, pygame.Rect(G.PAD_CENTRE_X[gate] - 90, y - 8, 40, 16)))) > 2   # the long label, not just "RELAY"
 
 
 def test_chevrons_show_only_once_the_exit_is_opening_and_they_move():
@@ -831,7 +844,7 @@ def test_chevrons_show_only_once_the_exit_is_opening_and_they_move():
         s = pygame.Surface((960, 640))
         s.fill((1, 2, 3))
         G.draw_chevrons(s, openness, t)
-        return region_pixels(s, pygame.Rect(22 * TILE, G.LANE_ROWS[0] * TILE, 6 * TILE, 3 * TILE))
+        return region_pixels(s, pygame.Rect(22 * TILE, G.BANDS[2][0] * TILE, 6 * TILE, 3 * TILE))
     blank = frame(0.0, 0.0)
     assert set(blank) == {(1, 2, 3)} and set(frame(0.4, 0.0)) == {(1, 2, 3)}
     assert set(frame(1.0, 0.0)) != {(1, 2, 3)}
@@ -842,11 +855,11 @@ def test_chevrons_show_only_once_the_exit_is_opening_and_they_move():
 def test_the_room_draws_chevrons_when_the_exit_has_opened():
     room, _, player = make_room()
     set_pool(room, QS)
-    area = pygame.Rect(23 * TILE, G.LANE_ROWS[1] * TILE + 4, 4 * 36, 24)          # only the chevrons live here
+    area = pygame.Rect(23 * TILE, G.LANE_ROW[2] * TILE + 4, 4 * 36, 24)          # only the chevrons live here
     before = region_pixels(render(room), area)
     for label in ("42", "True", "False"):
         answer(room, player, label)
-    player.rect.center = (3 * TILE, 11 * TILE)
+    player.rect.center = (3 * TILE, 8 * TILE)
     settle(room, 3)
     first = region_pixels(render(room), area)
     settle(room, 0.1)

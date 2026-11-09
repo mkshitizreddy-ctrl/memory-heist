@@ -28,7 +28,7 @@ import pygame
 
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import grid_decor as G
+from levels import snake_decor as G
 from levels.level2 import GATES_PER_LEVEL, POINTS_FALLBACK, Level2
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
@@ -42,7 +42,7 @@ TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
-ENGINEER_ROUTE = [(12 * TILE, 16 * TILE), (17 * TILE, 16 * TILE)]
+ENGINEER_ROUTE = [(7 * TILE, 9 * TILE), (17 * TILE, 9 * TILE)]
 ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
                   "A comparison trips the relay: True or False.",
                   "'and' needs both sides live. 'or' needs one.")
@@ -64,7 +64,7 @@ class GridRoom(RoomMixin, Level2):
 
         self.tilemap = TileMap(G.layout_rows())
         self.tiles = make_tiles(LEVEL_KEY)
-        self.props = G.rack_rects() + G.desk_rects()
+        self.props = G.rack_rects() + G.desk_rects() + G.transformer_rects()
         self.gate_blocks = [r.copy() for r in G.GATE_RECTS]
         self.room_map = RoomMap(self.tilemap, self.props + self.gate_blocks)
         self.exit_zone = pygame.Rect(28 * TILE + 8, G.GATE_RECTS[2].y, TILE * 2, G.GATE_RECTS[2].h)
