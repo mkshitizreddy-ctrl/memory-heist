@@ -42,12 +42,12 @@ TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
-TECH_ROUTE = [(12 * TILE, 16 * TILE), (17 * TILE, 16 * TILE)]
-TECH_LINES = ("Brackets first, then **, then * / // %, then + and -.",
-              "Comparisons answer True or False.",
-              "'and' needs both sides True. 'or' needs one.")
-PRAISE = ("Good sum.", "Panel likes that.")
-SCOLD = "That panel bites. Careful."
+ENGINEER_ROUTE = [(12 * TILE, 16 * TILE), (17 * TILE, 16 * TILE)]
+ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
+                  "A comparison trips the relay: True or False.",
+                  "'and' needs both sides live. 'or' needs one.")
+PRAISE = ("Power's flowing.", "That relay likes you.")
+SCOLD = "That breaker bites. Careful."
 FAREWELL = "Mind the next floor."
 
 
@@ -55,7 +55,7 @@ class GridRoom(RoomMixin, Level2):
     def __init__(self, player=None, game=None, seed=None):
         Level2.__init__(self, player, game)        # question pool, difficulty, clock, gate 1
         self.init_room(seed)
-        self.message = "Stand on the right answer, then press E."
+        self.message = "Stand on a breaker, then press E to throw it."
         self.message_tone = theme.PAPER
         self.solved = []                           # questions answered, in order
         self.gate_open = [0.0] * GATES_PER_LEVEL
@@ -70,9 +70,9 @@ class GridRoom(RoomMixin, Level2):
         self.exit_zone = pygame.Rect(28 * TILE + 8, G.GATE_RECTS[2].y, TILE * 2, G.GATE_RECTS[2].h)
         self.spawn_points = G.SPAWNS
 
-        self.technician = NPC("technician", TECH_ROUTE[0], patrol=TECH_ROUTE)
-        self.npcs = [self.technician]
-        self._tech_lines = 0
+        self.engineer = NPC("engineer", ENGINEER_ROUTE[0], patrol=ENGINEER_ROUTE)
+        self.npcs = [self.engineer]
+        self._engineer_lines = 0
         self._praised = 0
         self.ambience = G.Ambience(seed=21)
 
@@ -109,7 +109,7 @@ class GridRoom(RoomMixin, Level2):
             index = self.pad_at(player)
             if index is None:
                 if self.gates_passed < GATES_PER_LEVEL:
-                    self.say("Stand on an answer pad, then press E.", theme.MIST)
+                    self.say("Stand on a breaker, then press E.", theme.MIST)
                 continue
             self._check_answer(self.current_question, self.current_question["options"][index])
 
@@ -126,9 +126,9 @@ class GridRoom(RoomMixin, Level2):
                 self.game.score.add(question.get("points", POINTS_FALLBACK))
             self.burst(spot, theme.TEAL, 18)
             if self.gates_passed >= GATES_PER_LEVEL:
-                self.say("SECURITY CODE ACCEPTED - the exit is open.", theme.GOLD)
+                self.say("All relays live - the exit is open.", theme.GOLD)
             else:
-                self.say(f"Correct! Gate {self.gates_passed} open.", theme.TEAL)
+                self.say(f"Relay {self.gates_passed} live. Power gate {self.gates_passed} open.", theme.TEAL)
                 self.time_left = self.time_limit
                 self._load_question_for_gate(self.gates_passed + 1)
             self.pad_flash = {}
@@ -143,7 +143,7 @@ class GridRoom(RoomMixin, Level2):
             self.pad_flash[index] = FLASH_SECONDS
             self.shake.add(0.55)
             self.burst(spot, theme.CORAL, 12)
-            self.technician.say(SCOLD)
+            self.engineer.say(SCOLD)
             if self.game:
                 self.game.security.increase(WRONG_SECURITY)
                 self.game.score.penalize(WRONG_PENALTY)
@@ -152,7 +152,7 @@ class GridRoom(RoomMixin, Level2):
         n = self._praised
         self._praised += 1
         if n % 2 == 0 and self.gates_passed < GATES_PER_LEVEL:
-            self.technician.say(PRAISE[(n // 2) % len(PRAISE)])
+            self.engineer.say(PRAISE[(n // 2) % len(PRAISE)])
 
     def _tick_timer(self, dt):
         if self.gates_passed >= GATES_PER_LEVEL:
@@ -192,18 +192,18 @@ class GridRoom(RoomMixin, Level2):
                     break
 
     def _update_npcs(self, dt):
-        self.technician.update(dt)
+        self.engineer.update(dt)
         for player, _ in self.players():
-            if self.technician.notice(player.rect, id(player)):
-                self.technician.say(TECH_LINES[self._tech_lines % len(TECH_LINES)])
-                self._tech_lines += 1
+            if self.engineer.notice(player.rect, id(player)):
+                self.engineer.say(ENGINEER_LINES[self._engineer_lines % len(ENGINEER_LINES)])
+                self._engineer_lines += 1
 
     def _finish(self):
         self.complete = True
-        self.technician.say(FAREWELL)
+        self.engineer.say(FAREWELL)
         if self.game:
             self.game.score.add(FINISH_BONUS)
-        self.say("SECURITY CODE ACCEPTED - grid unlocked!", theme.GOLD)
+        self.say("Grid powered - the way down is open!", theme.GOLD)
 
     def is_complete(self):
         return self.complete
@@ -259,7 +259,7 @@ class GridRoom(RoomMixin, Level2):
         if self.done_pad is not None:
             G.draw_pad(world, self.done_pad[0], self.done_pad[1], "right", accent, self.time)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
-        self.technician.draw(world, self.small)
+        self.engineer.draw(world, self.small)
         self.draw_sparks(world)
-        self.draw_message(world, "E: answer on a pad", self.line_font, self.small)
+        self.draw_message(world, "E: throw the breaker", self.line_font, self.small)
         self.present(surface, world)

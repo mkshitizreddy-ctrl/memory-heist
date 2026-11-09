@@ -200,7 +200,7 @@ def test_a_right_answer_scores_opens_the_gate_resets_the_clock_and_loads_the_nex
     assert room.gates_passed == 1 and room.solved == [QS[0]]
     assert room.time_left == room.time_limit
     assert room.current_question is QS[1]
-    assert room.message == "Correct! Gate 1 open."
+    assert room.message == "Relay 1 live. Power gate 1 open."
     assert room.message_tone == theme.TEAL
     assert game.security.level == 0
     assert "door" in game.audio.played
@@ -218,7 +218,7 @@ def test_a_wrong_answer_costs_security_and_score_and_shows_the_hint():
     assert room.gates_passed == 0 and room.current_question is QS[0]
     assert room.shake.trauma > 0.3 and room.sparks
     assert room.pad_flash == {1: L2.FLASH_SECONDS}
-    assert room.technician.speech == L2.SCOLD
+    assert room.engineer.speech == L2.SCOLD
 
 
 def test_with_hints_off_a_wrong_answer_says_so():
@@ -278,7 +278,7 @@ def test_the_third_answer_opens_the_exit_but_you_must_walk_out_for_the_bonus():
     for label in ("42", "True", "False"):
         answer(room, player, label)
     assert room.gates_passed == 3 and not room.is_complete()
-    assert room.message == "SECURITY CODE ACCEPTED - the exit is open."
+    assert room.message == "All relays live - the exit is open."
     before = game.score.get_score()
     settle(room, 4)
     assert not room.is_complete() and room.gate_blocks[2].size == (0, 0)
@@ -286,8 +286,8 @@ def test_the_third_answer_opens_the_exit_but_you_must_walk_out_for_the_bonus():
     room.update(1 / 60)
     assert room.is_complete()
     assert game.score.get_score() == before + 100
-    assert room.message == "SECURITY CODE ACCEPTED - grid unlocked!"
-    assert room.technician.speech == L2.FAREWELL
+    assert room.message == "Grid powered - the way down is open!"
+    assert room.engineer.speech == L2.FAREWELL
 
 
 def test_standing_in_the_exit_does_nothing_while_the_door_is_shut():
@@ -351,7 +351,7 @@ def test_pressing_off_a_pad_only_gives_a_nudge():
     set_pool(room, QS)
     player.rect.center = (5 * TILE, 11 * TILE)
     press(room)
-    assert room.message == "Stand on an answer pad, then press E."
+    assert room.message == "Stand on a breaker, then press E."
     assert room.gates_passed == 0 and game.security.level == 0 and room.current_question is QS[0]
 
 
@@ -404,7 +404,7 @@ def test_there_are_no_pads_once_every_gate_is_open():
         answer(room, player, label)
     assert room.pad_rects() == [] and room.pad_at(player) is None
     press(room)
-    assert room.message == "SECURITY CODE ACCEPTED - the exit is open."
+    assert room.message == "All relays live - the exit is open."
 
 
 def test_a_pad_only_belongs_to_the_active_chamber():
@@ -415,41 +415,41 @@ def test_a_pad_only_belongs_to_the_active_chamber():
     assert room.pad_at(player) is None
 
 
-# --- the technician -------------------------------------------------------------
-def test_the_technician_is_a_harmless_person_who_walks_a_route():
+# --- the engineer -------------------------------------------------------------
+def test_the_engineer_is_a_harmless_person_who_walks_a_route():
     room, _, _ = make_room()
-    assert room.technician.kind == "technician" and room.npcs == [room.technician]
-    assert not any(room.technician.rect.colliderect(p) for p in room.props)
-    start = room.technician.rect.center
+    assert room.engineer.kind == "engineer" and room.npcs == [room.engineer]
+    assert not any(room.engineer.rect.colliderect(p) for p in room.props)
+    start = room.engineer.rect.center
     for _ in range(300):
         room.update(1 / 60)
-    assert room.technician.rect.center != start
+    assert room.engineer.rect.center != start
 
 
-def test_the_technician_tips_off_a_passer_by_in_turn_but_not_again_while_they_linger():
+def test_the_engineer_tips_off_a_passer_by_in_turn_but_not_again_while_they_linger():
     room, _, player = make_room()
     tips = []
     for visit in range(4):
-        player.rect.center = (room.technician.rect.centerx, room.technician.rect.centery + 20)
+        player.rect.center = (room.engineer.rect.centerx, room.engineer.rect.centery + 20)
         room.update(1 / 60)
-        tips.append(room.technician.speech)
+        tips.append(room.engineer.speech)
         room.update(1 / 60)
-        assert room.technician.speech == tips[-1]
+        assert room.engineer.speech == tips[-1]
         player.rect.center = (30 * TILE, 2 * TILE)                  # leave, far enough to be forgotten
         room.update(1 / 60)
-    assert tips[:3] == list(L2.TECH_LINES) and tips[3] == L2.TECH_LINES[0]
+    assert tips[:3] == list(L2.ENGINEER_LINES) and tips[3] == L2.ENGINEER_LINES[0]
 
 
-def test_the_technician_praises_every_other_right_answer():
+def test_the_engineer_praises_every_other_right_answer():
     room, _, player = make_room()
     set_pool(room, QS)
     answer(room, player, "42")
-    assert room.technician.speech == L2.PRAISE[0]
-    room.technician.speech = None
+    assert room.engineer.speech == L2.PRAISE[0]
+    room.engineer.speech = None
     answer(room, player, "True")
-    assert room.technician.speech is None
+    assert room.engineer.speech is None
     answer(room, player, "False")                               # the last gate: no praise, the farewell comes later
-    assert room.technician.speech is None
+    assert room.engineer.speech is None
 
 
 # --- pads and flashes ---------------------------------------------------------------
@@ -769,10 +769,10 @@ def test_radio_and_story_for_level_2_describe_the_room_not_the_old_screen():
     from core.story import beat_for
     beat = beat_for("level2")
     text = " ".join([beat["title"], *beat["lines"]]).lower()
-    assert "maintenance grid" in beat["title"].lower() and "pad" in text and "screen" in text
+    assert "maintenance grid" in beat["title"].lower() and "breaker" in text and "screen" in text
     assert "42" not in text and "security grid" not in text and beat["concept"] == "Operators"
     speaker, line = line_for("level2", "enter")
-    assert speaker == "Echo" and len(line) <= MAX_LINE and "screen" in line.lower() and "42" not in line
+    assert speaker == "Echo" and len(line) <= MAX_LINE and "relay" in line.lower() and "42" not in line
 
 
 # --- polish: fitted prompts, signs, floor paint, chevrons ------------------------

@@ -28,7 +28,7 @@ COMMS = {
         "danger": ("WARDEN", ["Security has been notified. I am sorry about the inconvenience."]),
     },
     "level2": {
-        "enter": ("Echo", ["Maintenance grid. Read the screen, then stand on the answer."]),
+        "enter": ("Echo", ["Maintenance grid. Read the relay, then throw the right breaker."]),
         "mistake": ("WARDEN", [
             "Incorrect operation. The grid remains locked.",
             "Arithmetic is not optional.",

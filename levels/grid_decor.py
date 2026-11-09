@@ -184,7 +184,7 @@ def draw_static(bg, accent):
         _hazard(bg, rect)
     _exit_sign(bg, accent)
     for gate, (first, last) in enumerate(CHAMBERS):              # bay stencils on the floor
-        label = ui_font(16, bold=True).render(f"BAY {gate + 1} - {TOPICS[gate]}", True,
+        label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
                                               theme.mix(theme.INK, accent, 0.55))
         bg.blit(label, label.get_rect(center=((first + last + 1) * TILE // 2, 17 * TILE - 14)))
 
@@ -305,7 +305,7 @@ def draw_screen(surface, rect, gate, state, accent, prompt="", answer="", fracti
     border = {"standby": theme.SLATE, "active": accent, "accepted": theme.TEAL}[state]
     pygame.draw.rect(surface, theme.mix(theme.INK, border, 0.12), rect, border_radius=4)
     pygame.draw.rect(surface, border, rect, 1, border_radius=4)
-    head = ui_font(15, bold=True).render(f"GATE {gate + 1}  {TOPICS[gate]}", True, border)
+    head = ui_font(15, bold=True).render(f"RELAY {gate + 1}  {TOPICS[gate]}", True, border)
     surface.blit(head, (rect.x + 8, rect.y + 5))
     body = code_font(17)
     if state == "standby":
@@ -343,6 +343,9 @@ def draw_pad(surface, rect, label, state, accent, time=0.0):
     if state == "stand":
         glow = 0.5 + 0.5 * math.sin(time * 8)
         pygame.draw.rect(surface, theme.mix(edge, theme.INK, 0.4 + 0.3 * glow), rect.inflate(8, 8), 2, border_radius=10)
+    for sx in (rect.x + 8, rect.right - 11):                     # breaker plate: two screws and a lever slot
+        pygame.draw.circle(surface, theme.mix(edge, theme.INK, 0.5), (sx, rect.y + 7), 2)
+    pygame.draw.rect(surface, theme.mix(edge, theme.INK, 0.6), (rect.centerx - 7, rect.y + 5, 14, 4), border_radius=2)
     font = fit_font(label, rect.w - 8)
     text = font.render(label, True, theme.PAPER)
     surface.blit(text, text.get_rect(center=rect.center))

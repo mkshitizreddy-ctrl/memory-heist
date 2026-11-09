@@ -36,8 +36,8 @@ STORY = {
         "title": "LEVEL 2 - THE MAINTENANCE GRID",
         "concept": "Operators",
         "lines": [
-            "Three sealed chambers, each with a wall screen and answer pads.",
-            "Read the screen, stand on the right answer and press E to open the gate.",
+            "Power to the lower floors runs through three relay bays and wall screens.",
+            "Stand on the breaker whose value makes it true and press E to throw it.",
         ],
     },
     "level3": {
