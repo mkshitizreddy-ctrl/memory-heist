@@ -28,6 +28,7 @@ import pygame
 
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
+from levels import lighting, lobby_juice
 from levels import snake_decor as G
 from levels.level2 import GATES_PER_LEVEL, POINTS_FALLBACK, Level2
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
@@ -49,6 +50,9 @@ ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
 PRAISE = ("Power's flowing.", "That relay likes you.")
 SCOLD = "That breaker bites. Careful."
 FAREWELL = "Mind the next floor."
+AMBIENT = (150, 142, 138)       # the tunnel is dim and warm; the bulbs and screens do the lighting
+BULB = (255, 190, 110)          # sodium-amber work bulbs
+BULB_COLS = ((6, 14, 21), (8, 16, 23), (7, 14, 22))   # three bulbs along each corridor
 
 
 class GridRoom(RoomMixin, Level2):
@@ -80,6 +84,8 @@ class GridRoom(RoomMixin, Level2):
         self.line_font = ui_font(22)
         self.small = ui_font(20)
         self._background = None
+        self._title = None
+        self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
 
     # --- state ------------------------------------------------------------
     @property
@@ -222,7 +228,38 @@ class GridRoom(RoomMixin, Level2):
         title = shadowed(self.title_font, "FLOOR 2 - MAINTENANCE GRID",
                          theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, TITLE_Y))
+        self._title = (title, (TILE * 2, TITLE_Y))
         self._background = bg
+
+    def _lights(self):
+        """Every light in the tunnel: relay screens, amber bulbs (one flickers per corridor), gate lamps."""
+        accent = theme.floor_palette(LEVEL_KEY)["accent"]
+        out = []
+        for gate in range(GATES_PER_LEVEL):
+            r = G.screen_rect(gate)
+            state = self._screen_state(gate)
+            colour = theme.TEAL if state == "accepted" else accent
+            out.append(lighting.Light((r.centerx, r.bottom + 8), 150, colour, {"active": 0.95, "accepted": 0.6, "standby": 0.35}[state]))
+        for corridor, (row, cols) in enumerate(zip(G.LANE_ROW, BULB_COLS)):
+            for k, col in enumerate(cols):
+                flick = lobby_juice.flicker(self.time, corridor * 4 + 1.7) if k == 1 else 1.0
+                out.append(lighting.Light((col * TILE + TILE // 2, row * TILE + TILE // 2), 125, BULB, 0.85 * flick))
+        for i, rect in enumerate(G.GATE_RECTS):
+            lamp = theme.mix(theme.CORAL, theme.TEAL, self.gate_open[i])
+            centre = (rect.x - 10, rect.centery) if i == 2 else rect.center
+            out.append(lighting.Light(centre, 85, lamp, 0.65))
+        for rack in G.rack_rects():
+            out.append(lighting.Light(rack.center, 55, theme.TEAL, 0.35))
+        for desk in G.desk_rects():
+            out.append(lighting.Light(desk.center, 90, BULB, 0.7))
+        for sep, (lo, hi) in zip(G.SEPARATORS, G.SHAFTS):
+            out.append(lighting.Light(((lo + hi + 1) * TILE // 2, sep * TILE + TILE // 2), 90, BULB, 0.5))
+        return out
+
+    def _draw_shadows(self, world):
+        lighting.blob_shadow(world, self.engineer.rect, 90)
+        for rect in G.rack_rects() + G.desk_rects() + G.transformer_rects():
+            lighting.blob_shadow(world, rect.inflate(10, 0), 60, squash=0.3)
 
     def _screen_state(self, gate):
         if gate < self.gates_passed:
@@ -259,7 +296,10 @@ class GridRoom(RoomMixin, Level2):
         if self.done_pad is not None:
             G.draw_pad(world, self.done_pad[0], self.done_pad[1], "right", accent, self.time)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
+        self._draw_shadows(world)
         self.engineer.draw(world, self.small)
         self.draw_sparks(world)
+        self.lightlayer.apply(world, self._lights())
+        world.blit(*self._title)                  # the title stays readable above the lighting
         self.draw_message(world, "E: throw the breaker", self.line_font, self.small)
         self.present(surface, world)

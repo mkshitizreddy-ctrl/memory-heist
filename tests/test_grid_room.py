@@ -595,10 +595,9 @@ def test_the_background_is_built_once_and_the_title_is_on_the_wall():
 def test_decoration_stays_off_the_text_band_and_the_lane():
     room, _, _ = make_room()
     room.message = ""
-    s = render(room)
-    plain = GridRoom(player=Player(0, 0), game=None)
+    render(room)
     band = pygame.Rect(64, 76, 700, 18)                                      # the message line's row
-    assert len(set(region_pixels(s, band))) <= 6                              # a quiet wall, nothing drawn on it
+    assert len(set(region_pixels(room._background, band))) <= 6               # a quiet wall, nothing baked on it
 
 
 # --- pure helpers -------------------------------------------------------------
