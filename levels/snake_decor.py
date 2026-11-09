@@ -70,6 +70,11 @@ def screen_rect(gate):
                        - 2 * SCREEN_INSET, SCREEN_H)
 
 
+FUSE_BOX = pygame.Rect(4 * TILE + 8, SEPARATORS[0] * TILE + 3, 44, 26)      # spare fuses, wall of corridor 1/2
+POSTER = pygame.Rect(12 * TILE, SEPARATORS[1] * TILE + 3, 52, 26)           # the safety poster, wall of corridor 2/3
+STEAM_VENTS = tuple((col * TILE + TILE // 2, sep * TILE + TILE // 2) for sep, col in zip(SEPARATORS, (14, 20)))
+
+
 def rack_rects():
     """Breaker cabinets on the north wall of corridor 1."""
     return [pygame.Rect(col * TILE, BANDS[0][0] * TILE, TILE, 2 * TILE) for col in (6, 19)]
@@ -236,10 +241,38 @@ def draw_static(bg, accent):
     for rect in GATE_RECTS[:2]:                                  # hazard stripes under the gates
         _hazard(bg, rect)
     _exit_sign(bg, accent)
+    draw_poster(bg, POSTER)
+    draw_fuse_box(bg, FUSE_BOX)
     for gate, (_, last) in enumerate(BANDS):                     # relay stencils on the floor
         label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
                                               theme.mix(theme.INK, accent, 0.55))
         bg.blit(label, label.get_rect(center=(PAD_CENTRE_X[gate], (last + 1) * TILE - 10)))
+
+
+def draw_fuse_box(surface, rect, taken=False):
+    """A wall fuse box: grey door, red cross, a row of spare fuses (empty once the fuse is taken)."""
+    pygame.draw.rect(surface, theme.INK, rect.inflate(4, 4), border_radius=3)
+    pygame.draw.rect(surface, theme.mix(theme.SLATE, theme.MIST, 0.25), rect, border_radius=3)
+    pygame.draw.rect(surface, theme.mix(theme.SLATE, theme.INK, 0.5), rect, 1, border_radius=3)
+    cross = (rect.x + 9, rect.centery)
+    pygame.draw.line(surface, theme.CORAL, (cross[0] - 4, cross[1]), (cross[0] + 4, cross[1]), 3)
+    pygame.draw.line(surface, theme.CORAL, (cross[0], cross[1] - 4), (cross[0], cross[1] + 4), 3)
+    for i in range(3):
+        slot = pygame.Rect(rect.x + 18 + i * 8, rect.y + 6, 5, 14)
+        pygame.draw.rect(surface, theme.INK, slot)
+        if not (taken and i == 2):
+            pygame.draw.rect(surface, theme.GOLD, slot.inflate(-2, -6))
+
+
+def draw_poster(surface, rect):
+    """A yellow safety poster with a warning triangle and text lines."""
+    pygame.draw.rect(surface, theme.mix(theme.GOLD, theme.INK, 0.2), rect)
+    pygame.draw.rect(surface, theme.INK, rect, 1)
+    tri = [(rect.x + 12, rect.y + 5), (rect.x + 20, rect.bottom - 5), (rect.x + 4, rect.bottom - 5)]
+    pygame.draw.polygon(surface, theme.INK, tri)
+    pygame.draw.line(surface, theme.GOLD, (rect.x + 12, rect.y + 11), (rect.x + 12, rect.y + 16), 2)
+    for k in range(3):
+        pygame.draw.line(surface, theme.INK, (rect.x + 26, rect.y + 7 + k * 6), (rect.right - 5 - (k % 2) * 8, rect.y + 7 + k * 6), 2)
 
 
 def _draw_transformer(bg, rect, metal):
@@ -276,11 +309,28 @@ class Ambience:
     def __init__(self, seed=0):
         self.time = 0.0
         self.motes = Motes(random.Random(seed), MOTE_AREA, count=14)
+        self.steam = []                                          # puffs rising from the pipe valves
+        self._rng = random.Random(seed + 99)
+        self._steam_wait = 1.5
 
     def update(self, dt):
         dt = max(0.0, dt)
         self.time += dt
         self.motes.update(dt)
+        self._steam_wait -= dt
+        if self._steam_wait <= 0:                                # a valve hisses every few seconds
+            self._steam_wait = self._rng.uniform(2.5, 5.0)
+            vx, vy = self._rng.choice(STEAM_VENTS)
+            for _ in range(6):
+                self.steam.append({"x": vx + self._rng.uniform(-4, 4), "y": vy + self._rng.uniform(-3, 3),
+                                   "vx": self._rng.uniform(-10, 10), "vy": self._rng.uniform(-34, -18),
+                                   "life": 1.4, "r": self._rng.uniform(4, 7)})
+        for puff in self.steam:
+            puff["x"] += puff["vx"] * dt
+            puff["y"] += puff["vy"] * dt
+            puff["r"] += 5.0 * dt
+            puff["life"] -= dt
+        self.steam = [p for p in self.steam if p["life"] > 0]
 
     def draw(self, world, accent):
         for i, rack in enumerate(rack_rects()):
@@ -292,6 +342,12 @@ class Ambience:
             start, end = (3 * TILE, 26 * TILE) if flow > 0 else (26 * TILE, 3 * TILE)
             for x, _ in pulse_points(self.time, (start, 0), (end, 0)):
                 pygame.draw.rect(world, theme.mix(accent, theme.PAPER, 0.5), (int(x) - 5, row * TILE + 4, 10, 2))
+        for puff in self.steam:                                  # soft grey-white clouds that fade as they rise
+            alpha = int(90 * min(1.0, puff["life"] / 1.4))
+            r = int(puff["r"])
+            cloud = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(cloud, (225, 225, 230, alpha), (r, r), r)
+            world.blit(cloud, (int(puff["x"]) - r, int(puff["y"]) - r))
         for m in self.motes.motes:
             twinkle = 0.5 + 0.5 * math.sin(self.time * 1.5 + m["phase"])
             world.set_at((int(m["x"]), int(m["y"])), theme.mix(theme.INK, theme.MIST, 0.25 + 0.5 * twinkle))

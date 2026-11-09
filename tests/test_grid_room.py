@@ -362,7 +362,7 @@ def test_a_half_open_gate_still_blocks_the_way():
 def test_pressing_off_a_pad_only_gives_a_nudge():
     room, game, player = make_room()
     set_pool(room, QS)
-    player.rect.center = (5 * TILE, 11 * TILE)
+    player.rect.center = (3 * TILE, 8 * TILE)
     press(room)
     assert room.message == "Stand on a breaker, then press E."
     assert room.gates_passed == 0 and game.security.level == 0 and room.current_question is QS[0]
@@ -979,3 +979,70 @@ def test_the_breaker_clunks_and_boots_ring_on_steel():
     answer(room, player, "42")
     assert "switch" in game.audio.played and "door" in game.audio.played
     assert GridRoom.STEP_SOUND == "step_metal"
+
+
+# --- purposeful props: the fuse box, the safety poster, steam ---------------------
+def _beside(player, rect):
+    player.rect.midtop = (rect.centerx, rect.bottom + 4)
+
+
+def test_the_fuse_box_gives_one_spare_fuse_then_is_empty():
+    room, game, player = make_room()
+    _beside(player, G.FUSE_BOX)
+    before = game.score.get_score()
+    press(room)
+    assert game.score.get_score() == before + L2.FUSE_POINTS and room.message == L2.FUSE_LINE
+    press(room)
+    assert game.score.get_score() == before + L2.FUSE_POINTS and room.message == L2.FUSE_EMPTY
+
+
+def test_the_poster_reads_the_next_operator_rule_and_is_blank_with_hints_off():
+    room, game, player = make_room()
+    _beside(player, G.POSTER)
+    press(room)
+    assert room.message == L2.POSTERS[0]
+    press(room)
+    assert room.message == L2.POSTERS[1]
+    room2, _, player2 = make_room(hints=False)
+    _beside(player2, G.POSTER)
+    press(room2)
+    assert room2.message == L2.POSTER_OFF
+
+
+def test_a_breaker_plate_still_wins_over_a_prop():
+    room, game, player = make_room()
+    set_pool(room, QS)
+    answer(room, player, "42")
+    assert room.gates_passed == 1 and room.fuse_taken is False
+
+
+def test_props_sit_on_the_wall_not_in_the_way():
+    room, _, _ = make_room()
+    for rect in (G.FUSE_BOX, G.POSTER):
+        assert room.room_map.blocked(rect)                       # they are on solid wall
+    assert tile_free(room, G.FUSE_BOX.centerx // TILE, G.BANDS[0][1])    # the corridor beside the fuse box is open
+
+
+def test_steam_rises_from_the_valves_fades_and_is_deterministic():
+    def run(t):
+        a = G.Ambience(seed=3)
+        for _ in range(int(t * 30)):
+            a.update(1 / 30)
+        return a
+    a = run(2.0)
+    assert a.steam and all(any(abs(p["x"] - vx) < 40 for vx, _ in G.STEAM_VENTS) for p in a.steam[:1])
+    assert [(p["x"], p["y"]) for p in a.steam] == [(p["x"], p["y"]) for p in run(2.0).steam]
+    first = a.steam[0]["y"]
+    a.update(0.3)
+    assert a.steam[0]["y"] < first                                # rising
+    a.update(10)
+    a.steam = []
+    assert not a.steam
+
+
+def test_the_engineer_turns_to_look_when_someone_is_zapped():
+    room, game, player = make_room()
+    tile = next(t for t in room.panels if t["live"])
+    player.rect.center = tile["rect"].center
+    room.update(1 / 60)
+    assert room.engineer._alert > 0

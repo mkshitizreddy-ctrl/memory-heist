@@ -56,6 +56,14 @@ BULB_COLS = ((6, 14, 21), (8, 16, 23), (7, 14, 22))   # three bulbs along each c
 PANEL_PENALTY = 5               # a live panel costs score only, never security
 PANEL_COOLDOWN = 1.5            # seconds before the same player can be zapped again
 PANEL_LINE = "Live panel! True means live. Walk the False one."
+FUSE_POINTS = 5
+FUSE_LINE = "A spare fuse. +5"
+FUSE_EMPTY = "The fuse box is empty."
+POSTER_OFF = "The poster has peeled off. Unreadable."
+POSTERS = ("SAFETY: brackets first, then **, then * / // %, then + and -.",
+           "SAFETY: a floor panel with a True expression is live.",
+           "SAFETY: 'and' needs both sides True. 'or' needs only one.")
+PROP_REACH = 60                 # how close counts as next to the fuse box or poster
 
 
 class GridRoom(RoomMixin, Level2):
@@ -96,6 +104,8 @@ class GridRoom(RoomMixin, Level2):
         self.panel_state = {}                      # panel index -> "safe" or "live" once someone has tried it
         self.panel_flash = {}                      # panel index -> seconds of crackle left
         self.zap_said = False
+        self.fuse_taken = False
+        self._poster_reads = 0
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
 
     # --- state ------------------------------------------------------------
@@ -125,10 +135,37 @@ class GridRoom(RoomMixin, Level2):
                 continue
             index = self.pad_at(player)
             if index is None:
+                if self._use_prop(player):
+                    continue
                 if self.gates_passed < GATES_PER_LEVEL:
                     self.say("Stand on a breaker, then press E.", theme.MIST)
                 continue
             self._check_answer(self.current_question, self.current_question["options"][index])
+
+    def _near(self, player, rect):
+        return rect.inflate(PROP_REACH, PROP_REACH).colliderect(player.rect)
+
+    def _use_prop(self, player):
+        """E beside the fuse box or the safety poster (when not on a breaker plate)."""
+        if self._near(player, G.FUSE_BOX):
+            self.sfx("switch")
+            if self.fuse_taken:
+                self.say(FUSE_EMPTY, theme.MIST)
+            else:
+                self.fuse_taken = True
+                if self.game:
+                    self.game.score.add(FUSE_POINTS)
+                self.burst(G.FUSE_BOX.center, theme.GOLD, 8)
+                self.say(FUSE_LINE, theme.GOLD)
+            return True
+        if self._near(player, G.POSTER):
+            if self.game and not self.game.hints.enabled:
+                self.say(POSTER_OFF, theme.MIST)
+            else:
+                self.say(POSTERS[self._poster_reads % len(POSTERS)], theme.GOLD)
+                self._poster_reads += 1
+            return True
+        return False
 
     # --- the rules (same numbers as the old Level 2) ------------------------
     def _check_answer(self, question, choice):
@@ -233,6 +270,7 @@ class GridRoom(RoomMixin, Level2):
             self.burst(player.rect.center, theme.PAPER, 10)
             self.sfx("zap")
             self.say(f"ZAP! -{PANEL_PENALTY}. {tile['expr']} is True, so it is live.", theme.CORAL)
+            self.engineer.alert(player.rect, 1.2)         # he turns to look at the sparks
             self.engineer.say(PANEL_LINE)
             if self.game:
                 self.game.score.penalize(PANEL_PENALTY)
