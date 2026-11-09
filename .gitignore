@@ -19,3 +19,6 @@ Thumbs.db
 # Local save data / logs, if added later
 *.log
 saves/
+
+# Secrets (API keys) - never commit
+.env
