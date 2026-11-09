@@ -1086,3 +1086,55 @@ def test_each_crossing_has_a_true_equals_live_sign_on_the_wall_beneath_it():
         assert sign.top >= G.BANDS[corridor][1] * TILE + TILE and abs(sign.centerx - crossing.centerx) <= 70   # on the wall below it
         assert room.room_map.blocked(sign)                                                                     # a wall, not floor
         assert len(set(region_pixels(bg, sign))) > 3 and any(p[0] > 180 and p[1] < 120 for p in region_pixels(bg, sign))
+
+
+# --- environment polish: pipes, rivets, toolbox, the engineer's routine -------------
+def test_the_engineers_route_stays_on_open_floor_and_off_the_answer_plates():
+    room, _, _ = make_room()
+    assert len(L2.ENGINEER_ROUTE) >= 3
+    for x, y in L2.ENGINEER_ROUTE:
+        r = pygame.Rect(x, y, 32, 32)
+        assert not room.room_map.blocked(r)
+        assert not any(r.colliderect(pad.inflate(8, 8)) for pad in G.pad_rects(0, 4))      # he never stands on a plate
+
+
+def test_the_engineer_mutters_now_and_then_when_nobody_is_talking_to_him():
+    room, _, player = make_room()
+    player.rect.center = (28 * TILE, 16 * TILE)                  # far away, so no tip-off
+    seen = []
+    for _ in range(int(L2.IDLE_EVERY * 4 * 60)):
+        room.update(1 / 60)
+        if room.engineer.speech and room.engineer.speech not in seen:
+            seen.append(room.engineer.speech)
+    assert len(seen) >= 3 and all(s in L2.IDLE_LINES for s in seen)
+
+
+def test_pipes_run_along_the_separator_walls_but_not_across_the_shafts():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    accent = theme.floor_palette("level2")["accent"]
+    metal = theme.mix(theme.SLATE, accent, 0.18)
+    highlight = tuple(theme.mix(metal, theme.PAPER, 0.3))
+    for sep, (lo, hi) in zip(G.SEPARATORS, G.SHAFTS):
+        strip_y = sep * TILE + 1
+        along = pygame.Rect(14 * TILE, strip_y, 6 * TILE, 2)                       # open wall, clear of props and gauges
+        shaft = pygame.Rect(lo * TILE + 2, strip_y, (hi - lo + 1) * TILE - 4, 2)
+        assert highlight in region_pixels(bg, along)                                # the pipe's lit edge is there
+        assert highlight not in region_pixels(bg, shaft)                            # but not across the open shaft
+
+
+def test_the_toolbox_is_baked_beside_the_engineers_cabinet_and_is_not_solid():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    assert any(p[0] > 150 and p[1] < 80 and p[2] < 70 for p in region_pixels(bg, G.TOOLBOX))      # red steel
+    assert not room.room_map.blocked(G.TOOLBOX)
+    assert not any(G.TOOLBOX.colliderect(pad.inflate(8, 8)) for pad in G.pad_rects(0, 4))
+
+
+def test_the_corridor_floor_has_rivets_but_the_wall_does_not():
+    room, _, _ = make_room()
+    bg = static_background(room)
+    tile = pygame.Rect(9 * TILE, G.BANDS[1][0] * TILE, TILE, TILE)
+    assert len(set(region_pixels(bg, tile))) >= 3
+    dot = (tile.x + 4, tile.y + 4)
+    assert bg.get_at(dot)[:3] != bg.get_at((tile.x + 12, tile.y + 12))[:3]

@@ -213,6 +213,7 @@ def draw_static(bg, accent):
         pygame.draw.circle(bg, theme.CORAL, c, 7, 2)
         pygame.draw.line(bg, theme.CORAL, (c[0] - 6, c[1]), (c[0] + 6, c[1]), 2)
         pygame.draw.line(bg, theme.CORAL, (c[0], c[1] - 6), (c[0], c[1] + 6), 2)
+    draw_rivets(bg, accent)
     for rack in rack_rects():
         _draw_rack(bg, rack, metal)
         pygame.draw.line(bg, theme.mix(theme.INK, accent, 0.25),         # cable down to the lane
@@ -244,6 +245,8 @@ def draw_static(bg, accent):
     draw_poster(bg, POSTER)
     draw_fuse_box(bg, FUSE_BOX)
     draw_panel_signs(bg)
+    draw_wall_pipes(bg, metal)
+    draw_toolbox(bg, TOOLBOX)
     for gate, (_, last) in enumerate(BANDS):                     # relay stencils on the floor
         label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
                                               theme.mix(theme.INK, accent, 0.55))
@@ -262,6 +265,52 @@ def draw_panel_signs(surface):
         pygame.draw.rect(surface, theme.CORAL, rect, 1, border_radius=3)
         text = ui_font(14, bold=True).render("TRUE = LIVE", True, theme.CORAL)
         surface.blit(text, text.get_rect(center=rect.center))
+
+
+TOOLBOX = pygame.Rect(7 * TILE + 4, BANDS[0][0] * TILE + 11, 26, 16)         # the engineer's toolbox, by his cabinet
+
+
+def draw_toolbox(surface, rect):
+    """A red steel toolbox with a handle, a latch and a spanner sticking out."""
+    pygame.draw.rect(surface, (0, 0, 0), rect.move(2, 2), border_radius=2)
+    pygame.draw.rect(surface, (176, 52, 44), rect, border_radius=2)
+    pygame.draw.rect(surface, (96, 26, 24), rect, 1, border_radius=2)
+    pygame.draw.line(surface, (212, 214, 220), (rect.x + 5, rect.y - 3), (rect.right - 5, rect.y - 3), 2)      # handle
+    pygame.draw.line(surface, (212, 214, 220), (rect.x + 5, rect.y - 3), (rect.x + 5, rect.y), 2)
+    pygame.draw.line(surface, (212, 214, 220), (rect.right - 5, rect.y - 3), (rect.right - 5, rect.y), 2)
+    pygame.draw.rect(surface, theme.GOLD, (rect.centerx - 2, rect.y + 5, 4, 5))                             # latch
+    pygame.draw.line(surface, (150, 156, 168), (rect.right - 3, rect.y + 2), (rect.right + 5, rect.y - 4), 3)   # spanner
+
+
+def draw_wall_pipes(bg, metal):
+    """Pipe runs along the top and bottom of each separator wall, with brackets, a gauge and a conduit."""
+    for sep in SEPARATORS:
+        lo, hi = SHAFTS[SEPARATORS.index(sep)]
+        top, bottom = sep * TILE + 1, sep * TILE + TILE - 5
+        for x0, x1 in ((2 * TILE, lo * TILE), ((hi + 1) * TILE, 28 * TILE)):          # nothing across the open shaft
+            pygame.draw.rect(bg, theme.mix(metal, theme.INK, 0.5), (x0, top + 1, x1 - x0, 4), border_radius=2)
+            pygame.draw.rect(bg, theme.mix(metal, theme.PAPER, 0.3), (x0, top, x1 - x0, 2))
+            pygame.draw.rect(bg, theme.mix(theme.INK, theme.SLATE, 0.4), (x0, bottom, x1 - x0, 3))      # a flat conduit
+            for x in range(x0 + 20, x1 - 8, 64):
+                pygame.draw.rect(bg, theme.INK, (x, top - 1, 5, 7))                       # brackets
+                pygame.draw.rect(bg, theme.mix(theme.GOLD, theme.INK, 0.5), (x, bottom, 3, 3))   # cable ties
+    for sep, col in zip(SEPARATORS, (10, 24)):                                           # a pressure gauge on each wall
+        c = (col * TILE + TILE // 2, sep * TILE + TILE // 2)
+        pygame.draw.circle(bg, theme.INK, c, 10)
+        pygame.draw.circle(bg, theme.mix(theme.PAPER, theme.INK, 0.15), c, 8)
+        pygame.draw.arc(bg, theme.TEAL, pygame.Rect(c[0] - 6, c[1] - 6, 12, 12), 0.4, 2.0, 2)
+        pygame.draw.arc(bg, theme.CORAL, pygame.Rect(c[0] - 6, c[1] - 6, 12, 12), 2.0, 2.7, 2)
+        pygame.draw.line(bg, theme.INK, c, (c[0] + 4, c[1] - 4), 2)
+
+
+def draw_rivets(bg, accent):
+    """Tread-plate rivets in the corner of every floor tile, so the corridors read as steel decking."""
+    dot = theme.mix(theme.mix(theme.SLATE, accent, 0.18), theme.PAPER, 0.18)
+    for first, last in BANDS:
+        for row in range(first, last + 1):
+            for col in range(2, 28):
+                for dx, dy in ((4, 4), (TILE - 6, 4), (4, TILE - 6), (TILE - 6, TILE - 6)):
+                    bg.fill(dot, (col * TILE + dx, row * TILE + dy, 2, 2))
 
 
 def draw_fuse_box(surface, rect, taken=False):

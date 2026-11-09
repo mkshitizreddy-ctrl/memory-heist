@@ -43,7 +43,10 @@ TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
-ENGINEER_ROUTE = [(7 * TILE, 9 * TILE), (17 * TILE, 9 * TILE)]
+ENGINEER_ROUTE = [(5 * TILE, 9 * TILE), (11 * TILE, 9 * TILE), (16 * TILE, 9 * TILE), (11 * TILE, 9 * TILE)]
+IDLE_LINES = ("Pressure's up again.", "Who keeps flipping my breakers?",
+              "Not my panels. Not my problem.", "Spanner. Where is my spanner?")
+IDLE_EVERY = 16.0               # seconds between his mutterings when nobody is talking to him
 ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
                   "Floor panel with a True expression is live. Walk the False one.",
                   "'and' needs both sides live. 'or' needs one.")
@@ -104,6 +107,8 @@ class GridRoom(RoomMixin, Level2):
         self.panel_state = {}                      # panel index -> "safe" or "live" once someone has tried it
         self.panel_flash = {}                      # panel index -> seconds of crackle left
         self.zap_said = False
+        self._idle_wait = IDLE_EVERY * 0.6
+        self._idles = 0
         self.fuse_taken = False
         self._poster_reads = 0
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
@@ -277,6 +282,12 @@ class GridRoom(RoomMixin, Level2):
 
     def _update_npcs(self, dt):
         self.engineer.update(dt)
+        self._idle_wait -= dt
+        if self._idle_wait <= 0 and not self.complete:
+            self._idle_wait = IDLE_EVERY
+            if not self.engineer.speech:
+                self.engineer.say(IDLE_LINES[self._idles % len(IDLE_LINES)])
+                self._idles += 1
         for player, _ in self.players():
             if self.engineer.notice(player.rect, id(player)):
                 self.engineer.say(ENGINEER_LINES[self._engineer_lines % len(ENGINEER_LINES)])
