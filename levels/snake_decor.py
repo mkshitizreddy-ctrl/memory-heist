@@ -82,7 +82,7 @@ def desk_rects():
 
 def transformer_rects():
     """Two transformer blocks on the south wall of corridor 3."""
-    return [pygame.Rect(col * TILE, BANDS[2][1] * TILE, 2 * TILE, TILE) for col in (6, 22)]
+    return [pygame.Rect(col * TILE, BANDS[2][1] * TILE, 2 * TILE, TILE) for col in (4, 22)]
 
 
 def pad_rects(gate, count):
@@ -115,71 +115,79 @@ def layout_rows(cols=COLS, rows=ROWS):
 
 
 # --- live floor panels: the operators in action ----------------------------------
-# A panel is live when its expression is true for the tick counter n, and a live
-# panel zaps whoever stands on it (score only, never security).  Reading the
-# operator tells you when it is safe to cross.
-PANEL_STEP = 1.2                     # seconds per tick of the counter n
-PANEL_EXPRS = (("n % 3 == 0", lambda n: n % 3 == 0),     # corridor 1: live one tick in three
-               ("n % 2 == 1", lambda n: n % 2 == 1),     # corridor 2: live every other tick
-               ("n % 3 != 0", lambda n: n % 3 != 0))     # corridor 3: live two ticks in three
-PANEL_COLS = (20, 21, 8)             # first column of each corridor's panel (3 tiles wide)
+# Each corridor has a crossing of floor panels, one per row, and every panel shows
+# an expression.  A panel is live when its expression is True and zaps whoever steps
+# on it (score only, never security).  Read the expressions, then walk the row whose
+# expression is False.  There is no timing: the answer never changes.
+PANEL_COLS = (20, 20, 7)             # first column of each corridor's crossing (4 tiles wide)
+PANEL_TILES_WIDE = 4
+TRUE_EXPRS = (                       # [corridor] -> expressions that are True (live)
+    ("3 + 4 == 7", "2 ** 3 == 8", "9 // 2 == 4", "10 % 4 == 2", "6 * 2 == 12", "9 - 4 == 5"),
+    ("5 > 3", "4 <= 4", "2 != 3", "7 >= 7", "1 < 9", "6 == 6"),
+    ("True and True", "True or False", "not False", "False or True", "not (1 > 2)", "not (3 > 5)"),
+)
+FALSE_EXPRS = (                      # [corridor] -> expressions that are False (safe)
+    ("2 + 2 == 5", "7 // 2 == 4", "9 % 4 == 2", "2 ** 3 == 6", "5 * 2 == 12", "8 - 3 == 4"),
+    ("3 > 5", "4 == 5", "6 != 6", "2 >= 8", "9 < 1", "5 <= 4"),
+    ("True and False", "not True", "False or False", "False and True", "not (2 > 1)", "True and not True"),
+)
 
 
-def panel_rects():
-    """One live panel across each corridor, full height so it has to be timed."""
-    return [pygame.Rect(col * TILE, first * TILE, 3 * TILE, (last - first + 1) * TILE)
-            for col, (first, last) in zip(PANEL_COLS, BANDS)]
+def evaluate(expr):
+    """The real Python truth of a panel's expression (constants only)."""
+    return bool(eval(expr, {"__builtins__": {}}, {}))            # noqa: S307 - literals from this file only
 
 
-def tick(t):
-    """The counter n the panels read: one step every PANEL_STEP seconds."""
-    return int(max(0.0, t) / PANEL_STEP)
+def panel_tiles(rng):
+    """The panels of every corridor: [{"corridor","row","rect","expr","live"}...].
+
+    Every corridor keeps at least one safe row (and at least one live row), and the
+    safe rows move around with the seed so the crossing is not memorised.
+    """
+    tiles = []
+    for corridor, (first, last) in enumerate(BANDS):
+        rows = list(range(first, last + 1))
+        safe_count = rng.choice((1, 2)) if len(rows) > 3 else 1
+        safe_rows = set(rng.sample(rows, safe_count))
+        live_pool = rng.sample(TRUE_EXPRS[corridor], len(rows))
+        safe_pool = rng.sample(FALSE_EXPRS[corridor], len(rows))
+        for k, row in enumerate(rows):
+            live = row not in safe_rows
+            expr = live_pool[k] if live else safe_pool[k]
+            tiles.append({"corridor": corridor, "row": row, "expr": expr, "live": live,
+                          "rect": pygame.Rect(PANEL_COLS[corridor] * TILE, row * TILE,
+                                              PANEL_TILES_WIDE * TILE, TILE)})
+    return tiles
 
 
-def panel_live(corridor, n):
-    return PANEL_EXPRS[corridor][1](n)
-
-
-def panel_at(rect):
-    """Index of the panel whose floor `rect` stands on (by its centre), or None."""
-    for i, panel in enumerate(panel_rects()):
-        if panel.collidepoint(rect.center):
-            return i
+def panel_under(tiles, rect):
+    """The panel whose floor `rect` stands on (by its centre), or None."""
+    for tile in tiles:
+        if tile["rect"].collidepoint(rect.center):
+            return tile
     return None
 
 
-def draw_floor_panel(surface, rect, expr, live, t):
-    """A floor panel: dark with its expression when safe, crackling coral-white when live."""
+def draw_floor_panel(surface, tile, state, t):
+    """One floor panel.  state: "unknown" (not tried), "safe" (stepped on, nothing), "live" (it zapped)."""
+    rect = tile["rect"]
     base = theme.mix(theme.INK, theme.SLATE, 0.35)
     pygame.draw.rect(surface, base, rect)
-    for x in range(rect.left, rect.right, 12):                     # grating bars
-        pygame.draw.line(surface, theme.mix(base, theme.INK, 0.5), (x, rect.top), (x, rect.bottom), 1)
-    edge = theme.CORAL if live else theme.mix(theme.GOLD, theme.INK, 0.45)
+    for x in range(rect.left + 8, rect.right, 16):                 # grating slots
+        pygame.draw.line(surface, theme.mix(base, theme.INK, 0.5), (x, rect.top + 3), (x, rect.bottom - 4), 1)
+    edge = {"unknown": theme.mix(theme.GOLD, theme.INK, 0.45), "safe": theme.TEAL, "live": theme.CORAL}[state]
     pygame.draw.rect(surface, edge, rect, 2)
-    if live:
+    if state == "live":
         pulse = 0.5 + 0.5 * math.sin(t * 18)
-        pygame.draw.rect(surface, theme.mix(theme.CORAL, theme.PAPER, 0.3 + 0.4 * pulse), rect.inflate(-8, -8), 2)
-        rng = random.Random(int(t * 14))                           # arcs that jump between frames
-        for _ in range(4):
-            x = rng.randint(rect.left + 6, rect.right - 6)
-            pts = [(x, rect.top + 4)]
-            for k in range(1, 5):
-                pts.append((x + rng.randint(-9, 9), rect.top + 4 + k * (rect.h - 8) // 4))
-            pygame.draw.lines(surface, theme.PAPER, False, pts, 2)
-    label = ui_font(15, bold=True).render(expr, True, theme.PAPER if live else theme.GOLD)
-    plate = label.get_rect(center=(rect.centerx, rect.top + 14)).inflate(8, 4)
-    pygame.draw.rect(surface, theme.INK, plate, border_radius=3)
-    surface.blit(label, label.get_rect(center=plate.center))
-
-
-def draw_tick_plates(surface, n):
-    """The counter n on each separator wall, so a player can read the panels."""
-    for sep, col in zip(SEPARATORS, (8, 22)):
-        plate = pygame.Rect(col * TILE, sep * TILE + 5, 4 * TILE, 22)
-        pygame.draw.rect(surface, theme.INK, plate, border_radius=3)
-        pygame.draw.rect(surface, theme.GOLD, plate, 1, border_radius=3)
-        text = ui_font(15, bold=True).render(f"COUNTER  n = {n}", True, theme.GOLD)
-        surface.blit(text, text.get_rect(center=plate.center))
+        pygame.draw.rect(surface, theme.mix(theme.CORAL, theme.PAPER, 0.3 + 0.4 * pulse), rect.inflate(-6, -6), 2)
+        rng = random.Random(int(t * 14) + rect.y)
+        for _ in range(3):                                          # arcs that jump between frames
+            x = rng.randint(rect.left + 8, rect.right - 8)
+            pygame.draw.lines(surface, theme.PAPER, False,
+                              [(x, rect.top + 3), (x + rng.randint(-8, 8), rect.centery), (x + rng.randint(-8, 8), rect.bottom - 3)], 2)
+    colour = {"unknown": theme.GOLD, "safe": theme.TEAL, "live": theme.PAPER}[state]
+    label = code_font(14).render(tile["expr"], True, colour)
+    surface.blit(label, label.get_rect(center=rect.center))
 
 
 # --- baked decoration -------------------------------------------------------

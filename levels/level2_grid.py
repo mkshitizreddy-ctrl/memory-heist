@@ -45,7 +45,7 @@ FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
 ENGINEER_ROUTE = [(7 * TILE, 9 * TILE), (17 * TILE, 9 * TILE)]
 ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
-                  "A comparison trips the relay: True or False.",
+                  "Floor panel with a True expression is live. Walk the False one.",
                   "'and' needs both sides live. 'or' needs one.")
 PRAISE = ("Power's flowing.", "That relay likes you.")
 SCOLD = "That breaker bites. Careful."
@@ -55,7 +55,7 @@ BULB = (255, 190, 110)          # sodium-amber work bulbs
 BULB_COLS = ((6, 14, 21), (8, 16, 23), (7, 14, 22))   # three bulbs along each corridor
 PANEL_PENALTY = 5               # a live panel costs score only, never security
 PANEL_COOLDOWN = 1.5            # seconds before the same player can be zapped again
-PANEL_LINE = "Live panel! Read the expression."
+PANEL_LINE = "Live panel! True means live. Walk the False one."
 
 
 class GridRoom(RoomMixin, Level2):
@@ -92,6 +92,10 @@ class GridRoom(RoomMixin, Level2):
         self._title = None
         self.zap_wait = {}                         # player id -> seconds until they can be zapped again
         self.zaps = 0
+        self.panels = G.panel_tiles(self.rng)
+        self.panel_state = {}                      # panel index -> "safe" or "live" once someone has tried it
+        self.panel_flash = {}                      # panel index -> seconds of crackle left
+        self.zap_said = False
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
 
     # --- state ------------------------------------------------------------
@@ -207,20 +211,28 @@ class GridRoom(RoomMixin, Level2):
                     break
 
     def _update_panels(self, dt):
-        """A live panel zaps whoever stands on it: score only, never security."""
-        n = G.tick(self.time)
+        """Stepping on a live panel (its expression is True) zaps: score only, never security."""
+        self.panel_flash = {k: v - dt for k, v in self.panel_flash.items() if v - dt > 0}
         for player, _ in self.players():
             key = id(player)
             self.zap_wait[key] = max(0.0, self.zap_wait.get(key, 0.0) - dt)
-            panel = G.panel_at(player.rect)
-            if panel is None or not G.panel_live(panel, n) or self.zap_wait[key] > 0:
+            tile = G.panel_under(self.panels, player.rect)
+            if tile is None:
+                continue
+            index = self.panels.index(tile)
+            if not tile["live"]:
+                self.panel_state.setdefault(index, "safe")
+                continue
+            if self.zap_wait[key] > 0:
                 continue
             self.zap_wait[key] = PANEL_COOLDOWN
             self.zaps += 1
+            self.panel_state[index] = "live"
+            self.panel_flash[index] = 0.8
             self.shake.add(0.4)
             self.burst(player.rect.center, theme.PAPER, 10)
             self.sfx("zap")
-            self.say(f"ZAP! -{PANEL_PENALTY}. Panel reads {G.PANEL_EXPRS[panel][0]}.", theme.CORAL)
+            self.say(f"ZAP! -{PANEL_PENALTY}. {tile['expr']} is True, so it is live.", theme.CORAL)
             self.engineer.say(PANEL_LINE)
             if self.game:
                 self.game.score.penalize(PANEL_PENALTY)
@@ -278,10 +290,8 @@ class GridRoom(RoomMixin, Level2):
             out.append(lighting.Light(centre, 85, lamp, 0.65))
         for rack in G.rack_rects():
             out.append(lighting.Light(rack.center, 55, theme.TEAL, 0.35))
-        n = G.tick(self.time)
-        for i, panel in enumerate(G.panel_rects()):
-            if G.panel_live(i, n):
-                out.append(lighting.Light(panel.center, 95, theme.CORAL, 0.9))
+        for index in self.panel_flash:                      # only a panel that has just zapped gives off light
+            out.append(lighting.Light(self.panels[index]["rect"].center, 95, theme.CORAL, 0.9))
         for desk in G.desk_rects():
             out.append(lighting.Light(desk.center, 90, BULB, 0.7))
         for sep, (lo, hi) in zip(G.SEPARATORS, G.SHAFTS):
@@ -327,10 +337,8 @@ class GridRoom(RoomMixin, Level2):
                 G.draw_pad(world, rect, option, state, accent, self.time)
         if self.done_pad is not None:
             G.draw_pad(world, self.done_pad[0], self.done_pad[1], "right", accent, self.time)
-        n = G.tick(self.time)
-        for i, rect in enumerate(G.panel_rects()):
-            G.draw_floor_panel(world, rect, G.PANEL_EXPRS[i][0], G.panel_live(i, n), self.time)
-        G.draw_tick_plates(world, n)
+        for index, tile in enumerate(self.panels):
+            G.draw_floor_panel(world, tile, self.panel_state.get(index, "unknown"), self.time)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         self._draw_shadows(world)
         self.engineer.draw(world, self.small)

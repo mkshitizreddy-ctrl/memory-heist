@@ -865,84 +865,112 @@ def test_the_room_draws_chevrons_when_the_exit_has_opened():
     assert first != before and first != region_pixels(render(room), area)
 
 
-# --- live floor panels: the operators in action ----------------------------------
-def test_panels_span_their_corridor_but_never_block_it_or_the_pads():
+# --- live floor panels: read the expression, walk the False one ------------------------
+def test_every_panel_expression_really_evaluates_the_way_its_pool_says():
+    for corridor in range(3):
+        assert all(G.evaluate(e) is True for e in G.TRUE_EXPRS[corridor]), corridor
+        assert all(G.evaluate(e) is False for e in G.FALSE_EXPRS[corridor]), corridor
+
+
+def test_each_corridor_has_one_panel_per_row_with_a_live_and_a_safe_way_for_any_seed():
+    import random
+    for seed in range(25):
+        tiles = G.panel_tiles(random.Random(seed))
+        for corridor, (first, last) in enumerate(G.BANDS):
+            row = [t for t in tiles if t["corridor"] == corridor]
+            assert [t["row"] for t in row] == list(range(first, last + 1))
+            assert any(t["live"] for t in row) and any(not t["live"] for t in row)
+            assert all(t["live"] == G.evaluate(t["expr"]) for t in row)       # live exactly when it is True
+            assert len({t["expr"] for t in row}) == len(row)                    # no two rows alike
+            assert all(t["rect"].width == G.PANEL_TILES_WIDE * TILE for t in row)
+
+
+def test_panels_never_block_a_corridor_or_sit_on_props_or_pads():
     room, _, _ = make_room()
-    for i, panel in enumerate(G.panel_rects()):
-        first, last = G.BANDS[i]
-        assert panel.top == first * TILE and panel.bottom == (last + 1) * TILE      # full height: it must be timed
-        assert not any(panel.colliderect(p) for p in room.props)                     # nothing solid under it
-        assert not any(panel.colliderect(pad) for pad in G.pad_rects(i, 4))          # and never on the answers
+    for tile in room.panels:
+        assert not any(tile["rect"].colliderect(p) for p in room.props)
+        assert not any(tile["rect"].colliderect(pad.inflate(8, 8)) for pad in G.pad_rects(tile["corridor"], 4))
     room.gate_blocks[0].size = (0, 0)
     room.gate_blocks[1].size = (0, 0)
     assert reachable(room, (3, 8), (13, 16))                                          # floor panels are not walls
 
 
-def test_each_panel_reads_its_own_expression_for_the_tick_counter():
-    assert G.tick(0.0) == 0 and G.tick(G.PANEL_STEP * 3.2) == 3 and G.tick(-5) == 0
-    assert [G.panel_live(0, n) for n in range(6)] == [True, False, False, True, False, False]   # n % 3 == 0
-    assert [G.panel_live(1, n) for n in range(4)] == [False, True, False, True]                # n % 2 == 1
-    assert [G.panel_live(2, n) for n in range(6)] == [False, True, True, False, True, True]    # n % 3 != 0
-    assert [e for e, _ in G.PANEL_EXPRS] == ["n % 3 == 0", "n % 2 == 1", "n % 3 != 0"]
+def _step_on(room, player, live):
+    tile = next(t for t in room.panels if t["live"] == live)
+    player.rect.center = tile["rect"].center
+    return tile
 
 
-def _stand_on_panel(room, player, corridor):
-    player.rect.center = G.panel_rects()[corridor].center
-
-
-def test_a_live_panel_zaps_for_score_only_and_then_waits():
+def test_stepping_on_a_live_panel_zaps_for_score_only_and_then_waits():
     room, game, player = make_room()
-    _stand_on_panel(room, player, 0)
-    room.time = 0.0                                   # tick 0: n % 3 == 0 is live
-    before_score, before_sec = game.score.get_score(), game.security.level
+    _step_on(room, player, True)
+    score, security = game.score.get_score(), game.security.level
     room.update(1 / 60)
-    assert game.score.get_score() == before_score - L2.PANEL_PENALTY
-    assert game.security.level == before_sec          # hazards never touch security
+    assert game.score.get_score() == score - L2.PANEL_PENALTY
+    assert game.security.level == security                      # hazards never touch security
     assert "zap" in game.audio.played and room.zaps == 1 and room.engineer.speech == L2.PANEL_LINE
+    assert "True" in room.message and "live" in room.message
     for _ in range(30):
         room.update(1 / 60)
-    assert room.zaps == 1                              # the cooldown stops a second zap straight away
+    assert room.zaps == 1                                         # the cooldown stops a second zap straight away
 
 
-def test_a_safe_panel_does_nothing():
+def test_a_safe_panel_does_nothing_and_is_marked_safe():
     room, game, player = make_room()
-    _stand_on_panel(room, player, 0)
-    room.time = G.PANEL_STEP * 1.2                    # tick 1: n % 3 == 0 is not live
+    tile = _step_on(room, player, False)
     score = game.score.get_score()
     room.update(1 / 60)
     assert room.zaps == 0 and game.score.get_score() == score and "zap" not in game.audio.played
+    assert room.panel_state[room.panels.index(tile)] == "safe"
+
+
+def test_the_panel_answer_never_changes_over_time():
+    room, game, player = make_room()
+    before = [(t["expr"], t["live"]) for t in room.panels]
+    settle(room, 20)
+    assert [(t["expr"], t["live"]) for t in room.panels] == before
 
 
 def test_a_player_off_the_panels_is_never_zapped():
     room, game, player = make_room()
     player.rect.center = (3 * TILE, 8 * TILE)
-    room.time = 0.0
     room.update(1 / 60)
-    assert room.zaps == 0 and G.panel_at(player.rect) is None
+    assert room.zaps == 0 and G.panel_under(room.panels, player.rect) is None
 
 
 def test_the_second_player_is_zapped_on_their_own_clock():
     room, game, p1 = make_room(coop=True)
-    p2 = game.player2
-    _stand_on_panel(room, p1, 0)
-    _stand_on_panel(room, p2, 0)
-    room.time = 0.0
+    live = next(t for t in room.panels if t["live"])
+    p1.rect.center = live["rect"].center
+    game.player2.rect.center = live["rect"].center
     room.update(1 / 60)
     assert room.zaps == 2
 
 
-def test_a_live_panel_looks_different_from_a_safe_one_and_the_counter_is_drawn():
-    def frame(live):
+def test_a_tried_panel_remembers_what_it_was_and_a_zap_flashes_then_calms():
+    room, game, player = make_room()
+    tile = _step_on(room, player, True)
+    index = room.panels.index(tile)
+    room.update(1 / 60)
+    assert room.panel_state[index] == "live" and index in room.panel_flash
+    player.rect.center = (3 * TILE, 8 * TILE)
+    settle(room, 1.0)
+    assert index not in room.panel_flash and room.panel_state[index] == "live"
+
+
+def test_panel_states_look_different_and_a_long_expression_stays_inside_its_panel():
+    tile = {"rect": G.panel_tiles(__import__("random").Random(1))[0]["rect"], "expr": "True and False"}
+    def frame(state):
         s = pygame.Surface((960, 640))
         s.fill((1, 2, 3))
-        G.draw_floor_panel(s, G.panel_rects()[0], "n % 3 == 0", live, 0.3)
-        return region_pixels(s, G.panel_rects()[0])
-    assert frame(True) != frame(False) and frame(True) == frame(True)
+        G.draw_floor_panel(s, tile, state, 0.3)
+        return region_pixels(s, tile["rect"])
+    assert len({tuple(frame(s)) for s in ("unknown", "safe", "live")}) == 3 and frame("live") == frame("live")
     s = pygame.Surface((960, 640))
     s.fill((1, 2, 3))
-    G.draw_tick_plates(s, 7)
-    plate = pygame.Rect(8 * TILE, G.SEPARATORS[0] * TILE + 5, 4 * TILE, 22)
-    assert len(set(region_pixels(s, plate))) > 3
+    G.draw_floor_panel(s, tile, "unknown", 0.0)
+    outside = tile["rect"].inflate(40, 40)
+    assert all(p == (1, 2, 3) for p in region_pixels(s, pygame.Rect(outside.x, outside.y, 20, outside.h)))
 
 
 def test_the_breaker_clunks_and_boots_ring_on_steel():
