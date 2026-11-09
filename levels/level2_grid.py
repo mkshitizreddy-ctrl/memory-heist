@@ -53,6 +53,7 @@ ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
 PRAISE = ("Power's flowing.", "That relay likes you.")
 SCOLD = "That breaker bites. Careful."
 FAREWELL = "Mind the next floor."
+POWERED_AMBIENT = (196, 182, 168)   # every relay live: the tunnel is properly lit
 AMBIENT = (150, 142, 138)       # the tunnel is dim and warm; the bulbs and screens do the lighting
 BULB = (255, 190, 110)          # sodium-amber work bulbs
 BULB_COLS = ((6, 14, 21), (8, 16, 23), (7, 14, 22))   # three bulbs along each corridor
@@ -112,6 +113,7 @@ class GridRoom(RoomMixin, Level2):
         self.fuse_taken = False
         self._poster_reads = 0
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
+        self._power = 0.0                         # 0 dim .. 1 fully powered; eases toward the relays done
 
     # --- state ------------------------------------------------------------
     @property
@@ -231,6 +233,10 @@ class GridRoom(RoomMixin, Level2):
         dt = max(0.0, dt)
         self.update_room(dt)
         self.ambience.update(dt)
+        goal = min(1.0, self.gates_passed / GATES_PER_LEVEL)
+        self._power += (goal - self._power) * min(1.0, dt * 1.5)      # the lights come up as relays go live
+        self.lightlayer.ambient = tuple(round(a + (b - a) * self._power)
+                                        for a, b in zip(AMBIENT, POWERED_AMBIENT))
         self._update_npcs(dt)
         self.pad_flash = {i: left - dt for i, left in self.pad_flash.items() if left - dt > 0}
         if self.done_pad is not None:

@@ -1146,3 +1146,12 @@ def test_waiting_screen_names_its_predecessor():
     G.draw_screen(surf, G.screen_rect(1), 1, "standby", (200, 120, 60), time=0.0)
     G.draw_screen(surf, G.screen_rect(2), 2, "standby", (200, 120, 60), time=0.0)
     assert surf.get_at((G.screen_rect(1).centerx, G.screen_rect(1).centery - 4)) != (0, 0, 0)
+
+
+def test_tunnel_lights_come_up_as_relays_go_live():
+    room, _, _ = make_room()
+    dim = sum(room.lightlayer.ambient)
+    room.gates_passed = 3
+    for _ in range(300):
+        room.update(1 / 60)
+    assert sum(room.lightlayer.ambient) > dim + 60
