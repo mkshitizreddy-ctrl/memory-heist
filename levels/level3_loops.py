@@ -1166,26 +1166,21 @@ class Level3LaserLoop:
         c = size // 2
         layer = pygame.Surface((size, size), pygame.SRCALPHA)
 
-        steps = 8                                           # brighter toward the rim, clear in the middle
-        top = 70 if alert else 30
-        for k in range(steps):
-            r = int(radius * (1 - k / steps))
-            pygame.draw.circle(layer, (*tone, int(top * (1 - k / steps) ** 1.5)), (c, c), r)
-
-        pulse_speed = 1.6 if alert else 0.55                # an expanding ring, like a ping
-        u = (t * pulse_speed) % 1.0
-        pygame.draw.circle(layer, (*tone, int(130 * (1 - u))), (c, c), max(2, int(radius * u)), 2)
-
-        ticks = 40
-        spin = t * (0.9 if alert else 0.25)
-        for i in range(ticks):
-            if not alert and i % 2:
-                continue                                    # dashed while patrolling, solid when alert
-            a0 = spin + i * 2 * math.pi / ticks
-            a1 = a0 + (2 * math.pi / ticks) * (0.95 if alert else 0.55)
-            p0 = (c + math.cos(a0) * radius, c + math.sin(a0) * radius)
-            p1 = (c + math.cos(a1) * radius, c + math.sin(a1) * radius)
-            pygame.draw.line(layer, (*tone, 210 if alert else 150), p0, p1, 3 if alert else 2)
+        if alert:                                           # spotted: a red ping spreads out and fades
+            for k in range(6):
+                r = int(radius * (1 - k / 6))
+                pygame.draw.circle(layer, (*tone, int(46 * (1 - k / 6) ** 1.5)), (c, c), r)
+            u = (t * 1.4) % 1.0
+            pygame.draw.circle(layer, (*tone, int(150 * (1 - u))), (c, c), max(2, int(radius * u)), 2)
+            pygame.draw.circle(layer, (*tone, 190), (c, c), radius, 2)
+        else:                                               # patrolling: just a faint dotted ring on the floor
+            ticks = 48
+            for i in range(0, ticks, 2):
+                a0 = i * 2 * math.pi / ticks
+                a1 = a0 + (2 * math.pi / ticks) * 0.5
+                p0 = (c + math.cos(a0) * radius, c + math.sin(a0) * radius)
+                p1 = (c + math.cos(a1) * radius, c + math.sin(a1) * radius)
+                pygame.draw.line(layer, (*tone, 80), p0, p1, 1)
 
         previous = surface.get_clip()
         surface.set_clip(self.SCAN_CLIP)
