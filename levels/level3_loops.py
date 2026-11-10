@@ -156,9 +156,9 @@ class Level3LaserLoop:
         # Security robot
         # -------------------------
         self.robot_x = 120
-        self.robot_y = 170
-        self.robot_width = 70
-        self.robot_height = 35
+        self.robot_y = patrol_decor.DROID_ROUTE_Y
+        self.robot_width = 32
+        self.robot_height = 32
 
         self.robot_speed = 120
         self.robot_direction = 1
@@ -182,6 +182,11 @@ class Level3LaserLoop:
 
         self._step_clock = {}
         self.guard = None
+        self.droid = None                   # the patrol droid: an NPC whose route the level owns
+        self._droid_wait = 0.0
+        self._droid_idles = 0
+        self._stood_down_said = False
+        self._exchanged = False
         self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
         self._guard_idles = 0
 
@@ -278,6 +283,58 @@ class Level3LaserLoop:
             guard.say(lines[self._guard_idles % len(lines)])
             self._guard_idles += 1
             self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
+
+    def _update_droid(self, dt):
+        """The patrol droid: the level owns its route, the NPC gives it a body and a voice."""
+
+        droid = self.droid
+
+        if droid is None:
+            return
+
+        stood_down = self._robot_stood_down()
+        droid.drive(
+            self.robot_x,
+            self.robot_y,
+            dt,
+            moving=not stood_down,
+            facing_left=self.robot_direction < 0,
+        )
+        droid.update(dt)          # speech timers; its position is set by the level
+
+        if stood_down:
+            if not self._stood_down_said:
+                droid.say(patrol_decor.DROID_STAND_DOWN)
+                self._stood_down_said = True
+            return
+
+        if self.game and hasattr(self.game, "player") and not self.robot_alert:
+            for key, rect in enumerate(self._player_rects()):
+                if droid.notice(rect, key):
+                    droid.say(patrol_decor.DROID_NOTICE)
+
+        self._droid_wait -= dt
+
+        if self._droid_wait <= 0 and droid.speech is None:
+            lines = patrol_decor.DROID_IDLE
+            droid.say(lines[self._droid_idles % len(lines)])
+            self._droid_idles += 1
+            self._droid_wait = patrol_decor.DROID_IDLE_EVERY
+
+        # The guard and the droid acknowledge each other as they pass.
+        guard = self.guard
+
+        if guard is not None:
+            near = math.dist(guard.rect.center, droid.rect.center) <= patrol_decor.EXCHANGE_RANGE
+
+            if near and not self._exchanged and droid.speech is None and guard.speech is None:
+                guard.face(droid.rect)
+                droid.face(guard.rect)
+                guard.say(patrol_decor.EXCHANGE[0])
+                droid.say(patrol_decor.EXCHANGE[1])
+                self._exchanged = True
+            elif not near:
+                self._exchanged = False
 
     def _player_rects(self):
         """Return active player rectangles."""
@@ -428,6 +485,12 @@ class Level3LaserLoop:
 
         self.laser_penalty_cooldown = 0.0
         self.laser_hit_feedback_timer = 0.0
+
+        self.droid = NPC("patrol_droid", (self.robot_x, self.robot_y), notice_range=96)
+        self._droid_wait = patrol_decor.DROID_IDLE_EVERY
+        self._droid_idles = 0
+        self._stood_down_said = False
+        self._exchanged = False
 
         route = patrol_decor.GUARD_ROUTES[room]
         self.guard = NPC("night_guard", route[0], patrol=route)
@@ -941,11 +1004,12 @@ class Level3LaserLoop:
         # Move robot
         # -------------------------
 
-        self.robot_x += (
-            self.robot_speed
-            * self.robot_direction
-            * dt
-        )
+        if not self._robot_stood_down():
+            self.robot_x += (
+                self.robot_speed
+                * self.robot_direction
+                * dt
+            )
 
         if self.robot_x >= self.robot_right_boundary:
 
@@ -1016,120 +1080,29 @@ class Level3LaserLoop:
                 self._sfx("alarm")
                 self._guard_says(patrol_decor.GUARD_ALERT)
 
+                if self.droid is not None:
+                    self.droid.say(patrol_decor.DROID_ALERT)
+
+        self._update_droid(dt)
         self.try_room_transition()
 
     # =========================================================
     # ROBOT DRAWING
     # =========================================================
 
-    def draw_robot(self, surface):
+    def _draw_droid(self, surface):
+        """The patrol droid, drawn like every other character, with an alert mark when it spots you."""
 
-        robot_rect = pygame.Rect(
-            self.robot_x,
-            self.robot_y,
-            self.robot_width,
-            self.robot_height,
-        )
+        if self.droid is None:
+            return
 
-        pygame.draw.rect(
-            surface,
-            (70, 75, 90),
-            robot_rect,
-            border_radius=6,
-        )
+        self.droid.draw(surface, self._guard_font)
 
-        pygame.draw.rect(
-            surface,
-            (100, 110, 130),
-            robot_rect,
-            2,
-            border_radius=6,
-        )
-
-        face_rect = pygame.Rect(
-            self.robot_x + 15,
-            self.robot_y + 8,
-            40,
-            14,
-        )
-
-        pygame.draw.rect(
-            surface,
-            (20, 25, 35),
-            face_rect,
-            border_radius=3,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (255, 60, 60),
-            (
-                int(self.robot_x + 25),
-                int(self.robot_y + 15),
-            ),
-            3,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (255, 60, 60),
-            (
-                int(self.robot_x + 45),
-                int(self.robot_y + 15),
-            ),
-            3,
-        )
-
-        pygame.draw.line(
-            surface,
-            (100, 110, 130),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y),
-            ),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y - 10),
-            ),
-            2,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (255, 70, 70),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y - 12),
-            ),
-            4,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (30, 32, 40),
-            (
-                int(self.robot_x + 15),
-                int(self.robot_y + self.robot_height),
-            ),
-            8,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (30, 32, 40),
-            (
-                int(
-                    self.robot_x
-                    + self.robot_width
-                    - 15
-                ),
-                int(
-                    self.robot_y
-                    + self.robot_height
-                ),
-            ),
-            8,
-        )
+        if self.robot_alert:
+            rect = self.droid.rect
+            font = self._font(22)
+            mark = font.render("!", True, (255, 90, 80))
+            surface.blit(mark, mark.get_rect(midbottom=(rect.centerx, rect.top - 2)))
 
     # =========================================================
     # ROBOT SECURITY
@@ -1247,7 +1220,6 @@ class Level3LaserLoop:
     BODY_SIZE = 27                   # about 18 px of text height
     PANEL_BOTTOM = 587               # footer text (with descenders) ends by y = 585
     GATE_OPEN_SECONDS = 0.6          # matches the Gate unlock animation
-    ROBOT_LABEL_GAP = 16
 
     # ---- small helpers ------------------------------------------------
 
@@ -1967,7 +1939,7 @@ class Level3LaserLoop:
         if not self._robot_stood_down():
             self.draw_robot_scan(surface)
 
-        self.draw_robot(surface)
+        self._draw_droid(surface)
 
         if self.guard is not None:
             self.guard.draw(surface, self._guard_font)

@@ -348,7 +348,16 @@ GUARD_IDLE = {
     3: ("Three rooms, one loop. I am not paid enough.", "WARDEN never blinks. I do."),
 }
 GUARD_HIT = "Told you. Count the cycle."
-GUARD_ALERT = "The robot saw you. Keep moving."
+GUARD_ALERT = "The droid saw you. Keep moving."
+
+DROID_ROUTE_Y = 166                                     # its feet sit on the dashed patrol line
+DROID_NOTICE = "Courier. Badge logged."
+DROID_ALERT = "Unauthorised. Hold position."
+DROID_IDLE_EVERY = 15.0
+DROID_IDLE = ("Patrol 7. Nothing to report.", "Counting lanes. Four. Three. Four.", "Every loop ends. Mine does not.")
+DROID_STAND_DOWN = "Patrol ended. Standing down."
+EXCHANGE_RANGE = 120                                    # how close the guard and the droid must pass to talk
+EXCHANGE = ("Evening, Unit 7.", "Greeting logged.")
 
 _WALL_LAMPS = {
     1: ((150, 96), (255, 236, 200), 150, 0.8),          # over the lockers

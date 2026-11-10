@@ -400,3 +400,52 @@ def test_the_guard_lap_stays_clear_of_every_lane_and_the_question_panel():
         for lane in (level.lane_loop.rects if level.lane_loop else []):
             assert not lap.colliderect(lane.inflate(12, 12)), (room, lane)
         assert lap.bottom < level._bottom_layout()["panel"].top
+
+
+def test_the_patrol_robot_is_an_npc_with_a_voice_and_follows_the_levels_route():
+    from systems import voice
+
+    level = make_level(3, next(k for k, v in QUESTIONS.items() if v["room"] == 3))
+    assert level.droid.kind == "patrol_droid"
+    assert voice.voice_for("patrol_droid") is not voice.DEFAULT_VOICE
+    assert voice.voice_for("night_guard") is not voice.DEFAULT_VOICE
+    start = level.droid.rect.x
+    for _ in range(60):
+        level.update(1 / 60)
+    assert level.droid.rect.x == round(level.robot_x) != start            # the NPC stands where the level's route says
+    assert level.droid.rect.y == level.robot_y
+
+
+def test_the_droid_speaks_when_it_catches_you_and_stands_down_when_the_gate_opens():
+    from levels import patrol_decor as P
+    from tests.test_level3_lasers import make_level as make_game_level
+
+    level, _ = make_game_level(3)
+    level.update(1 / 60)
+    level.game.player.rect.center = level.droid.rect.center
+    level.robot_detection_cooldown = 0
+    level.update(1 / 60)
+    assert level.robot_alert and level.droid.speech == P.DROID_ALERT
+
+    level.gate3.unlock()
+    level.gate3.update(2.0)
+    before = level.robot_x
+    level.update(1 / 60)
+    assert level.droid.speech == P.DROID_STAND_DOWN
+    for _ in range(30):
+        level.update(1 / 60)
+    assert level.robot_x == before and not level.droid.moving             # `break`: the patrol ends
+
+
+def test_the_guard_and_the_droid_greet_each_other_once_per_meeting():
+    from levels import patrol_decor as P
+
+    level = make_level(3, next(k for k, v in QUESTIONS.items() if v["room"] == 3))
+    level.guard.rect.center = (level.droid.rect.centerx, level.droid.rect.centery + 60)
+    level.guard.speech = level.droid.speech = None
+    level._droid_wait = 99
+    level._update_droid(1 / 60)
+    assert level.guard.speech == P.EXCHANGE[0] and level.droid.speech == P.EXCHANGE[1]
+    level.guard.speech = level.droid.speech = None
+    level._update_droid(1 / 60)
+    assert level.guard.speech is None                                     # not again while they stay close

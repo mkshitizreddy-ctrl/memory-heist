@@ -42,7 +42,7 @@ STORY = {
     },
     "level3": {
         "warden": True,
-        "title": "LEVEL 3 - THE LASER LOOP",
+        "title": "LEVEL 3 - THE NIGHT PATROL",
         "concept": "Loops",
         "lines": [
             "NovaCorp's night patrol is a loop: lanes fire, cameras sweep, a robot walks.",

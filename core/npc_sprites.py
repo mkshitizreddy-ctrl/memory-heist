@@ -33,6 +33,25 @@ _GUARD_BODY = [
     "..UUUUUUUUGG....",
     "...UUUUUUUUU....",
 ]
+# The night patrol droid: a domed head with a dark visor and two red eyes, a boxy chest
+# with amber status lamps, clamp hands. (e eyes, K visor, b lamps, G clamps.)
+_DROID_HEAD = [
+    "......b.........",
+    "....AAAAAA......",
+    "...AAaaaaAA.....",
+    "..AAAAAAAAAA....",
+    "..AAKKKKKKAA....",
+    "..AAKeKKeKAA....",
+    "..AAKKKKKKAA....",
+    "...AAAAAAAA.....",
+]
+_DROID_BODY = [
+    "...UUUUUUUUU....",
+    "..UUbUUUUbUUU...",
+    "..GUUUUUUUUUG...",
+    "..GUUUUUUUUUG...",
+    "...UUUUUUUUU....",
+]
 _RECEPTIONIST_HEAD = [
     "................",
     "....OOOOOO......",
@@ -160,6 +179,11 @@ PALETTES = {
         "K": (196, 150, 120), "S": (10, 12, 20), "U": (40, 52, 80),
         "b": (64, 214, 190), "G": (150, 130, 120), "B": (12, 14, 22),
     },
+    "patrol_droid": {                     # the Floor 3 patrol droid: gunmetal, red eyes, amber lamps
+        "A": (96, 104, 122), "a": (170, 180, 200), "P": (60, 66, 80),
+        "K": (12, 16, 26), "e": (255, 70, 60), "U": (74, 82, 100),
+        "b": (255, 190, 60), "G": (130, 138, 156), "S": (10, 12, 20), "B": (26, 28, 36),
+    },
     "technician": {
         "A": (255, 196, 40), "a": (255, 228, 120), "P": (204, 142, 20),
         "K": (206, 152, 112), "g": (96, 214, 240), "V": (236, 108, 40),
@@ -187,6 +211,7 @@ PALETTES = {
 _PARTS = {
     "guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
     "night_guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
+    "patrol_droid": (_DROID_HEAD, _DROID_BODY, _legs("U")),
     "receptionist": (_RECEPTIONIST_HEAD, _RECEPTIONIST_BODY, _legs("J")),
     "technician": (_TECHNICIAN_HEAD, _TECHNICIAN_BODY, _legs("W")),
     "cleaner": (_CLEANER_HEAD, _CLEANER_BODY, _legs("W")),
@@ -197,6 +222,7 @@ _PARTS = {
 # What the eyes become in a blink. A guard in sunglasses has none to close.
 BLINK_COLOURS = {
     "guard": {}, "night_guard": {},
+    "patrol_droid": {"e": (12, 16, 26)},              # its eyes go dark for a blink
     "receptionist": {"e": (222, 170, 130)},
     "technician": {},                   # goggles never close
     "cleaner": {}, "engineer": {}, "sysadmin": {}, "curator": {},     # no faces to blink

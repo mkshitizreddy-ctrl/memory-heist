@@ -102,7 +102,7 @@ def test_floor_name_is_shown_in_the_floors_accent_colour():
     h = hud.HUD()
     h.tiny = Rec(h.tiny)
     draw(h, "level3")
-    assert ("LASER CORRIDOR", theme.floor_palette("level3")["accent"]) in seen
+    assert ("NIGHT PATROL", theme.floor_palette("level3")["accent"]) in seen
 
 
 def lit_cells(surface, colour):
