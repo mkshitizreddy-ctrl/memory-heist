@@ -353,7 +353,7 @@ def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficult
     if alert:
         # Banner text is drawn inside its own surface: check it fits the lane
         # at the font size render() selects (18 px, falling back to 16 px).
-        for banner in ("LASER HIT! SECURITY +10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
+        for banner in ("LASER HIT! SCORE -10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
             font = level._font(level.BODY_SIZE)
 
             if font.size(banner)[0] > lane.width - 16:
@@ -381,8 +381,8 @@ def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
     level.laser_phase = lambda index: "active"      # only active beams can hit
     level.game = SimpleNamespace(
         player=SimpleNamespace(rect=player),
-        security=SimpleNamespace(increase=lambda amount: hits.append(amount)),
-        score=SimpleNamespace(penalize=lambda amount: None),
+        security=SimpleNamespace(increase=lambda amount: (_ for _ in ()).throw(AssertionError("no security"))),
+        score=SimpleNamespace(penalize=lambda amount: hits.append(amount)),
         coop=False,
     )
 

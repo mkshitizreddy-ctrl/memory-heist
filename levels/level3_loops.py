@@ -321,10 +321,9 @@ class Level3LaserLoop:
                 self.laser_penalty_cooldown = self.laser_penalty_duration
                 self.laser_hit_feedback_timer = 1.0
 
-                self.feedback = "LASER HIT! SECURITY +10"
+                self.feedback = "LASER HIT! SCORE -10"
 
-                self.game.security.increase(10)
-                self.game.score.penalize(10)
+                self.game.score.penalize(10)               # a hazard costs score only, never security
 
                 # Recovery: every laser re-arms, giving a safe window.
                 self.laser_clock = 0.0
@@ -1024,8 +1023,7 @@ class Level3LaserLoop:
                     "SECURITY ROBOT DETECTED YOU!"
                 )
 
-                self.game.security.increase(20)
-                self.game.score.penalize(10)
+                self.game.score.penalize(10)               # the patrol robot costs score only
 
         self.try_room_transition()
 
@@ -1161,8 +1159,7 @@ class Level3LaserLoop:
 
         if self.game:
 
-            self.game.security.increase(25)
-            self.game.score.penalize(15)
+            self.game.score.penalize(15)               # an alert costs score only
 
     def draw_robot_scan(self, surface):
 
@@ -2279,7 +2276,7 @@ class Level3LaserLoop:
         banner_text = None
 
         if self.laser_hit_feedback_timer > 0:
-            banner_text = "LASER HIT! SECURITY +10"
+            banner_text = "LASER HIT! SCORE -10"
             banner_fill, banner_ink = (170, 30, 30, 220), (255, 245, 245)
         elif self.robot_alert:
             banner_text = "!! SECURITY ALERT - ROBOT DETECTION !!"

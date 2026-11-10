@@ -28,13 +28,25 @@ def make_level(room=1, player_at=(600, 520)):
     pygame.font.init()
     random.seed(3)
 
-    events = []
+    events = []                       # score penalties taken
+
+    def no_security(amount):
+        raise AssertionError("a hazard must never raise security")
+
+    score = ScoreTracker()
+    original_penalize = score.penalize
+
+    def penalize(amount):
+        events.append(amount)
+        original_penalize(amount)
+
+    score.penalize = penalize
     game = SimpleNamespace(
         difficulty=get_difficulty("medium"),
         player=SimpleNamespace(rect=pygame.Rect(*player_at, 32, 32)),
         coop=False,
-        security=SimpleNamespace(increase=lambda amount: events.append(amount)),
-        score=ScoreTracker(),
+        security=SimpleNamespace(increase=no_security),
+        score=score,
     )
 
     level = Level3LaserLoop(game=game)
@@ -126,13 +138,14 @@ def test_room_entry_is_safe_for_the_whole_grace_period(room, spawn):
 def test_a_player_in_the_beam_path_is_still_punished_after_the_grace_period():
     level, events = make_level(2, player_at=(100, 350))
     player = level.game.player.rect
+    level.game.score.add(1000)
 
     for _ in range(60 * 8):
         beam = level.lasers[1]
         player.topleft = (int(beam["x"]) + 10, int(beam["y"]) - 8)
         level.update(1 / 60)
 
-    assert events.count(10) >= 1
+    assert events.count(10) >= 1                    # it costs score (and never security: see make_level)
 
 
 def test_only_active_beams_hurt_and_a_hit_is_applied_once():
@@ -156,7 +169,7 @@ def test_only_active_beams_hurt_and_a_hit_is_applied_once():
     assert level.laser_phase(0) == "active" or events == [10]
     assert events == [10]
     assert level.game.score.get_score() == 90
-    assert level.feedback == "LASER HIT! SECURITY +10"
+    assert level.feedback == "LASER HIT! SCORE -10"
 
     level.laser_clock = level.LASER_ENTRY_GRACE + 0.5      # still overlapping
     level.check_laser_collision(0.0)
