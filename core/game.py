@@ -492,6 +492,9 @@ class Game:
                         continue
 
                 elif event.key == pygame.K_m:
+                    if self.state == "playing" and self.paused:
+                        self.change_state("menu")          # leave the floor; Continue keeps the last saved floor
+                        continue
                     if self.state == "lose" or self._win_screen_is_done():
                         self.change_state("menu")
                         # The key must not reach the menu it opens.
@@ -751,6 +754,7 @@ class Game:
             self.lose_screen.render(
                 self.screen,
                 score=self.score.get_score(),
+                level=self.level_manager.current_name,
             )
 
         if self.state != "playing":

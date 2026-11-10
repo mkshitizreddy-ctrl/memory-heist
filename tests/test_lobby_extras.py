@@ -17,6 +17,7 @@ from levels import lobby_extras as X
 from levels.floor1_lobby import FloorOneLobby
 from systems.scoring import ScoreTracker
 from systems.security import SecurityMeter
+from ui import theme
 
 
 @pytest.fixture(autouse=True)
@@ -435,3 +436,127 @@ def test_the_background_is_graded_and_has_posters_on_the_left_wall():
     assert calls == [1]
     poster = level._background.get_at((30, 10 * 32 + 20))[:3]
     assert poster[0] > poster[2] + 15                       # a red-brown card, not wall grey
+
+
+# --- the reception phone ------------------------------------------------------------
+def test_the_phone_rings_on_schedule_then_gets_answered():
+    phone = X.Phone()
+    assert phone.update(X.PHONE_FIRST_AT - 0.1) is None and not phone.is_ringing
+    assert phone.update(0.2) == "ring" and phone.is_ringing
+    seen = []
+    for _ in range(int(X.RING_TIME / 0.1) + 5):
+        seen.append(phone.update(0.1))
+    assert "answer" in seen and not phone.is_ringing
+    assert phone.calls == 1
+
+
+def test_the_phone_rings_a_second_time_halfway_through():
+    phone = X.Phone()
+    phone.update(X.PHONE_FIRST_AT)
+    events = [phone.update(0.1) for _ in range(int(X.RING_TIME / 0.1) + 3)]
+    assert events.count("ring") == 1                     # the start was returned above, the midpoint here
+    assert events.index("ring") * 0.1 == pytest.approx(X.RING_TIME / 2, abs=0.2)
+
+
+def test_the_phone_rings_again_later_and_lines_cycle():
+    phone = X.Phone()
+    lines = []
+    t = 0.0
+    while len(lines) < len(X.CALL_LINES) + 1 and t < 600:
+        event = phone.update(0.1)
+        t += 0.1
+        if event == "answer":
+            lines.append(phone.line())
+    assert lines[:len(X.CALL_LINES)] == list(X.CALL_LINES)
+    assert lines[len(X.CALL_LINES)] == X.CALL_LINES[0]
+    assert all(len(line) <= 30 for line in X.CALL_LINES)
+
+
+def test_the_phone_is_drawn_and_shows_ring_arcs_only_while_ringing():
+    desk = pygame.Rect(384, 480, 192, 32)
+    quiet, loud = pygame.Surface((640, 640)), pygame.Surface((640, 640))
+    X.draw_phone(quiet, desk, False, 0.0)
+    X.draw_phone(loud, desk, True, 0.0)
+    blank = pygame.Surface((640, 640))
+    assert pygame.image.tobytes(quiet, "RGB") != pygame.image.tobytes(blank, "RGB")
+    assert pygame.image.tobytes(quiet, "RGB") != pygame.image.tobytes(loud, "RGB")
+
+
+def test_the_receptionist_takes_the_call_in_the_real_level():
+    level, game, p1 = make_level()
+    sounds = []
+    level._sfx = sounds.append
+    level.phone.clock = 0.05
+    level._update_extras(0.1)
+    assert sounds == ["phone"] and level.phone.is_ringing
+    for _ in range(40):
+        level._update_extras(0.1)
+    assert level.phone.calls == 1
+    assert level.receptionist.speech == X.CALL_LINES[0]
+
+
+def test_a_visitor_badge_is_drawn_as_a_card_with_a_teal_stripe_and_a_clip():
+    surf = pygame.Surface((80, 80))
+    surf.fill((20, 20, 30))
+    chip = X.Chip((1, 1))
+    chip.rect.center = (40, 40)
+    X.draw_chip(surf, chip, 0.0)
+    colours = {tuple(surf.get_at((x, y)))[:3] for x in range(28, 52) for y in range(26, 54)}
+    assert tuple(theme.PAPER)[:3] in colours             # the white card
+    assert any(c[1] > 150 and c[2] > 150 and c[0] < 130 for c in colours)   # the teal stripe
+
+
+# ---- purposeful props: manifests, cooler, banter ----------------------------------
+
+def _lobby():
+    from tests.test_floor1_lobby import make_level
+    return make_level()[0]
+
+
+def test_reading_a_manifest_shows_the_next_chute_rule():
+    from levels import floor1_lobby as f1
+    level = _lobby()
+    level._read_manifest()
+    assert level.message.endswith(f1.HINTS[f1.BIN_TYPES[0]])
+    level._read_manifest()
+    assert level.message.endswith(f1.HINTS[f1.BIN_TYPES[1]])
+
+
+def test_manifests_are_sealed_when_hints_are_off():
+    level = _lobby()
+    level.game = type("G", (), {"hints": type("H", (), {"enabled": False})()})()
+    level._read_manifest()
+    from levels import lobby_extras as le
+    assert level.message == le.MANIFEST_OFF
+
+
+def test_guard_and_receptionist_banter_when_he_passes_her_desk():
+    level = _lobby()
+    level.guard.rect.center = level.receptionist.rect.center
+    level._banter_wait = 0.0
+    level._banter(0.1)
+    assert level.guard.speech and level.receptionist.speech
+    wait = level._banter_wait
+    level._banter(0.1)
+    assert level._banters == 1 and level._banter_wait < wait   # cooldown, no repeat
+
+
+def test_the_sofa_reads_out_the_waiting_list():
+    from levels import lobby_extras as le
+    from tests.test_floor1_lobby import make_level, stand_by, key
+    level, game, player = make_level()
+    stand_by(player, level.sofa)
+    level._interact(player)
+    assert level.message == le.SOFA_LINES[0]
+
+
+def test_belt_sign_flips_once_every_parcel_is_filed():
+    import pygame
+    level, _, _ = make_level()
+    assert level._belt_restarted() is False
+    for crate in level.crates:
+        crate.sorted = True
+    assert level._belt_restarted() is True
+    surf = pygame.Surface((960, 640))
+    level._draw_belt_sign(surf)
+    assert surf.get_at((722, 100)) != (0, 0, 0) or surf.get_at((730, 110)) != (0, 0, 0)

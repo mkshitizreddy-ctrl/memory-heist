@@ -53,6 +53,8 @@ class RoomMap:
 
 
 class RoomMixin:
+    STEP_SOUND = "step"              # a floor can override this (metal grating, server floor...)
+
     def init_room(self, seed=None):
         self.rng = random.Random(seed)
         self.message = ""
@@ -117,7 +119,7 @@ class RoomMixin:
                 clock += dt
                 if clock >= STEP_EVERY:
                     clock = 0.0
-                    self.sfx("step")
+                    self.sfx(self.STEP_SOUND)
             else:
                 clock = STEP_EVERY * 0.6      # the first step after standing still is quick
             self._step_clock[id(player)] = clock

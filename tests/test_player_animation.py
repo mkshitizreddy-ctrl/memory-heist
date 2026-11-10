@@ -136,7 +136,11 @@ def test_facing_left_draws_the_mirrored_frame():
     shadow_only.frames["walk"] = [shadow_only.frames["idle"]] * 4
     shadow_only.rect.topleft = (32, 32)
     shadow_only.draw(expected)
-    expected.blit(pygame.transform.flip(image, True, False), (32, 32 - lift))
+    mirrored = pygame.transform.flip(image, True, False)
+    from core.character import RIM_LIGHT
+    rim = pygame.mask.from_surface(mirrored).to_surface(setcolor=RIM_LIGHT, unsetcolor=(0, 0, 0, 0))
+    expected.blit(rim, (31, 32 - lift - 1))                  # the rim light sits one pixel up and left
+    expected.blit(mirrored, (32, 32 - lift))
     assert same_pixels(drawn, expected)
 
 

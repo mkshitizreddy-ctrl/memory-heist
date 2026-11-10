@@ -40,17 +40,17 @@ _ECHO_HEAD = [
     "...OOOKKKK......",
 ]
 _GHOST_BODY = [
-    "...CCCCCCCCC....",
-    "..CCCccCCCCCC...",
-    "..CCCccCCCGGC...",
-    "..CCCCCCCCGG....",
-    "...CCCCCCCCC....",
+    "..cCCCCCCCCCC...",
+    ".CCCccCCCCCCCC..",
+    ".CCCccCCCCCGGC..",
+    "..CCCCccccCGG...",
+    "..CCCCCCCCCCC...",
 ]
 _ECHO_BODY = [
-    "...JJJJJJJJJ....",
-    "..JJJTTJJJJJJ...",
-    "..JJJTTJJJGGJ...",
-    "..JJJJJJJJGG....",
+    "..OJJJJJJJJJ....",
+    ".OOJTJJJJJJJJ...",
+    ".OJJJTJJJJGGJ...",
+    "..JJJJTJJJGG....",
     "...JJJJJJJJJ....",
 ]
 _LEGS = {
@@ -62,14 +62,14 @@ _ECHO_LEGS = {k: [row.replace("C", "J") for row in v] for k, v in _LEGS.items()}
 
 PALETTES = {
     "ghost": {
-        "H": (96, 108, 166), "h": (136, 152, 214), "D": (8, 12, 24),
-        "V": (90, 240, 255), "C": (76, 92, 150), "c": (130, 200, 255),
-        "G": (200, 212, 240), "B": (22, 28, 48),
+        "H": (74, 84, 124), "h": (104, 116, 164), "D": (8, 12, 24),
+        "V": (90, 240, 255), "C": (58, 70, 112), "c": (96, 156, 196),
+        "G": (178, 186, 206), "B": (18, 22, 38),
     },
     "echo": {
-        "O": (214, 120, 48), "K": (240, 200, 160), "Y": (255, 196, 64),
-        "J": (232, 150, 70), "T": (64, 214, 190), "G": (240, 200, 160),
-        "B": (60, 40, 30),
+        "O": (178, 100, 48), "K": (226, 188, 152), "Y": (250, 190, 70),
+        "J": (190, 122, 70), "T": (52, 168, 156), "G": (226, 188, 152),
+        "B": (50, 34, 28),
     },
 }
 _PARTS = {

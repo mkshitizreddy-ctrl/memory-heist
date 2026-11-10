@@ -36,6 +36,83 @@ BELL_LINES = ("Ding! Sign in, please.", "One moment, visitor.", "Please stop rin
 VENDING_LINE = "A cold coffee drops out. +5"
 VENDING_EMPTY = "Sold out."
 
+# Filing cabinets hold the intake manifests; E reads one (the chute rules).
+MANIFEST_OFF = "Manifest sealed on this difficulty."
+MANIFEST_TITLE = "Manifest {n}: "
+# The water cooler is where the staff talk.
+COOLER_LINES = ("Cold water. Nobody mentions the cameras.",
+                "Someone taped a note: 'Blink less.'",
+                "The cooler hums. So do the walls.")
+# The sofa is the visitor waiting area: the sign taped above it is the joke.
+SOFA_LINES = ("Visitors waiting: 212. Estimated wait: unknown.",
+              "The cushion is still warm. Nobody is here.",
+              "Sign-in sheet: every name is crossed out.")
+# The guard and the receptionist trade a line when he passes her desk.
+BANTER_GAP = 22.0
+BANTER_RANGE = 70
+BANTER = (("Quiet shift.", "Quiet is on file."),
+          ("Anyone in?", "Only the courier."),
+          ("Coffee later?", "Sold out. Again."))
+
+# The reception phone: it rings now and then and the receptionist takes the call.
+PHONE_FIRST_AT = 12.0
+PHONE_EVERY = 31.0
+RING_TIME = 2.2
+CALL_LINES = ("NovaCorp reception.", "Yes. No. Please hold.", "He is not in. Nobody is.",
+              "All calls are recorded.")
+
+
+class Phone:
+    """Rings every so often; at the end of the ring the receptionist picks up.
+
+    update(dt) returns "ring" when the ringing starts and again halfway through
+    (play the sound), "answer" when the call is taken (speak line()), else None.
+    """
+
+    def __init__(self):
+        self.clock = PHONE_FIRST_AT
+        self.ringing = 0.0
+        self.calls = 0
+
+    @property
+    def is_ringing(self):
+        return self.ringing > 0.0
+
+    def line(self):
+        return CALL_LINES[(self.calls - 1) % len(CALL_LINES)]
+
+    def update(self, dt):
+        if self.ringing > 0.0:
+            before = self.ringing
+            self.ringing = max(0.0, self.ringing - dt)
+            if self.ringing == 0.0:
+                self.calls += 1
+                return "answer"
+            if before > RING_TIME / 2 >= self.ringing:
+                return "ring"
+            return None
+        self.clock -= dt
+        if self.clock <= 0.0:
+            self.clock = PHONE_EVERY
+            self.ringing = RING_TIME
+            return "ring"
+        return None
+
+
+def draw_phone(surf, desk, ringing, t):
+    """The desk phone: a handset on a base; it shakes and shows ring arcs while ringing."""
+    x, y = desk.x + 100, desk.y - 4
+    shake = int(math.sin(t * 40) * 1.5) if ringing else 0
+    pygame.draw.rect(surf, theme.INK, (x - 9, y - 5, 18, 7), border_radius=2)
+    pygame.draw.rect(surf, theme.SLATE, (x - 9, y - 5, 18, 7), 1, border_radius=2)
+    pygame.draw.rect(surf, (30, 32, 40), (x - 8 + shake, y - 10, 16, 5), border_radius=2)       # handset
+    pygame.draw.rect(surf, theme.MIST, (x - 8 + shake, y - 10, 16, 5), 1, border_radius=2)
+    if ringing:
+        for r, a in ((6, 200), (10, 140)):
+            arc = pygame.Rect(0, 0, r * 2, r * 2)
+            arc.center = (x, y - 12)
+            pygame.draw.arc(surf, theme.mix(theme.GOLD, theme.INK, 1 - a / 255), arc, 0.5, 2.6, 2)
+
 
 class SweepBeam:
     """A narrow wedge of light swinging from the camera over the lobby floor."""
@@ -118,13 +195,21 @@ def draw_beam(overlay, beam, t, danger):
 
 
 def draw_chip(surf, chip, t):
+    """A lost visitor badge: a clipped card on a lanyard with a teal stripe, a photo and text lines."""
     bob = int(math.sin(t * 3 + chip.phase) * 2)
+    sway = int(round(math.sin(t * 2 + chip.phase) * 1.5))
     c = chip.rect.move(0, bob).center
     glow = 0.5 + 0.5 * math.sin(t * 5 + chip.phase)
-    pygame.draw.circle(surf, theme.mix(theme.NAVY, theme.TEAL, 0.4 + 0.3 * glow), c, 15)
-    body = pygame.Rect(0, 0, 14, 14)
-    body.center = c
-    pygame.draw.rect(surf, theme.INK, body.inflate(2, 2), border_radius=3)
-    pygame.draw.rect(surf, theme.mix(theme.TEAL, theme.PAPER, glow * 0.6), body, border_radius=3)
-    for dx in (-4, 0, 4):
-        pygame.draw.line(surf, theme.INK, (c[0] + dx, c[1] - 3), (c[0] + dx, c[1] + 3), 1)
+    halo = pygame.Surface((40, 40), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (*theme.TEAL, int(40 + 50 * glow)), (20, 20), 18)
+    surf.blit(halo, (c[0] - 20, c[1] - 20))
+    card = pygame.Rect(0, 0, 14, 18)
+    card.center = (c[0] + sway, c[1] + 1)
+    pygame.draw.rect(surf, theme.INK, card.inflate(2, 2), border_radius=2)
+    pygame.draw.rect(surf, theme.PAPER, card, border_radius=2)
+    pygame.draw.rect(surf, theme.mix(theme.TEAL, theme.PAPER, glow * 0.3), (card.x, card.y, card.w, 5), border_top_left_radius=2, border_top_right_radius=2)
+    pygame.draw.rect(surf, theme.SLATE, (card.x + 2, card.y + 7, 5, 5))                        # photo
+    for ly in (card.y + 8, card.y + 11, card.y + 14):
+        pygame.draw.line(surf, theme.MIST, (card.x + 8, ly), (card.right - 2, ly), 1)
+    pygame.draw.rect(surf, theme.INK, (card.centerx - 2, card.y - 4, 4, 4))                     # clip
+    pygame.draw.line(surf, theme.CORAL, (card.centerx, card.y - 4), (card.centerx + 3, card.y - 9), 1)  # lanyard

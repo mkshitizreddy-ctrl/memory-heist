@@ -93,6 +93,19 @@ class NPC:
             self._noticed.discard(key)
         return False
 
+    def drive(self, x, y, dt, moving=True, facing_left=None):
+        """Put the NPC where the level says (for characters whose route the level owns)."""
+        self._x, self._y = float(x), float(y)
+        self.rect.topleft = (round(self._x), round(self._y))
+        if facing_left is not None:
+            self.facing_left = facing_left
+        self.moving = moving
+        if moving:
+            self.anim_time += max(0.0, dt)
+            self.idle_time = 0.0
+        else:
+            self.idle_time += max(0.0, dt)
+
     # --- per-frame --------------------------------------------------------
     def update(self, dt):
         dt = max(0.0, dt)

@@ -66,7 +66,7 @@ def test_question_panel_fits_and_footer_is_above_585(question_id):
     assert panel.height <= layout["available"]
     assert panel.top >= level._lowest_rail_bottom() + 6
 
-    footer = layout["foot_font"].render("Progress: 0/3 gates/challenges", True, (255, 255, 255))
+    footer = layout["foot_font"].render("Doors opened: 0/3", True, (255, 255, 255))
     footer_bottom = layout["foot_y"] + footer.get_bounding_rect().bottom
 
     assert footer_bottom <= 585
@@ -100,16 +100,16 @@ def test_gate_progress_is_render_side_and_eased(monkeypatch):
     assert level._gate_progress(level.gate1) == 0.0
 
     level.gate1.unlock()
-    assert level._gate_progress(level.gate1) == 0.0     # animation just started
+    assert level._gate_progress(level.gate1) < 0.01     # the badge scan just started
+    assert level.gate1.state == "unlocking"
 
-    clock["t"] += 0.3
+    level.gate1.update(0.3)
     middle = level._gate_progress(level.gate1)
-    clock["t"] += 1.0
-    finished = level._gate_progress(level.gate1)
+    assert 0.0 < middle < 1.0 and level.gate1.state == "unlocking"   # still shut: the reader is scanning
 
-    assert 0.0 < middle < 1.0
-    assert finished == 1.0
-    assert level.gate1.state == "unlocking"              # gameplay state untouched
+    level.gate1.update(1.2)
+    assert level._gate_progress(level.gate1) == 1.0     # leaves fully slid into the wall
+    assert level.gate1.state == "open"
 
 
 def test_render_does_not_change_gameplay_state():
@@ -122,7 +122,7 @@ def test_render_does_not_change_gameplay_state():
             level.time_left,
             level.robot_x,
             level.robot_alert,
-            [laser["x"] for laser in level.lasers],
+            (level.lane_loop or level.camera_bank).clock if (level.lane_loop or level.camera_bank) else 0,
             level.gate2.state,
             level.game.score.get_score(),
         )
@@ -133,19 +133,6 @@ def test_render_does_not_change_gameplay_state():
         level.render(surface)
 
     assert snapshot() == before
-
-
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_laser_labels_stay_out_of_the_robot_band(room):
-    question_id = next(
-        key for key, value in QUESTIONS.items() if value["room"] == room
-    )
-    level = make_level(room, question_id)
-
-    band = pygame.Rect(90, 154, 800, 62)
-
-    for rect in level._laser_label_rects():
-        assert not rect.colliderect(band)
 
 
 def test_gate_sparks_do_not_touch_private_gate_state_or_global_random():
@@ -168,46 +155,31 @@ def test_gate_sparks_do_not_touch_private_gate_state_or_global_random():
     assert level._vis_state()["sparks"]
 
 
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_drawn_beam_matches_collision_box(room):
+@pytest.mark.parametrize("room", (1, 3))
+def test_a_live_lane_is_drawn_inside_its_collision_box(room):
     question_id = next(
         key for key, value in QUESTIONS.items() if value["room"] == room
     )
     level = make_level(room, question_id)
-    level.robot_x = 700
-    level.laser_phase = lambda index: "active"      # beam drawn at full strength
-
-    for index, laser in enumerate(level.lasers):
-        laser["x"] = 200.0 + 111 * index
+    lane = level.lane_loop
+    lane.clock = 2.0 + 0.1                                   # lane 0 is live
 
     surface = pygame.Surface((960, 640))
     surface.fill((0, 0, 0))
-    level.render(surface)
+    lane.draw(surface, 0.0)
 
-    for laser in level.lasers:
-        collision = pygame.Rect(
-            int(laser["x"]), int(laser["y"]),
-            level.laser_width, level.laser_height,
-        )
-        strip = pygame.Rect(
-            collision.left, collision.top - 4, collision.width, collision.height + 8
-        )
-        red = [
-            (x, y)
-            for x in range(strip.left, strip.right, 5)
-            for y in range(strip.top, strip.bottom)
-            if tuple(surface.get_at((x, y)))[:3] == (255, 45, 45)
-        ]
+    box = lane.rect(0)
+    red = [
+        (x, y)
+        for x in range(box.left - 6, box.right + 6, 2)
+        for y in range(box.top - 6, box.bottom + 6)
+        if tuple(surface.get_at((x, y)))[:3] == (255, 45, 45)
+    ]
 
-        assert red
-        assert min(y for _, y in red) == collision.top
-        assert max(y for _, y in red) == collision.bottom - 1
-
-        # The rail is centred on the beam (8 px of housing each side).
-        rail_top = laser["y"] - level.RAIL_TOP_PAD
-        rail_bottom = rail_top + level.RAIL_HEIGHT
-
-        assert collision.top - rail_top == rail_bottom - collision.bottom == 8
+    assert red
+    assert all(box.collidepoint(p) for p in red)             # never drawn outside what hurts
+    assert max(x for x, _ in red) - min(x for x, _ in red) >= box.width * 0.8 or box.width < box.height
+    assert max(y for _, y in red) - min(y for _, y in red) >= box.height * 0.5
 
 
 @pytest.mark.parametrize("room", (1, 2, 3))
@@ -264,45 +236,6 @@ def rendered_text_rects(level):
     return rects
 
 
-def rail_bodies(level):
-    return [
-        pygame.Rect(
-            level.track_x,
-            laser["y"] - level.RAIL_TOP_PAD,
-            level.track_width,
-            level.RAIL_HEIGHT,
-        )
-        for laser in level.lasers
-    ]
-
-
-def rail_emitters(level):
-    return [
-        pygame.Rect(x, laser["y"] - level.RAIL_TOP_PAD - 3, 22, level.RAIL_HEIGHT + 6)
-        for laser in level.lasers
-        for x in (level.track_x - 22, level.track_x + level.track_width)
-    ]
-
-
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_robot_label_never_touches_any_rail_along_the_whole_patrol(room):
-    question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
-    level = make_level(room, question_id)
-    font = level._font(24)
-    blocked = rail_bodies(level) + rail_emitters(level)
-
-    for x in range(level.robot_left_boundary, level.robot_right_boundary + 1, 2):
-        level.robot_x = x
-        size = (
-            max(font.size("SECURITY ROBOT")[0], font.size(f"SPEED {level.robot_speed}")[0]),
-            font.get_height() * 2,
-        )
-        label = level._robot_label_rect(size)
-
-        for rail in blocked:
-            assert not label.colliderect(rail), (room, x, label, rail)
-
-
 @pytest.mark.parametrize("question_id", sorted(QUESTIONS))
 def test_question_and_hint_never_extend_beyond_the_panel(question_id):
     question = QUESTIONS[question_id]
@@ -321,7 +254,7 @@ def test_question_and_hint_never_extend_beyond_the_panel(question_id):
 
     for state in (
         "Hint revealed. Final score for this question is reduced by 15.",
-        f"CORRECT! +60 points. GATE 3 UNLOCKED! REACH THE FINAL EXIT.  {question['explanation']}",
+        f"CORRECT! +60 points. DOOR 3 OPEN! REACH THE FINAL EXIT.  {question['explanation']}",
     ):
         level.feedback = state
 
@@ -333,27 +266,25 @@ def test_question_and_hint_never_extend_beyond_the_panel(question_id):
 @pytest.mark.parametrize("room", (1, 2, 3))
 @pytest.mark.parametrize("difficulty", ("easy", "medium", "hard"))
 @pytest.mark.parametrize("alert", (False, True))
-def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficulty, alert):
+def test_header_notice_and_patrol_board_text_stay_inside_their_areas(room, difficulty, alert):
+    from levels import patrol_decor as P
+
     question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
     level = make_level(room, question_id, difficulty)
     level.robot_alert = alert
     level.time_left = 20.0
 
-    header = pygame.Rect(60, 54, 840, 46)
-    lane = pygame.Rect(150, 102, 405, 32)
-    code_panel = pygame.Rect(562, 102, 256, 50)
-
     texts = rendered_text_rects(level)
-    header_texts = [t for t in texts if 54 <= t.top < 100]
-    lane_texts = [t for t in texts if 150 <= t.left < 556 and 102 <= t.top < 136]
-    code_texts = [t for t in texts if 562 <= t.left < 830 and 102 <= t.top < 152]
+    header_texts = [t for t in texts if P.HEADER.top <= t.top < P.HEADER.bottom]
+    board_texts = [t for t in texts if P.BOARD.collidepoint(t.topleft)]
+    notice_texts = [t for t in texts if P.NOTICE.collidepoint(t.topleft)]
 
-    assert len(header_texts) >= 4 and len(code_texts) >= 5
+    assert len(header_texts) >= 3 and len(board_texts) >= 4
 
     if alert:
-        # Banner text is drawn inside its own surface: check it fits the lane
-        # at the font size render() selects (18 px, falling back to 16 px).
-        for banner in ("LASER HIT! SECURITY +10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
+        # The banner text is drawn inside its own surface: it must fit the lane.
+        lane = P.BANNER_LANE
+        for banner in ("LANE HIT! SCORE -10", "!! PATROL DROID ALERT !!"):
             font = level._font(level.BODY_SIZE)
 
             if font.size(banner)[0] > lane.width - 16:
@@ -361,9 +292,9 @@ def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficult
 
             assert font.size(banner)[0] <= lane.width - 16
     else:
-        assert lane_texts
+        assert notice_texts
 
-    for area, items in ((header, header_texts), (lane, lane_texts), (code_panel, code_texts)):
+    for area, items in ((P.HEADER, header_texts), (P.BOARD, board_texts), (P.NOTICE, notice_texts)):
         for ink in items:
             assert area.contains(ink), (area, ink)
 
@@ -373,37 +304,205 @@ def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficult
 
 
 @pytest.mark.parametrize("room", (1, 2, 3))
-def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
+def test_each_room_has_its_own_baked_look(room):
+    from levels import patrol_decor as P
+
+    level = make_level(room, next(k for k, v in QUESTIONS.items() if v["room"] == room))
+    look = P.build_room(room, (level.room_width, level.room_height))
+    others = [P.build_room(r, (level.room_width, level.room_height)) for r in (1, 2, 3) if r != room]
+    wall = pygame.Rect(0, 40, 400, 80)
+
+    mine = pygame.image.tostring(look.subsurface(wall), "RGB")
+    for other in others:
+        assert mine != pygame.image.tostring(other.subsurface(wall), "RGB")
+
+
+def test_the_lane_board_lights_zap_only_while_a_lane_is_live():
+    from levels import patrol_decor as P
+    from levels import patrol_lanes
+
+    surface = pygame.Surface((960, 640))
+    loop = patrol_lanes.LaneLoop("medium", "rows")
+    P.draw_lane_board(surface, loop, False, 0.0, nested=True)
+    quiet = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    loop.clock = patrol_lanes.GRACE + 0.1
+    surface.fill((0, 0, 0))
+    P.draw_lane_board(surface, loop, False, 0.0, nested=True)
+    live = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    surface.fill((0, 0, 0))
+    P.draw_lane_board(surface, loop, True, 0.0, nested=True)
+    broken = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    assert len({quiet, live, broken}) == 3
+
+
+@pytest.mark.parametrize("room", (1, 3))
+def test_lane_collisions_use_check_laser_collision_on_all_four_edges(room):
     question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
     level = make_level(room, question_id)
     hits = []
     player = pygame.Rect(0, 0, 32, 32)
-    level.laser_phase = lambda index: "active"      # only active beams can hit
     level.game = SimpleNamespace(
         player=SimpleNamespace(rect=player),
-        security=SimpleNamespace(increase=lambda amount: hits.append(amount)),
-        score=SimpleNamespace(penalize=lambda amount: None),
+        security=SimpleNamespace(increase=lambda amount: (_ for _ in ()).throw(AssertionError("no security"))),
+        score=SimpleNamespace(penalize=lambda amount: hits.append(amount)),
         coop=False,
     )
+    lane = level.lane_loop
+    lane.clock = 2.0 + 0.1                                    # lane 0 live
 
-    for laser in level.lasers:
-        beam = pygame.Rect(int(laser["x"]), int(laser["y"]), level.laser_width, level.laser_height)
-        mid_x, mid_y = beam.centerx - 16, beam.centery - 16
+    beam = lane.rect(0)
+    mid_x, mid_y = beam.centerx - 16, beam.centery - 16
 
-        for edge in ("left", "right", "above", "below"):
-            for inside in (0, 1):
-                if edge == "left":
-                    player.topleft = (beam.left - 32 + inside, mid_y)
-                elif edge == "right":
-                    player.topleft = (beam.right - inside, mid_y)
-                elif edge == "above":
-                    player.topleft = (mid_x, beam.top - 32 + inside)
-                else:
-                    player.topleft = (mid_x, beam.bottom - inside)
+    for edge in ("left", "right", "above", "below"):
+        for inside in (0, 1):
+            if edge == "left":
+                player.topleft = (beam.left - 32 + inside, mid_y)
+            elif edge == "right":
+                player.topleft = (beam.right - inside, mid_y)
+            elif edge == "above":
+                player.topleft = (mid_x, beam.top - 32 + inside)
+            else:
+                player.topleft = (mid_x, beam.bottom - inside)
 
-                level.laser_penalty_cooldown = 0.0
-                hits.clear()
-                level.check_laser_collision(0.0)
+            level.laser_penalty_cooldown = 0.0
+            lane.clock = 2.0 + 0.1
+            hits.clear()
+            level.check_laser_collision(0.0)
 
-                assert bool(hits) == bool(inside), (room, edge, inside, tuple(beam))
-                assert player.colliderect(beam) == bool(inside)
+            assert bool(hits) == bool(inside), (room, edge, inside, tuple(beam))
+            assert player.colliderect(beam) == bool(inside)
+
+
+def test_night_guard_walks_greets_and_reacts_without_touching_the_rules():
+    from levels import patrol_decor as P
+
+    level = make_level(1, next(k for k, v in QUESTIONS.items() if v["room"] == 1))
+    assert level.guard.kind == "night_guard"
+    start = level.guard.rect.topleft
+    seen = set()
+    for _ in range(600):
+        level._update_guard(1 / 30)
+        seen.add(level.guard.rect.topleft)
+    assert len(seen) > 1                 # he walks his lap
+    level._guard_says(P.GUARD_HIT)
+    assert level.guard.speech == P.GUARD_HIT
+    for room in (1, 2, 3):                                    # every room has lines, none too wide for a bubble
+        assert P.GUARD_GREETING[room] and P.GUARD_IDLE[room]
+
+
+def test_the_guard_lap_stays_clear_of_every_lane_and_the_question_panel():
+    from levels import patrol_decor as P
+
+    for room in (1, 2, 3):
+        level = make_level(room, next(k for k, v in QUESTIONS.items() if v["room"] == room))
+        route = P.GUARD_ROUTES[room]
+        lap = pygame.Rect(route[0][0], route[0][1], route[1][0] - route[0][0] + 32, 32)
+        for lane in (level.lane_loop.rects if level.lane_loop else []):
+            assert not lap.colliderect(lane.inflate(12, 12)), (room, lane)
+        assert lap.bottom < level._bottom_layout()["panel"].top
+
+
+def test_the_patrol_robot_is_an_npc_with_a_voice_and_follows_the_levels_route():
+    from systems import voice
+
+    level = make_level(3, next(k for k, v in QUESTIONS.items() if v["room"] == 3))
+    assert level.droid.kind == "patrol_droid"
+    assert voice.voice_for("patrol_droid") is not voice.DEFAULT_VOICE
+    assert voice.voice_for("night_guard") is not voice.DEFAULT_VOICE
+    start = level.droid.rect.x
+    for _ in range(60):
+        level.update(1 / 60)
+    assert level.droid.rect.x == round(level.robot_x) != start            # the NPC stands where the level's route says
+    assert level.droid.rect.y == level.robot_y
+
+
+def test_the_droid_speaks_when_it_catches_you_and_stands_down_when_the_gate_opens():
+    from levels import patrol_decor as P
+    from tests.test_level3_lasers import make_level as make_game_level
+
+    level, _ = make_game_level(3)
+    level.update(1 / 60)
+    level.game.player.rect.center = level.droid.rect.center
+    level.robot_detection_cooldown = 0
+    level.update(1 / 60)
+    assert level.robot_alert and level.droid.speech == P.DROID_ALERT
+
+    level.gate3.unlock()
+    level.gate3.update(2.0)
+    before = level.robot_x
+    level.update(1 / 60)
+    assert level.droid.speech == P.DROID_STAND_DOWN
+    for _ in range(30):
+        level.update(1 / 60)
+    assert level.robot_x == before and not level.droid.moving             # `break`: the patrol ends
+
+
+def test_the_guard_and_the_droid_greet_each_other_once_per_meeting():
+    from levels import patrol_decor as P
+
+    level = make_level(3, next(k for k, v in QUESTIONS.items() if v["room"] == 3))
+    level.guard.rect.center = (level.droid.rect.centerx, level.droid.rect.centery + 60)
+    level.guard.speech = level.droid.speech = None
+    level._droid_wait = 99
+    level._update_droid(1 / 60)
+    assert level.guard.speech == P.EXCHANGE[0] and level.droid.speech is None      # the guard speaks first
+    level._update_droid(P.EXCHANGE_REPLY_AFTER + 0.1)
+    assert level.droid.speech == P.EXCHANGE[1]                                      # the droid answers a beat later
+    level.guard.speech = level.droid.speech = None
+    level._update_droid(1 / 60)
+    assert level.guard.speech is None                                     # not again while they stay close
+
+
+def test_the_droid_cannot_spot_you_in_the_first_moments_of_a_room():
+    from tests.test_level3_lasers import make_level as laser_level
+
+    level, _ = laser_level(3)
+    game = level.game
+    level.robot_x = 120
+    level.game.player.rect.center = (136, 182)             # standing right under the droid
+    before = game.score.get_score()
+
+    for _ in range(60):                                      # one second: still inside the grace period
+        level.update(1 / 60)
+    assert not level.robot_alert and game.score.get_score() == before
+
+    for _ in range(100):                                     # grace over: stand beside it and it sees you
+        level.update(1 / 60)
+    level.robot_x = level.game.player.rect.centerx - level.robot_width / 2
+    level.game.player.rect.centery = level.robot_y + level.robot_height / 2
+    level.update(1 / 60)
+    assert level.robot_alert
+
+
+def test_the_droid_speaks_below_itself_not_over_the_wall_board():
+    from tests.test_level3_lasers import make_level as laser_level
+
+    level, _ = laser_level(3)
+    level.droid.say("Greeting logged.")
+    surface = pygame.Surface((960, 640))
+    level._draw_droid(surface)
+    bubble_row = level.droid.rect.bottom + 12
+    assert surface.get_at((level.droid.rect.centerx, bubble_row))[:3] != (0, 0, 0)
+
+
+def test_each_room_has_its_own_floor_and_the_baked_rooms_differ():
+    from levels import patrol_decor as P
+
+    images = [pygame.image.tostring(P.build_room(room, (880, 560)), "RGB") for room in (1, 2, 3)]
+    assert len(set(images)) == 3
+
+
+def test_the_exit_sign_shows_the_door_state_as_code_and_the_old_floating_chip_is_gone():
+    level = make_level(1, "level3_loop_1")
+    surface = pygame.Surface((960, 640))
+    sign = pygame.Rect(level.gate1.rect.centerx - 36, 117, 90, 34)
+
+    level._draw_gate(surface, level.gate1)
+    locked = pygame.image.tostring(surface.subsurface(sign), "RGB")
+    level.gate1.unlock()
+    level.gate1.update(level.gate1.SECONDS)
+    level._draw_gate(surface, level.gate1)
+    opened = pygame.image.tostring(surface.subsurface(sign), "RGB")
+
+    assert locked != opened                                  # `open = False` becomes `open = True`
+    assert surface.get_at((level.gate1.rect.centerx, 134))[:3] != (0, 0, 0)

@@ -140,10 +140,11 @@ class MainMenu:
                         (width // 2, 70), color=GREEN, glow_color=glow)
         self._draw_shimmer(surface, (width // 2, 70))
         subtitle = self.subtitle_font.render(
-            "Escape the vault by solving 5 Python puzzles, then the Final Vault.",
+            "WARDEN is watching. Think like code and steal the Master Memory.",
             True, theme.MIST
         )
         blit_centered(surface, subtitle, (width // 2, 124))
+        self._draw_warden_status(surface, width // 2)
 
         # How to play: a panel with a key chip per row
         panel = draw_panel(surface, lay["panel"], fill=theme.mix(theme.INK, theme.NAVY, 0.6),
@@ -188,6 +189,14 @@ class MainMenu:
                                                        theme.mix(theme.TEAL, theme.PAPER, 0.6)),
                       start.center)
         self._draw_hint(surface, lay["hint"])
+
+    def _draw_warden_status(self, surface, cx):
+        """A tiny NovaCorp security line at the very top: a red dot that blinks while WARDEN watches."""
+        text = self.small_font.render("NOVACORP SECURITY  |  WARDEN ONLINE", True, theme.mix(theme.CORAL, theme.MIST, 0.4))
+        rect = text.get_rect(midtop=(cx + 8, 4))
+        surface.blit(text, rect)
+        if (self.tick // 30) % 2 == 0:
+            pygame.draw.circle(surface, theme.CORAL, (rect.x - 10, rect.centery), 4)
 
     def _draw_hint(self, surface, rect):
         """The key hints; with a saved run, a gold 'L: continue' leads the line."""

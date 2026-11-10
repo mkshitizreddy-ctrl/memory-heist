@@ -19,7 +19,31 @@ import pygame
 
 from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
+from core.npc import NPC
 from entities.gate import Gate
+from levels import badge_door, depth_fx, lighting, patrol_cameras, patrol_decor, patrol_lanes
+from ui.fonts import code_font, ui_font
+from ui.kit import draw_panel
+
+
+class PatrolGate(Gate):
+    """The room's exit door: a Gate whose unlock runs the badge scan, then the slide."""
+
+    SECONDS = 1.2                      # scan the badge, then the leaves slide apart
+
+    def unlock(self):
+        if self.state == "locked":
+            super().unlock()
+            self._timer = self.SECONDS
+
+    @property
+    def progress(self):
+        """0 locked .. 1 open, the number levels.badge_door draws from."""
+        if self.state == "locked":
+            return 0.0
+        if self.state == "open":
+            return 1.0
+        return max(0.001, 1.0 - self._timer / self.SECONDS)
 
 
 class Level3LaserLoop:
@@ -74,21 +98,21 @@ class Level3LaserLoop:
         self.room_width = 880
         self.room_height = 560
 
-        self.gate1 = Gate(
+        self.gate1 = PatrolGate(
             850,
             180,
             width=20,
             height=120,
         )
 
-        self.gate2 = Gate(
+        self.gate2 = PatrolGate(
             850,
             180,
             width=20,
             height=120,
         )
 
-        self.gate3 = Gate(
+        self.gate3 = PatrolGate(
             850,
             180,
             width=20,
@@ -98,22 +122,28 @@ class Level3LaserLoop:
         room1 = Room(
             "level3_room1",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate1],
         )
 
         room2 = Room(
             "level3_room2",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate2],
         )
 
         room3 = Room(
             "level3_room3",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate3],
         )
 
         self.final_exit_rect = pygame.Rect(850, 180, 50, 120)
+
+        # Everyone starts below the curtains; the gates are above them.
+        self.spawn_points = ((100, 446), (140, 446))
 
         self.room_map = RoomMap(
             [room1, room2, room3],
@@ -122,62 +152,65 @@ class Level3LaserLoop:
                     "level3_room1",
                     (850, 180, 50, 120),
                     "level3_room2",
-                    (100, 350),
+                    (100, 446),
                 ),
                 (
                     "level3_room2",
                     (850, 180, 50, 120),
                     "level3_room3",
-                    (100, 350),
+                    (100, 446),
                 ),
             ],
         )
 
         # -------------------------
-        # Laser settings
+        # Hazards (lasers, lanes and cameras all share one hit rule)
         # -------------------------
-        self.track_x = 75
-        self.track_y = 215
-        self.track_width = 810
-        self.track_height = 42
-
-        self.laser_width = 150
-        self.laser_height = 14
-        self.laser_speed = 200
-
         self.laser_penalty_cooldown = 0.0
         self.laser_penalty_duration = 1.0
         self.laser_hit_feedback_timer = 0.0
 
-        self.lasers = []
+        self.lane_loop = None               # Rooms 1 and 3: the lane loop (levels/patrol_lanes.py)
+        self.camera_bank = None             # Room 2's sweeping cameras (levels/patrol_cameras.py)
 
         # -------------------------
         # Security robot
         # -------------------------
         self.robot_x = 120
-        self.robot_y = 170
-        self.robot_width = 70
-        self.robot_height = 35
+        self.robot_y = patrol_decor.DROID_ROUTE_Y
+        self.robot_width = 32
+        self.robot_height = 32
 
         self.robot_speed = 120
         self.robot_direction = 1
 
         self.robot_left_boundary = 100
-        self.robot_right_boundary = 810
+        self.robot_right_boundary = 760
 
         # -------------------------
         # Robot detection system
         # -------------------------
-        self.robot_scan_radius = 180
+        self.robot_scan_radius = 120
         self.robot_alert = False
         self.robot_alert_timer = 0
         self.robot_alert_duration = 2.5
-        self.robot_detection_cooldown = 0
+        self.robot_detection_cooldown = patrol_decor.DROID_GRACE
 
         # -------------------------
         # Robot scanning animation
         # -------------------------
         self.robot_scan_phase = 0.0
+
+        self._step_clock = {}
+        self.guard = None
+        self.droid = None                   # the patrol droid: an NPC whose route the level owns
+        self._droid_wait = 0.0
+        self._droid_idles = 0
+        self._stood_down_said = False
+        self._exchanged = False
+        self._droid_reply = None                      # the droid answers the guard a beat later
+        self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
+        self._guard_idles = 0
 
         self.setup_room_hazards()
 
@@ -186,7 +219,7 @@ class Level3LaserLoop:
         # -------------------------
         self.code_lines = [
             "while True:",
-            "    if laser_detected:",
+            "    if spotted:",
             "        break",
         ]
 
@@ -202,11 +235,135 @@ class Level3LaserLoop:
         self.feedback_font = pygame.font.Font(None, 23)
         self.instruction_font = pygame.font.Font(None, 21)
 
+        self._lightlayer = lighting.LightLayer(ambient=patrol_decor.AMBIENT)
+        self._guard_font = ui_font(16)
+
         self.start_questions()
 
     # =========================================================
     # PLAYER HELPERS
     # =========================================================
+
+    def _sfx(self, name):
+        """Play a sound effect if the game has audio (tests may not)."""
+        audio = getattr(self.game, "audio", None)
+
+        if audio is not None:
+            audio.play(name)
+
+    def _guard_says(self, text):
+        if self.guard is not None:
+            self.guard.say(text)
+
+    STEP_EVERY = 0.32
+
+    def _update_steps(self, dt):
+        """Metal footsteps while a player walks the grated floor."""
+
+        if not self.game or not hasattr(self.game, "player"):
+            return
+
+        players = [self.game.player]
+
+        if getattr(self.game, "coop", False):
+            players.append(self.game.player2)
+
+        for player in players:
+            clock = self._step_clock.get(id(player), 0.0)
+
+            if getattr(player, "moving", False):
+                clock += dt
+
+                if clock >= self.STEP_EVERY:
+                    clock = 0.0
+                    self._sfx("step_metal")
+            else:
+                clock = self.STEP_EVERY * 0.6
+
+            self._step_clock[id(player)] = clock
+
+    def _update_guard(self, dt):
+        """The night guard: walks his lap, greets you, grumbles now and then."""
+
+        guard = self.guard
+
+        if guard is None:
+            return
+
+        guard.update(dt)
+        room = self.current_room_number()
+
+        if self.game and hasattr(self.game, "player"):
+            for key, rect in enumerate(self._player_rects()):
+                if guard.notice(rect, key):
+                    guard.say(patrol_decor.GUARD_GREETING[room])
+
+        self._guard_wait -= dt
+
+        if self._guard_wait <= 0 and guard.speech is None:
+            lines = patrol_decor.GUARD_IDLE[room]
+            guard.say(lines[self._guard_idles % len(lines)])
+            self._guard_idles += 1
+            self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
+
+    def _update_droid(self, dt):
+        """The patrol droid: the level owns its route, the NPC gives it a body and a voice."""
+
+        droid = self.droid
+
+        if droid is None:
+            return
+
+        stood_down = self._robot_stood_down()
+        droid.drive(
+            self.robot_x,
+            self.robot_y,
+            dt,
+            moving=not stood_down,
+            facing_left=self.robot_direction < 0,
+        )
+        droid.update(dt)          # speech timers; its position is set by the level
+
+        if stood_down:
+            if not self._stood_down_said:
+                droid.say(patrol_decor.DROID_STAND_DOWN)
+                self._stood_down_said = True
+            return
+
+        if self.game and hasattr(self.game, "player") and not self.robot_alert:
+            for key, rect in enumerate(self._player_rects()):
+                if droid.notice(rect, key):
+                    droid.say(patrol_decor.DROID_NOTICE)
+
+        self._droid_wait -= dt
+
+        if self._droid_wait <= 0 and droid.speech is None:
+            lines = patrol_decor.DROID_IDLE
+            droid.say(lines[self._droid_idles % len(lines)])
+            self._droid_idles += 1
+            self._droid_wait = patrol_decor.DROID_IDLE_EVERY
+
+        # The guard and the droid acknowledge each other as they pass.
+        guard = self.guard
+
+        if guard is not None:
+            near = math.dist(guard.rect.center, droid.rect.center) <= patrol_decor.EXCHANGE_RANGE
+
+            if near and not self._exchanged and droid.speech is None and guard.speech is None:
+                guard.face(droid.rect)
+                droid.face(guard.rect)
+                guard.say(patrol_decor.EXCHANGE[0])
+                self._droid_reply = patrol_decor.EXCHANGE_REPLY_AFTER
+                self._exchanged = True
+            elif not near:
+                self._exchanged = False
+
+        if self._droid_reply is not None:
+            self._droid_reply -= dt
+
+            if self._droid_reply <= 0:
+                droid.say(patrol_decor.EXCHANGE[1])
+                self._droid_reply = None
 
     def _player_rects(self):
         """Return active player rectangles."""
@@ -233,64 +390,16 @@ class Level3LaserLoop:
     # LASER SYSTEM
     # =========================================================
 
-    # ---- laser cycle (Phase 2) ---------------------------------------
+    # ---- hazards ------------------------------------------------------
     #
-    # Beams keep sweeping their rails all the time (movement is never
-    # paused or changed). What changes is when a beam can hurt:
-    #
-    #   off      safe, dim beam
-    #   warning  safe, flickering amber beam and amber emitters (1 s)
-    #   active   dangerous, bright red beam
-    #
-    # Every laser always goes warning -> active -> off, so a beam never
-    # fires without a warning. Every room (and every re-arm after a hit)
-    # starts with LASER_ENTRY_GRACE seconds in which nothing is dangerous,
-    # so a spawn point on a rail row can never be hit. Each further laser
-    # in a room starts LASER_STAGGER seconds after the previous one.
-
-    LASER_ENTRY_GRACE = 2.0
-    LASER_STAGGER = 1.0
-    LASER_ON = 3.0
-    LASER_OFF = 1.5
-    LASER_WARN = 1.0
-
-    def laser_phase(self, index):
-        """Return 'off' (safe), 'warning' (safe, about to fire) or 'active'."""
-
-        start = self.LASER_ENTRY_GRACE + index * self.LASER_STAGGER
-        clock = self.laser_clock
-
-        if clock < start - self.LASER_WARN:
-            return "off"
-
-        if clock < start:
-            return "warning"
-
-        position = (clock - start) % (
-            self.LASER_ON + self.LASER_OFF + self.LASER_WARN
-        )
-
-        if position < self.LASER_ON:
-            return "active"
-
-        if position < self.LASER_ON + self.LASER_OFF:
-            return "off"
-
-        return "warning"
+    # Every hazard is safe for HAZARD_GRACE seconds after a room starts and
+    # after every hit, and a lane or cone is only dangerous after its own
+    # warning (see levels/patrol_lanes.py and levels/patrol_cameras.py).
 
     def active_beam_rects(self):
-        """Collision rectangles of the beams that are dangerous right now."""
+        """Collision rectangles of the lanes that are dangerous right now."""
 
-        return [
-            pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
-            for index, laser in enumerate(self.lasers)
-            if self.laser_phase(index) == "active"
-        ]
+        return self.lane_loop.active_rects() if self.lane_loop is not None else []
 
     def check_laser_collision(self, dt):
         """Apply a penalty when a player touches an active laser."""
@@ -310,26 +419,57 @@ class Level3LaserLoop:
                 self.laser_hit_feedback_timer - dt,
             )
 
+        player_rects = self._player_rects()
+        spotted = None
+
+        if self.camera_bank is not None:
+            gate = self._current_gate()
+
+            if gate.is_open() and self.camera_bank.on:
+                self.camera_bank.switch_off()               # the answer ran "camera.on = False"
+                self._sfx("door")
+
+            spotted = self.camera_bank.update(dt, player_rects)
+
         if self.laser_penalty_cooldown > 0:
             return
 
-        player_rects = self._player_rects()
+        if spotted is not None:
+            self._hazard_hit("CAMERA SPOTTED! SCORE -10", "alarm")
+            return
 
         for laser_rect in self.active_beam_rects():
 
             if any(r.colliderect(laser_rect) for r in player_rects):
-                self.laser_penalty_cooldown = self.laser_penalty_duration
-                self.laser_hit_feedback_timer = 1.0
-
-                self.feedback = "LASER HIT! SECURITY +10"
-
-                self.game.security.increase(10)
-                self.game.score.penalize(10)
-
-                # Recovery: every laser re-arms, giving a safe window.
-                self.laser_clock = 0.0
-
+                self._hazard_hit("LANE HIT! SCORE -10", "zap")
                 break
+
+    def _hazard_hit(self, text, sound):
+        """A hazard caught the player: score only, then everything re-arms."""
+
+        self.laser_penalty_cooldown = self.laser_penalty_duration
+        self.laser_hit_feedback_timer = 1.0
+
+        self.feedback = text
+        self._sfx(sound)
+        self._guard_says(patrol_decor.GUARD_HIT)
+
+        self.game.score.penalize(10)               # a hazard costs score only, never security
+
+        # Recovery: every hazard re-arms, giving a safe window.
+        if self.lane_loop is not None:
+            self.lane_loop.rearm()
+
+        if self.camera_bank is not None:
+            self.camera_bank.rearm()
+
+    def _robot_stood_down(self):
+        """Room 3's `while patrol():` ends with `break` once the gate is open."""
+
+        return self.current_room_number() == 3 and self._current_gate().is_open()
+
+    def _current_gate(self):
+        return (self.gate1, self.gate2, self.gate3)[self.current_room_number() - 1]
 
     # =========================================================
     # ROOM / PROGRESSION
@@ -355,57 +495,10 @@ class Level3LaserLoop:
 
         room = self.current_room_number()
 
-        laser_patterns = {
-            1: [
-                {
-                    "x": 120,
-                    "y": 250,
-                    "direction": 1,
-                    "speed": 200,
-                },
-            ],
-
-            2: [
-                {
-                    "x": 120,
-                    "y": 230,
-                    "direction": 1,
-                    "speed": 190,
-                },
-                {
-                    "x": 520,
-                    "y": 350,
-                    "direction": -1,
-                    "speed": 230,
-                },
-            ],
-
-            3: [
-                {
-                    "x": 120,
-                    "y": 210,
-                    "direction": 1,
-                    "speed": 180,
-                },
-                {
-                    "x": 450,
-                    "y": 330,
-                    "direction": -1,
-                    "speed": 220,
-                },
-                {
-                    "x": 250,
-                    "y": 450,
-                    "direction": 1,
-                    "speed": 260,
-                },
-            ],
-        }
-
-        self.lasers = [
-            laser.copy()
-            for laser in laser_patterns[room]
-        ]
+        difficulty = self.get_selected_difficulty()
+        layout = {1: "columns", 3: "rows"}.get(room)
+        self.lane_loop = patrol_lanes.LaneLoop(difficulty, layout) if layout else None
+        self.camera_bank = patrol_cameras.CameraBank(difficulty) if room == 2 else None
 
         self.robot_speed = 120 + ((room - 1) * 30)
 
@@ -415,13 +508,23 @@ class Level3LaserLoop:
         self.robot_x = 120
         self.robot_direction = 1
 
-        self.robot_detection_cooldown = 0
+        self.robot_detection_cooldown = patrol_decor.DROID_GRACE
         self.robot_alert = False
         self.robot_alert_timer = 0
 
         self.laser_penalty_cooldown = 0.0
         self.laser_hit_feedback_timer = 0.0
-        self.laser_clock = 0.0
+
+        self.droid = NPC("patrol_droid", (self.robot_x, self.robot_y), notice_range=96)
+        self._droid_wait = patrol_decor.DROID_IDLE_EVERY
+        self._droid_idles = 0
+        self._stood_down_said = False
+        self._exchanged = False
+        self._droid_reply = None
+
+        route = patrol_decor.GUARD_ROUTES[room]
+        self.guard = NPC("night_guard", route[0], patrol=route)
+        self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
 
     def try_room_transition(self):
         """Move through a gate after it has been unlocked."""
@@ -839,7 +942,7 @@ class Level3LaserLoop:
         self.complete = True
 
         self.feedback = (
-            "LEVEL COMPLETE! All laser loops bypassed."
+            "LEVEL COMPLETE! Night patrol cleared."
         )
 
         if self.game:
@@ -857,17 +960,20 @@ class Level3LaserLoop:
         if room == 1:
 
             self.gate1.unlock()
-            self.feedback = "GATE 1 UNLOCKING!"
+            self._sfx("door")
+            self.feedback = "DOOR 1: BADGE SCAN..."
 
         elif room == 2:
 
             self.gate2.unlock()
-            self.feedback = "GATE 2 UNLOCKING!"
+            self._sfx("door")
+            self.feedback = "DOOR 2: BADGE SCAN..."
 
         elif room == 3:
 
             self.gate3.unlock()
-            self.feedback = "GATE 3 UNLOCKING!"
+            self._sfx("door")
+            self.feedback = "DOOR 3: BADGE SCAN..."
 
     # =========================================================
     # UPDATE
@@ -880,6 +986,8 @@ class Level3LaserLoop:
             return
 
         self.room_map.update(dt)
+        self._update_steps(dt)
+        self._update_guard(dt)
 
         # -------------------------
         # Countdown timer
@@ -902,37 +1010,9 @@ class Level3LaserLoop:
 
             self.time_left = self.time_limit
 
-        # -------------------------
-        # Move lasers
-        # -------------------------
+        if self.lane_loop is not None:
+            self.lane_loop.update(dt)
 
-        for laser in self.lasers:
-
-            laser["x"] += (
-                laser["speed"]
-                * laser["direction"]
-                * dt
-            )
-
-            if laser["x"] <= self.track_x:
-
-                laser["x"] = self.track_x
-                laser["direction"] = 1
-
-            elif (
-                laser["x"] + self.laser_width
-                >= self.track_x + self.track_width
-            ):
-
-                laser["x"] = (
-                    self.track_x
-                    + self.track_width
-                    - self.laser_width
-                )
-
-                laser["direction"] = -1
-
-        self.laser_clock += max(0.0, dt)
         self.check_laser_collision(dt)
 
         # -------------------------
@@ -954,11 +1034,12 @@ class Level3LaserLoop:
         # Move robot
         # -------------------------
 
-        self.robot_x += (
-            self.robot_speed
-            * self.robot_direction
-            * dt
-        )
+        if not self._robot_stood_down():
+            self.robot_x += (
+                self.robot_speed
+                * self.robot_direction
+                * dt
+            )
 
         if self.robot_x >= self.robot_right_boundary:
 
@@ -1010,6 +1091,7 @@ class Level3LaserLoop:
             if (
                 distance <= self.robot_scan_radius
                 and self.robot_detection_cooldown <= 0
+                and not self._robot_stood_down()
             ):
 
                 self.robot_alert = True
@@ -1021,126 +1103,53 @@ class Level3LaserLoop:
                 self.robot_detection_cooldown = 4
 
                 self.feedback = (
-                    "SECURITY ROBOT DETECTED YOU!"
+                    "PATROL DROID SAW YOU!"
                 )
 
-                self.game.security.increase(20)
-                self.game.score.penalize(10)
+                self.game.score.penalize(10)               # the patrol robot costs score only
+                self._sfx("alarm")
+                self._guard_says(patrol_decor.GUARD_ALERT)
 
+                if self.droid is not None:
+                    self.droid.say(patrol_decor.DROID_ALERT)
+
+        self._update_droid(dt)
         self.try_room_transition()
 
     # =========================================================
     # ROBOT DRAWING
     # =========================================================
 
-    def draw_robot(self, surface):
+    def _droid_bubble(self, surface, text):
+        """The droid's speech sits below it, so it never covers the code board it patrols under."""
 
-        robot_rect = pygame.Rect(
-            self.robot_x,
-            self.robot_y,
-            self.robot_width,
-            self.robot_height,
-        )
+        image = self._guard_font.render(str(text), True, (238, 241, 248))
+        box = image.get_rect().inflate(16, 10)
+        box.midtop = (self.droid.rect.centerx, self.droid.rect.bottom + 9)
+        box.clamp_ip(surface.get_rect())
+        draw_panel(surface, box, fill=(16, 20, 34), border=(170, 184, 210), radius=7)
+        tip_x = max(box.left + 10, min(box.right - 10, self.droid.rect.centerx))
+        tail = [(tip_x - 5, box.top + 1), (tip_x + 5, box.top + 1), (tip_x, box.top - 5)]
+        pygame.draw.polygon(surface, (16, 20, 34), tail)
+        pygame.draw.lines(surface, (170, 184, 210), False, [tail[0], tail[2], tail[1]], 2)
+        surface.blit(image, image.get_rect(center=box.center))
 
-        pygame.draw.rect(
-            surface,
-            (70, 75, 90),
-            robot_rect,
-            border_radius=6,
-        )
+    def _draw_droid(self, surface):
+        """The patrol droid, drawn like every other character, with an alert mark when it spots you."""
 
-        pygame.draw.rect(
-            surface,
-            (100, 110, 130),
-            robot_rect,
-            2,
-            border_radius=6,
-        )
+        if self.droid is None:
+            return
 
-        face_rect = pygame.Rect(
-            self.robot_x + 15,
-            self.robot_y + 8,
-            40,
-            14,
-        )
+        self.droid.draw(surface, None)                 # no bubble above: that is where the wall board is
 
-        pygame.draw.rect(
-            surface,
-            (20, 25, 35),
-            face_rect,
-            border_radius=3,
-        )
+        if self.droid.speech:
+            self._droid_bubble(surface, self.droid.speech)
 
-        pygame.draw.circle(
-            surface,
-            (255, 60, 60),
-            (
-                int(self.robot_x + 25),
-                int(self.robot_y + 15),
-            ),
-            3,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (255, 60, 60),
-            (
-                int(self.robot_x + 45),
-                int(self.robot_y + 15),
-            ),
-            3,
-        )
-
-        pygame.draw.line(
-            surface,
-            (100, 110, 130),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y),
-            ),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y - 10),
-            ),
-            2,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (255, 70, 70),
-            (
-                int(self.robot_x + 35),
-                int(self.robot_y - 12),
-            ),
-            4,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (30, 32, 40),
-            (
-                int(self.robot_x + 15),
-                int(self.robot_y + self.robot_height),
-            ),
-            8,
-        )
-
-        pygame.draw.circle(
-            surface,
-            (30, 32, 40),
-            (
-                int(
-                    self.robot_x
-                    + self.robot_width
-                    - 15
-                ),
-                int(
-                    self.robot_y
-                    + self.robot_height
-                ),
-            ),
-            8,
-        )
+        if self.robot_alert:
+            rect = self.droid.rect
+            font = self._font(22)
+            mark = font.render("!", True, (255, 90, 80))
+            surface.blit(mark, mark.get_rect(midbottom=(rect.centerx, rect.top - 2)))
 
     # =========================================================
     # ROBOT SECURITY
@@ -1155,96 +1164,70 @@ class Level3LaserLoop:
         )
 
         self.feedback = (
-            "SECURITY ALERT! "
-            "ROBOT DETECTED INTRUSION!"
+            "DROID ALERT! "
+            "INTRUSION LOGGED."
         )
 
         if self.game:
 
-            self.game.security.increase(25)
-            self.game.score.penalize(15)
+            self.game.score.penalize(15)               # an alert costs score only
+            self._sfx("alarm")
+
+    SCAN_CLIP = pygame.Rect(64, 152, 782, 326)       # the room floor between the walls
+
+    def _draw_room_effects(self, surface, room):
+        """Life in the room: dust, light through the grilles, a hissing drain, a sparking junction box."""
+
+        t = self._seconds()
+        depth_fx.motes(surface, self.SCAN_CLIP, t, count=22, seed=room)
+
+        if room == 1:
+            depth_fx.light_bars(surface, self.SCAN_CLIP, t, alpha=13)
+            depth_fx.steam(surface, (164, 392), t, period=8.0, seed=0.2)
+        elif room == 2:
+            depth_fx.sparks(surface, (610, 168), t, period=9.0, seed=0.1)
+            depth_fx.sparks(surface, (330, 168), t, period=13.0, seed=0.55)
+        else:
+            depth_fx.light_bars(surface, self.SCAN_CLIP, t, colour=(190, 215, 255), alpha=11, width=22, gap=90)
 
     def draw_robot_scan(self, surface):
+        """The droid's sensor field: a soft disc with a dashed rim and a pulse that spreads from it.
 
-        center_x = int(
-            self.robot_x
-            + self.robot_width // 2
-        )
+        It is the same circle the detection uses (robot_scan_radius), so a courier inside it is seen.
+        Amber while the droid patrols, red while it has spotted you.
+        """
 
-        center_y = int(
-            self.robot_y
-            + self.robot_height
-        )
+        radius = self.robot_scan_radius
+        centre_x = int(self.robot_x + self.robot_width // 2)
+        centre_y = int(self.robot_y + self.robot_height // 2)
+        t = self._seconds()
+        alert = self.robot_alert
+        tone = (255, 74, 62) if alert else (255, 170, 72)
 
-        pulse = (
-            pygame.math.Vector2(
-                1,
-                0,
-            )
-            .rotate(
-                self.robot_scan_phase * 35
-            )
-            .x
-            + 1
-        ) * 0.5
+        size = radius * 2 + 8
+        c = size // 2
+        layer = pygame.Surface((size, size), pygame.SRCALPHA)
 
-        radius = int(
-            self.robot_scan_radius
-            + pulse * 15
-        )
+        if alert:                                           # spotted: a red ping spreads out and fades
+            for k in range(6):
+                r = int(radius * (1 - k / 6))
+                pygame.draw.circle(layer, (*tone, int(46 * (1 - k / 6) ** 1.5)), (c, c), r)
+            u = (t * 1.4) % 1.0
+            pygame.draw.circle(layer, (*tone, int(150 * (1 - u))), (c, c), max(2, int(radius * u)), 2)
+            pygame.draw.circle(layer, (*tone, 190), (c, c), radius, 2)
+        else:                                               # patrolling: just a faint dotted ring on the floor
+            ticks = 48
+            for i in range(0, ticks, 2):
+                a0 = i * 2 * math.pi / ticks
+                a1 = a0 + (2 * math.pi / ticks) * 0.5
+                p0 = (c + math.cos(a0) * radius, c + math.sin(a0) * radius)
+                p1 = (c + math.cos(a1) * radius, c + math.sin(a1) * radius)
+                pygame.draw.line(layer, (*tone, 80), p0, p1, 1)
 
-        scan_surface = pygame.Surface(
-            (
-                surface.get_width(),
-                surface.get_height(),
-            ),
-            pygame.SRCALPHA,
-        )
-
-        pygame.draw.circle(
-            scan_surface,
-            (255, 80, 80, 22),
-            (
-                center_x,
-                center_y,
-            ),
-            radius,
-            2,
-        )
-
-        scan_angle = (
-            self.robot_scan_phase * 35
-        )
-
-        scan_vector = pygame.math.Vector2(
-            radius,
-            0,
-        ).rotate(scan_angle)
-
-        pygame.draw.line(
-            scan_surface,
-            (255, 100, 100, 70),
-            (
-                center_x,
-                center_y,
-            ),
-            (
-                int(
-                    center_x
-                    + scan_vector.x
-                ),
-                int(
-                    center_y
-                    + scan_vector.y
-                ),
-            ),
-            3,
-        )
-
-        surface.blit(
-            scan_surface,
-            (0, 0),
-        )
+        previous = surface.get_clip()
+        surface.set_clip(self.SCAN_CLIP)
+        surface.blit(layer, (centre_x - c, centre_y - c))
+        surface.set_clip(previous)
 
     # =========================================================
     # PHASE 1 VISUALS (presentation only)
@@ -1256,11 +1239,8 @@ class Level3LaserLoop:
     LAYOUT_ACCENT = (150, 110, 255)  # Level 3 violet accent
     PANEL_FILL = (10, 12, 22, 238)
     BODY_SIZE = 27                   # about 18 px of text height
-    RAIL_TOP_PAD = 8                 # rail body starts 8 px above a laser
-    RAIL_HEIGHT = 30
     PANEL_BOTTOM = 587               # footer text (with descenders) ends by y = 585
     GATE_OPEN_SECONDS = 0.6          # matches the Gate unlock animation
-    ROBOT_LABEL_GAP = 16
 
     # ---- small helpers ------------------------------------------------
 
@@ -1360,306 +1340,10 @@ class Level3LaserLoop:
 
     # ---- cached artwork (pygame drawing only, no image files) ---------
 
-    def _build_floor(self):
-        """Futuristic tiled floor with shaded edges and violet wall trim."""
-
-        width, height = self.room_width, self.room_height
-        tile = 40
-        floor = pygame.Surface((width, height))
-
-        dark, light = (17, 20, 36), (23, 27, 48)
-
-        for ty in range(0, height, tile):
-            for tx in range(0, width, tile):
-                checker = (tx // tile + ty // tile) % 2 == 0
-
-                pygame.draw.rect(
-                    floor,
-                    light if checker else dark,
-                    (tx, ty, tile, tile),
-                )
-
-        lines = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        for x in range(0, width, tile):
-            pygame.draw.line(lines, (130, 100, 230, 26), (x, 0), (x, height))
-
-        for y in range(0, height, tile):
-            pygame.draw.line(lines, (130, 100, 230, 26), (0, y), (width, y))
-
-        floor.blit(lines, (0, 0))
-
-        # Darker edges give the room depth.
-        shade = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        for i in range(40):
-            alpha = int(170 * (1 - i / 40) ** 2)
-
-            pygame.draw.rect(
-                shade,
-                (0, 0, 0, alpha),
-                (i, i, width - 2 * i, height - 2 * i),
-                1,
-            )
-
-        floor.blit(shade, (0, 0))
-
-        # Wall band, violet trim and a soft inner glow.
-        pygame.draw.rect(floor, (11, 12, 24), (0, 0, width, height), 8)
-        pygame.draw.rect(
-            floor,
-            self.LAYOUT_ACCENT,
-            (8, 8, width - 16, height - 16),
-            2,
-        )
-
-        glow = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        pygame.draw.rect(
-            glow,
-            (150, 110, 255, 40),
-            (10, 10, width - 20, height - 20),
-            3,
-        )
-        floor.blit(glow, (0, 0))
-
-        for cx in (0, width - 14):
-            for cy in (0, height - 14):
-                pygame.draw.rect(
-                    floor,
-                    self.LAYOUT_ACCENT,
-                    (cx, cy, 14, 14),
-                    border_radius=3,
-                )
-                pygame.draw.rect(
-                    floor,
-                    (11, 12, 24),
-                    (cx + 4, cy + 4, 6, 6),
-                    border_radius=2,
-                )
-
-        return floor
-
-    def _build_stripes(self):
-        """Yellow/black hazard stripe strip for the rail edges."""
-
-        strip = pygame.Surface((self.track_width, 4))
-        strip.fill((22, 22, 28))
-
-        for x in range(-4, self.track_width + 8, 8):
-            pygame.draw.polygon(
-                strip,
-                (240, 190, 40),
-                [(x, 4), (x + 4, 4), (x + 8, 0), (x + 4, 0)],
-            )
-
-        return strip
-
-    def _build_glow(self):
-        """Soft red halo drawn behind each laser beam."""
-
-        # The halo reaches at most 8 px beyond the beam: exactly the rail
-        # housing (RAIL_TOP_PAD), so it never suggests a larger hazard.
-        glow = pygame.Surface(
-            (self.laser_width + 16, self.laser_height + 16),
-            pygame.SRCALPHA,
-        )
-
-        for pad, alpha in ((8, 18), (6, 32), (4, 52)):
-            pygame.draw.rect(
-                glow,
-                (255, 50, 50, alpha),
-                glow.get_rect().inflate(-(8 - pad) * 2, -(8 - pad) * 2),
-                border_radius=8,
-            )
-
-        return glow
-
-    # ---- laser rails ----------------------------------------------------
+    HAZARD_BOTTOM = 472              # lowest hazard edge: the question panel starts below it
 
     def _lowest_rail_bottom(self):
-        return max(
-            (
-                laser["y"] - self.RAIL_TOP_PAD + self.RAIL_HEIGHT
-                for laser in self.lasers
-            ),
-            default=0,
-        )
-
-    def _laser_label_rects(self):
-        """'LASER n' label rects: above the rail, or below it when the
-        space above is inside the robot's patrol band."""
-
-        font = self._font(self.BODY_SIZE)
-
-        band = pygame.Rect(
-            self.robot_left_boundary - 10,
-            154,
-            self.robot_right_boundary
-            - self.robot_left_boundary
-            + self.robot_width
-            + 20,
-            62,
-        )
-
-        rects = []
-
-        for index, laser in enumerate(self.lasers):
-
-            width, height = font.size(f"LASER {index + 1}")
-            rail_top = laser["y"] - self.RAIL_TOP_PAD
-
-            rect = pygame.Rect(
-                self.track_x + 5,
-                rail_top - height - 3,
-                width,
-                height,
-            )
-
-            if rect.colliderect(band):
-                rect.y = rail_top + self.RAIL_HEIGHT + 3
-
-            rects.append(rect)
-
-        return rects
-
-    def _draw_rails(self, surface):
-        """Rails with hazard stripes and emitters, then beams and labels."""
-
-        stripes = self._cached("stripes", self._build_stripes)
-        glow = self._cached("glow", self._build_glow)
-        pulse = 0.5 + 0.5 * math.sin(self._seconds() * 6.0)
-
-        for index, laser in enumerate(self.lasers):
-
-            phase = self.laser_phase(index)
-
-            rail = pygame.Rect(
-                self.track_x,
-                laser["y"] - self.RAIL_TOP_PAD,
-                self.track_width,
-                self.RAIL_HEIGHT,
-            )
-
-            pygame.draw.rect(surface, (24, 27, 40), rail)
-            surface.blit(stripes, (rail.x, rail.y))
-            surface.blit(stripes, (rail.x, rail.bottom - 4))
-            pygame.draw.rect(surface, (80, 62, 135), rail, 1)
-
-            for ex in (rail.x - 22, rail.right):
-
-                box = pygame.Rect(ex, rail.y - 3, 22, rail.height + 6)
-
-                pygame.draw.rect(surface, (38, 34, 62), box, border_radius=4)
-                pygame.draw.rect(
-                    surface,
-                    self.LAYOUT_ACCENT,
-                    box,
-                    2,
-                    border_radius=4,
-                )
-                lens, shine = {
-                    "active": ((255, 60, 60), (255, 190, 190)),
-                    "warning": ((255, 190, 60), (255, 235, 170)),
-                    "off": ((95, 95, 110), (150, 150, 165)),
-                }[phase]
-
-                pygame.draw.circle(
-                    surface, lens, (box.centerx, rail.centery), 5
-                )
-                pygame.draw.circle(
-                    surface, shine, (box.centerx - 1, rail.centery - 1), 2
-                )
-
-            beam = pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
-
-            if phase == "active":
-
-                glow.set_alpha(int(170 + 70 * pulse))
-                surface.blit(glow, (laser["x"] - 8, laser["y"] - 8))
-
-                pygame.draw.rect(surface, (255, 45, 45), beam)
-                pygame.draw.line(
-                    surface,
-                    (255, 175, 175),
-                    (beam.x, beam.centery),
-                    (beam.right - 1, beam.centery),
-                    2,
-                )
-
-            elif phase == "warning":
-
-                # Safe, but about to fire: flickering amber outline.
-                lit = int(self._seconds() * 8) % 2 == 0
-
-                pygame.draw.rect(
-                    surface, (110, 62, 30) if lit else (62, 32, 30), beam
-                )
-
-                if lit:
-                    pygame.draw.rect(surface, (255, 190, 60), beam, 1)
-
-            else:
-
-                pygame.draw.rect(surface, (52, 28, 36), beam)
-
-        label_font = self._font(self.BODY_SIZE)
-
-        for index, rect in enumerate(self._laser_label_rects()):
-            surface.blit(
-                label_font.render(f"LASER {index + 1}", True, (255, 120, 120)),
-                rect.topleft,
-            )
-
-    # ---- robot label ----------------------------------------------------
-
-    def _robot_label_rect(self, size):
-        """Place the robot label beside the robot with a clear gap.
-
-        It prefers the robot's right; it flips to the left when that
-        side would reach the gate or touch a laser label.
-        """
-
-        width, height = size
-        gap = self.ROBOT_LABEL_GAP
-        top = int(self.robot_y - 12)
-
-        right_rect = pygame.Rect(
-            int(self.robot_x + self.robot_width) + gap,
-            top,
-            width,
-            height,
-        )
-        left_rect = pygame.Rect(
-            int(self.robot_x) - gap - width,
-            top,
-            width,
-            height,
-        )
-
-        blocked = [
-            rect.inflate(12, 6) for rect in self._laser_label_rects()
-        ]
-        gate_limit = self.final_exit_rect.left - 22
-
-        def fits(rect):
-            return (
-                rect.right <= gate_limit
-                and rect.left >= self.room_x + 20
-                and not any(rect.colliderect(b) for b in blocked)
-            )
-
-        if fits(right_rect) or not fits(left_rect):
-            return right_rect
-
-        return left_rect
-
-    # ---- exit gate ------------------------------------------------------
+        return self.HAZARD_BOTTOM
 
     def _gate_progress(self, gate):
         """Eased 0..1 opening progress, driven only by gate.state."""
@@ -1684,6 +1368,9 @@ class Level3LaserLoop:
 
         if entry["start"] is None:
             return 1.0
+
+        if hasattr(gate, "progress"):
+            return gate.progress                      # the gate's own scan-then-slide clock
 
         return self._ease_out_cubic(
             (now - entry["start"]) / self.GATE_OPEN_SECONDS
@@ -1771,76 +1458,24 @@ class Level3LaserLoop:
         progress = self._gate_progress(gate)
         locked = gate.state == "locked"
 
-        red, amber, green = (200, 60, 60), (240, 200, 70), (60, 200, 120)
-
-        if locked:
-            tone = red
-        elif progress < 0.5:
-            tone = self._mix(red, amber, progress * 2)
-        else:
-            tone = self._mix(amber, green, (progress - 0.5) * 2)
-
+        tone = badge_door.lamp_colour(progress)
         frame = rect.inflate(16, 4)
-
-        pygame.draw.rect(surface, (12, 14, 26), frame, border_radius=6)
-        pygame.draw.rect(surface, tone, frame, 2, border_radius=6)
-
-        door_height = int(round(rect.height * (1 - progress)))
-
-        if door_height > 0:
-
-            door = pygame.Rect(rect.x, rect.y, rect.width, door_height)
-            slat = self._mix(tone, (0, 0, 0), 0.45)
-
-            pygame.draw.rect(surface, tone, door)
-
-            for y in range(door.y + 6, door.bottom - 2, 12):
-                pygame.draw.line(
-                    surface, slat, (door.x + 2, y), (door.right - 3, y), 2
-                )
-
-        if progress >= 1.0:
-            glow = pygame.Surface(frame.inflate(20, 20).size, pygame.SRCALPHA)
-
-            pygame.draw.rect(
-                glow, (60, 200, 120, 45), glow.get_rect(), border_radius=12
-            )
-            surface.blit(glow, frame.inflate(20, 20).topleft)
-
-        if locked:
-            self._draw_lock(surface, rect.center)
+        badge_door.draw_badge_door(surface, rect.inflate(8, 0), progress, self._seconds())
 
         self._draw_sparks(surface)
 
-        # EXIT marker above the robot's patrol band (y 154-216), with a
-        # dotted guide and a down arrow pointing at the gate.
-        chip = pygame.Rect(rect.centerx - 11, 134, 60, 18)
+        # The exit sign is bolted to the wall above the door and shows the door's state as code,
+        # so the lock is the same `open` boolean the questions are about.
+        text = "open = True" if progress >= 1.0 else ("badge.scan()" if progress > 0 else "open = False")
+        sign = pygame.Rect(rect.centerx - 36, 117, 90, 34)
 
-        for y in range(chip.bottom + 3, frame.top - 2, 6):
-            pygame.draw.line(
-                surface,
-                self._mix(tone, (12, 14, 26), 0.35),
-                (rect.centerx, y),
-                (rect.centerx, y + 2),
-                2,
-            )
+        pygame.draw.rect(surface, (12, 14, 26), sign, border_radius=4)
+        pygame.draw.rect(surface, self._mix(tone, (12, 14, 26), 0.2), sign, 2, border_radius=4)
 
-        pygame.draw.rect(surface, (12, 14, 26), chip, border_radius=9)
-        pygame.draw.rect(surface, tone, chip, 2, border_radius=9)
-
-        nudge = int(round(1.5 * math.sin(self._seconds() * 5.0)))
-        cy = chip.centery - 1 + nudge
-
-        pygame.draw.polygon(
-            surface,
-            tone,
-            [(rect.centerx - 5, cy - 3), (rect.centerx + 5, cy - 3), (rect.centerx, cy + 4)],
-        )
-
-        sign = self._font(22).render("EXIT", True, (238, 241, 248))
-        surface.blit(
-            sign, (chip.x + 21, chip.centery - sign.get_height() // 2)
-        )
+        label = self._font(18).render("EXIT", True, (238, 241, 248))
+        surface.blit(label, label.get_rect(midtop=(sign.centerx, sign.y + 3)))
+        code = code_font(12).render(text, True, tone)
+        surface.blit(code, code.get_rect(midbottom=(sign.centerx, sign.bottom - 3)))
 
     # ---- question panel -------------------------------------------------
 
@@ -1868,9 +1503,9 @@ class Level3LaserLoop:
 
         room = self.current_room_number()
         tail = (
-            "GATE 3 UNLOCKED! REACH THE FINAL EXIT."
+            "DOOR 3 OPEN! REACH THE FINAL EXIT."
             if room == 3
-            else f"GATE {room} UNLOCKED! CROSS THE GATE TO CONTINUE."
+            else f"DOOR {room} OPEN! WALK THROUGH TO CONTINUE."
         )
         success = (
             f"CORRECT! +{max(10, self.question_points)} points. "
@@ -1889,7 +1524,7 @@ class Level3LaserLoop:
         return self._cached(
             ("foot_ink", size),
             lambda: self._font(size)
-            .render("Progress: 0/3 gates/challenges | gHjpq", True, (255, 255, 255))
+            .render("Doors opened: 0/3 | gHjpq", True, (255, 255, 255))
             .get_bounding_rect()
             .bottom,
         )
@@ -2149,9 +1784,9 @@ class Level3LaserLoop:
 
             if self.complete or "CORRECT" in self.feedback:
                 colour = (60, 230, 110)
-            elif "SECURITY ALERT" in self.feedback:
+            elif "ALERT" in self.feedback:
                 colour = (255, 180, 60)
-            elif "GATE" in self.feedback:
+            elif "DOOR" in self.feedback:
                 colour = (255, 220, 80)
             else:
                 colour = (255, 100, 100)
@@ -2170,8 +1805,8 @@ class Level3LaserLoop:
         )
 
         progress = foot.render(
-            f"Progress: {self.current_question_number}"
-            f"/{self.total_questions} gates/challenges",
+            f"Doors opened: {self.current_question_number}"
+            f"/{self.total_questions}",
             True,
             (180, 200, 210),
         )
@@ -2192,97 +1827,122 @@ class Level3LaserLoop:
     #   y 592-640  reserved for the shared radio toast
     # =========================================================
 
+    def _apply_lighting(self, surface, room_number, gate):
+        """Light the room (beams, emitters, robot torch, gate lamp); text is drawn after."""
+
+        region = pygame.Rect(self.room_x, self.room_y, self.room_width, self.room_height)
+        world = surface.subsurface(region).copy()
+        ox, oy = region.topleft
+
+        beams = []
+
+        if self.lane_loop is not None:
+            beams.extend(self.lane_loop.light_rects((ox, oy)))
+
+        if self.camera_bank is not None:
+            beams.extend(self.camera_bank.light_rects((ox, oy)))
+
+        emitters = []
+
+        robot_centre = (
+            int(self.robot_x + self.robot_width // 2) - ox,
+            int(self.robot_y + self.robot_height // 2) - oy,
+        )
+        gate_centre = (gate.rect.centerx - ox, gate.rect.centery - oy)
+
+        lights = patrol_decor.room_lights(
+            room_number, beams, emitters, robot_centre, self.robot_alert, gate_centre, gate.is_open()
+        )
+        self._lightlayer.apply(world, lights)
+        # A laser hit flashes the room red for a moment.
+        flash = min(1.0, self.laser_hit_feedback_timer) if self.laser_hit_feedback_timer > 0.6 else 0.0
+
+        if flash:
+            tint = pygame.Surface(region.size, pygame.SRCALPHA)
+            tint.fill((255, 40, 40, int(110 * (flash - 0.6) / 0.4)))
+            world.blit(tint, (0, 0))
+
+        surface.blit(world, region.topleft)
+
     def render(self, surface):
 
-        # Existing drawing (floor, gates and their spark particles) first;
-        # the tiled floor and restyled gate below are drawn over it.
+        # The room: baked floor, wall and furniture, then the live wall parts.
         self.room_map.draw(surface)
 
+        room_number = self.current_room_number()
+        size = (self.room_width, self.room_height)
+
         surface.blit(
-            self._cached("floor", self._build_floor),
+            self._cached(
+                f"room{room_number}",
+                lambda: patrol_decor.build_room(room_number, size),
+            ),
             (self.room_x, self.room_y),
         )
+        patrol_decor.draw_wall_life(surface, room_number, self._seconds())
 
-        room_number = self.current_room_number()
-
-        left = self.room_x + 20
-        right = self.room_x + self.room_width - 20
+        if room_number == 1:
+            gate = self.gate1
+        elif room_number == 2:
+            gate = self.gate2
+        else:
+            gate = self.gate3
 
         # -------------------------
-        # Header panel (y 54-100)
+        # Rails, lasers and labels
         # -------------------------
 
-        self._draw_panel(surface, pygame.Rect(left, 54, right - left, 46))
+        if self.lane_loop is not None:
+            self.lane_loop.draw(surface, self._seconds())
 
-        surface.blit(
-            self.title_font.render(
-                f"LEVEL 3 - THE LASER LOOP | ROOM {room_number}",
-                True,
-                (255, 255, 255),
-            ),
-            (left + 12, 56),
-        )
+        if self.camera_bank is not None:
+            self.camera_bank.draw(surface, self._seconds())
 
-        timer_text = self.timer_font.render(
-            f"SECURITY TIMER: {self.time_left:.1f}s",
-            True,
-            (255, 210, 60),
-        )
-        surface.blit(
-            timer_text, timer_text.get_rect(topright=(right - 12, 58))
-        )
+        # -------------------------
+        # Exit gate and status
+        # -------------------------
 
-        counter = self._font(self.BODY_SIZE).render(
-            f"QUESTION: {self.current_question_number + 1}"
-            f"/{self.total_questions}",
-            True,
-            (90, 220, 255),
-        )
-        surface.blit(counter, (left + 12, 80))
+        self._draw_gate(surface, gate)
 
-        difficulty_text = (
-            f"DIFFICULTY: {self.current_difficulty.upper()}  |  "
-            f"POINTS: {self.question_points}"
-        )
-        progression_text = f"SECURITY PROGRESSION: ROOM {room_number}/3"
+        # -------------------------
+        # Robot, guard, lighting, then the crisp wall text on top
+        # -------------------------
 
-        for info_size in (self.BODY_SIZE, 24):
+        self._draw_room_effects(surface, room_number)
 
-            info_font = self._font(info_size)
-            difficulty = info_font.render(
-                difficulty_text, True, (210, 190, 120)
-            )
-            progression = info_font.render(
-                progression_text, True, (180, 220, 240)
-            )
-            difficulty_x = left + 12 + counter.get_width() + 20
+        if not self._robot_stood_down():
+            self.draw_robot_scan(surface)
 
-            if (
-                difficulty_x + difficulty.get_width() + 18
-                <= right - 12 - progression.get_width()
-            ):
-                break
+        self._draw_droid(surface)
 
-        row_y = 80 + (counter.get_height() - difficulty.get_height()) // 2
+        if self.guard is not None:
+            self.guard.draw(surface, self._guard_font)
 
-        surface.blit(difficulty, (difficulty_x, row_y))
-        surface.blit(
-            progression, progression.get_rect(topright=(right - 12, row_y))
+        self._apply_lighting(surface, room_number, gate)
+
+        patrol_decor.draw_header(
+            surface,
+            room_number,
+            self.current_question_number + 1,
+            self.total_questions,
+            self.current_difficulty,
+            self.question_points,
+            self.time_left,
         )
 
         # -------------------------
-        # Top lane (x 150-555, y 102-134): banners or objective.
-        # Starts right of the spawn so a banner never hides the player.
+        # Top lane: a banner when something just happened, otherwise
+        # the objective pinned to the wall.
         # -------------------------
 
-        lane = pygame.Rect(150, 102, 405, 32)
+        lane = patrol_decor.BANNER_LANE
         banner_text = None
 
         if self.laser_hit_feedback_timer > 0:
-            banner_text = "LASER HIT! SECURITY +10"
+            banner_text = "LANE HIT! SCORE -10"
             banner_fill, banner_ink = (170, 30, 30, 220), (255, 245, 245)
         elif self.robot_alert:
-            banner_text = "!! SECURITY ALERT - ROBOT DETECTION !!"
+            banner_text = "!! PATROL DROID ALERT !!"
             banner_fill, banner_ink = (150, 20, 20, 210), (255, 240, 240)
 
         if banner_text:
@@ -2304,114 +1964,20 @@ class Level3LaserLoop:
 
         else:
 
-            objective_font = self._font(24)
-            lines = self._wrap_text(
-                objective_font,
-                "Objective: Solve the loop challenge to unlock the gate.",
-                lane.width - 110,               # balanced two-line wrap
-                2,
+            patrol_decor.draw_notice(
+                surface, ("Answer the loop", "question to open", "the door.")
             )
 
-            for row, line in enumerate(lines):
-                surface.blit(
-                    objective_font.render(line, True, (205, 210, 220)),
-                    (lane.x + 4, lane.y - 1 + row * 16),
-                )
-
-        # -------------------------
-        # Security code panel (top right, x 565-900, y 102-152)
-        # -------------------------
-
-        code_panel = pygame.Rect(562, 102, 256, 50)
-
-        self._draw_panel(surface, code_panel)
-
-        code_font = self._font(22)
-
-        for offset, word in enumerate(("SECURITY", "CODE")):
-            surface.blit(
-                code_font.render(word, True, (240, 240, 240)),
-                (code_panel.x + 12, code_panel.y + 10 + offset * 15),
+        if self.camera_bank is not None:
+            patrol_decor.draw_camera_board(surface, self.camera_bank, self._seconds())
+        elif self.lane_loop is not None:
+            patrol_decor.draw_lane_board(
+                surface,
+                self.lane_loop,
+                gate.is_open(),
+                self._seconds(),
+                nested=room_number == 3,
             )
-
-        for row, line in enumerate(self.code_lines):
-            surface.blit(
-                code_font.render(line, True, (90, 220, 255)),
-                (code_panel.x + 102, code_panel.y + 3 + row * 15),
-            )
-
-        # -------------------------
-        # Laser heading (y 136, below the spawn)
-        # -------------------------
-
-        surface.blit(
-            self.heading_font.render(
-                "LASER SECURITY SYSTEM", True, (255, 90, 90)
-            ),
-            (left + 5, 136),
-        )
-
-        # -------------------------
-        # Rails, lasers and labels
-        # -------------------------
-
-        self._draw_rails(surface)
-
-        # -------------------------
-        # Exit gate and status
-        # -------------------------
-
-        if room_number == 1:
-            gate, gate_text = self.gate1, "GATE 1"
-        elif room_number == 2:
-            gate, gate_text = self.gate2, "GATE 2"
-        else:
-            gate, gate_text = self.gate3, "GATE 3"
-
-        self._draw_gate(surface, gate)
-
-        if gate.state == "locked":
-            gate_status = "LOCKED"
-        elif gate.state == "unlocking":
-            gate_status = "UNLOCKING"
-        else:
-            gate_status = "OPEN"
-
-        gate_surface = self._font(22).render(
-            f"{gate_text}: {gate_status}", True, (255, 220, 100)
-        )
-        surface.blit(
-            gate_surface,
-            gate_surface.get_rect(
-                topright=(gate.rect.right + 8, gate.rect.bottom + 4)
-            ),
-        )
-
-        # -------------------------
-        # Robot, with its speed on its own line beside it
-        # -------------------------
-
-        self.draw_robot_scan(surface)
-        self.draw_robot(surface)
-
-        label_font = self._font(24)
-        name_line = label_font.render("SECURITY ROBOT", True, (255, 180, 80))
-        speed_line = label_font.render(
-            f"SPEED {self.robot_speed}", True, (255, 180, 80)
-        )
-
-        label_rect = self._robot_label_rect(
-            (
-                max(name_line.get_width(), speed_line.get_width()),
-                name_line.get_height() + speed_line.get_height(),
-            )
-        )
-
-        surface.blit(name_line, label_rect.topleft)
-        surface.blit(
-            speed_line,
-            (label_rect.x, label_rect.y + name_line.get_height()),
-        )
 
         # -------------------------
         # Question panel
@@ -2518,7 +2084,7 @@ class Level3LaserLoop:
 
                 self.feedback = (
                     f"CORRECT! +{earned_points} points. "
-                    "GATE 3 UNLOCKED! "
+                    "DOOR 3 OPEN! "
                     "REACH THE FINAL EXIT."
                 )
 
@@ -2526,9 +2092,9 @@ class Level3LaserLoop:
 
                 self.feedback = (
                     f"CORRECT! +{earned_points} points. "
-                    f"GATE {self.current_room_number()} "
-                    "UNLOCKED! "
-                    "CROSS THE GATE TO CONTINUE."
+                    f"DOOR {self.current_room_number()} "
+                    "OPEN! "
+                    "WALK THROUGH TO CONTINUE."
                 )
 
             if explanation:

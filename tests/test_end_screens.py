@@ -101,3 +101,13 @@ def test_menu_then_enter_starts_a_fresh_run(game):
     assert game.state == "playing"
     assert game.timer.active
     assert game.timer.get_remaining() == 900
+
+
+def test_m_while_paused_leaves_the_floor_for_the_menu_but_m_while_playing_does_nothing(game):
+    game.state = "playing"
+    press(game, pygame.K_m, "m")
+    assert game.state == "playing"
+
+    game.paused = True
+    press(game, pygame.K_m, "m")
+    assert game.state == "menu" and game.paused is False

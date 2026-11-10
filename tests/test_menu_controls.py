@@ -55,3 +55,15 @@ def test_the_menu_still_renders_with_the_new_text():
     surface = pygame.Surface((960, 640))
     MainMenu().render(surface)
     assert menu_module.CONTROLS is CONTROLS
+
+
+def test_menu_subtitle_and_warden_line_fit_the_screen():
+    menu = MainMenu()
+    assert menu.subtitle_font.size("WARDEN is watching. Think like code and steal the Master Memory.")[0] <= 920
+    assert menu.small_font.size("NOVACORP SECURITY  |  WARDEN ONLINE")[0] <= 400
+
+
+def test_pause_prompt_fits_its_chip_and_m_leaves_to_the_menu():
+    from ui.overlays import PAUSE_PROMPT, PauseOverlay
+    overlay = PauseOverlay((960, 640))
+    assert overlay.chip_font.size(PAUSE_PROMPT)[0] <= overlay.resume_chip().width - 16

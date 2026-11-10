@@ -28,7 +28,8 @@ import pygame
 
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import grid_decor as G
+from levels import badge_door, lighting, lobby_juice
+from levels import snake_decor as G
 from levels.level2 import GATES_PER_LEVEL, POINTS_FALLBACK, Level2
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
@@ -40,22 +41,43 @@ FINISH_BONUS = 100
 WRONG_SECURITY, WRONG_PENALTY = 20, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
+EXIT_SECONDS = 1.2              # the exit door: badge scan, then the leaves slide apart
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
-TECH_ROUTE = [(12 * TILE, 16 * TILE), (17 * TILE, 16 * TILE)]
-TECH_LINES = ("Brackets first, then **, then * / // %, then + and -.",
-              "Comparisons answer True or False.",
-              "'and' needs both sides True. 'or' needs one.")
-PRAISE = ("Good sum.", "Panel likes that.")
-SCOLD = "That panel bites. Careful."
+ENGINEER_ROUTE = [(5 * TILE, 9 * TILE), (11 * TILE, 9 * TILE), (16 * TILE, 9 * TILE), (11 * TILE, 9 * TILE)]
+IDLE_LINES = ("Pressure's up again.", "Who keeps flipping my breakers?",
+              "Not my panels. Not my problem.", "Spanner. Where is my spanner?")
+IDLE_EVERY = 16.0               # seconds between his mutterings when nobody is talking to him
+ENGINEER_LINES = ("Brackets first, then **, then * / // %, then + and -.",
+                  "Floor panel with a True expression is live. Walk the False one.",
+                  "'and' needs both sides live. 'or' needs one.")
+PRAISE = ("Power's flowing.", "That relay likes you.")
+SCOLD = "That breaker bites. Careful."
 FAREWELL = "Mind the next floor."
+POWERED_AMBIENT = (196, 182, 168)   # every relay live: the tunnel is properly lit
+AMBIENT = (150, 142, 138)       # the tunnel is dim and warm; the bulbs and screens do the lighting
+BULB = (255, 190, 110)          # sodium-amber work bulbs
+BULB_COLS = ((6, 14, 21), (8, 16, 23), (7, 14, 22))   # three bulbs along each corridor
+PANEL_PENALTY = 5               # a live panel costs score only, never security
+PANEL_COOLDOWN = 1.5            # seconds before the same player can be zapped again
+PANEL_LINE = "Live panel! True means live. Walk the False one."
+FUSE_POINTS = 5
+FUSE_LINE = "A spare fuse. +5"
+FUSE_EMPTY = "The fuse box is empty."
+POSTER_OFF = "The poster has peeled off. Unreadable."
+POSTERS = ("SAFETY: brackets first, then **, then * / // %, then + and -.",
+           "SAFETY: a floor panel with a True expression is live.",
+           "SAFETY: 'and' needs both sides True. 'or' needs only one.")
+PROP_REACH = 60                 # how close counts as next to the fuse box or poster
 
 
 class GridRoom(RoomMixin, Level2):
+    STEP_SOUND = "step_metal"                      # boots on a steel grating
+
     def __init__(self, player=None, game=None, seed=None):
         Level2.__init__(self, player, game)        # question pool, difficulty, clock, gate 1
         self.init_room(seed)
-        self.message = "Stand on the right answer, then press E."
+        self.message = "Stand on a breaker, then press E to throw it."
         self.message_tone = theme.PAPER
         self.solved = []                           # questions answered, in order
         self.gate_open = [0.0] * GATES_PER_LEVEL
@@ -64,15 +86,15 @@ class GridRoom(RoomMixin, Level2):
 
         self.tilemap = TileMap(G.layout_rows())
         self.tiles = make_tiles(LEVEL_KEY)
-        self.props = G.rack_rects() + G.desk_rects()
+        self.props = G.rack_rects() + G.desk_rects() + G.transformer_rects()
         self.gate_blocks = [r.copy() for r in G.GATE_RECTS]
         self.room_map = RoomMap(self.tilemap, self.props + self.gate_blocks)
         self.exit_zone = pygame.Rect(28 * TILE + 8, G.GATE_RECTS[2].y, TILE * 2, G.GATE_RECTS[2].h)
         self.spawn_points = G.SPAWNS
 
-        self.technician = NPC("technician", TECH_ROUTE[0], patrol=TECH_ROUTE)
-        self.npcs = [self.technician]
-        self._tech_lines = 0
+        self.engineer = NPC("engineer", ENGINEER_ROUTE[0], patrol=ENGINEER_ROUTE)
+        self.npcs = [self.engineer]
+        self._engineer_lines = 0
         self._praised = 0
         self.ambience = G.Ambience(seed=21)
 
@@ -80,6 +102,19 @@ class GridRoom(RoomMixin, Level2):
         self.line_font = ui_font(22)
         self.small = ui_font(20)
         self._background = None
+        self._title = None
+        self.zap_wait = {}                         # player id -> seconds until they can be zapped again
+        self.zaps = 0
+        self.panels = G.panel_tiles(self.rng)
+        self.panel_state = {}                      # panel index -> "safe" or "live" once someone has tried it
+        self.panel_flash = {}                      # panel index -> seconds of crackle left
+        self.zap_said = False
+        self._idle_wait = IDLE_EVERY * 0.6
+        self._idles = 0
+        self.fuse_taken = False
+        self._poster_reads = 0
+        self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
+        self._power = 0.0                         # 0 dim .. 1 fully powered; eases toward the relays done
 
     # --- state ------------------------------------------------------------
     @property
@@ -108,10 +143,37 @@ class GridRoom(RoomMixin, Level2):
                 continue
             index = self.pad_at(player)
             if index is None:
+                if self._use_prop(player):
+                    continue
                 if self.gates_passed < GATES_PER_LEVEL:
-                    self.say("Stand on an answer pad, then press E.", theme.MIST)
+                    self.say("Stand on a breaker, then press E.", theme.MIST)
                 continue
             self._check_answer(self.current_question, self.current_question["options"][index])
+
+    def _near(self, player, rect):
+        return rect.inflate(PROP_REACH, PROP_REACH).colliderect(player.rect)
+
+    def _use_prop(self, player):
+        """E beside the fuse box or the safety poster (when not on a breaker plate)."""
+        if self._near(player, G.FUSE_BOX):
+            self.sfx("switch")
+            if self.fuse_taken:
+                self.say(FUSE_EMPTY, theme.MIST)
+            else:
+                self.fuse_taken = True
+                if self.game:
+                    self.game.score.add(FUSE_POINTS)
+                self.burst(G.FUSE_BOX.center, theme.GOLD, 8)
+                self.say(FUSE_LINE, theme.GOLD)
+            return True
+        if self._near(player, G.POSTER):
+            if self.game and not self.game.hints.enabled:
+                self.say(POSTER_OFF, theme.MIST)
+            else:
+                self.say(POSTERS[self._poster_reads % len(POSTERS)], theme.GOLD)
+                self._poster_reads += 1
+            return True
+        return False
 
     # --- the rules (same numbers as the old Level 2) ------------------------
     def _check_answer(self, question, choice):
@@ -126,13 +188,14 @@ class GridRoom(RoomMixin, Level2):
                 self.game.score.add(question.get("points", POINTS_FALLBACK))
             self.burst(spot, theme.TEAL, 18)
             if self.gates_passed >= GATES_PER_LEVEL:
-                self.say("SECURITY CODE ACCEPTED - the exit is open.", theme.GOLD)
+                self.say("All relays live - the exit is open.", theme.GOLD)
             else:
-                self.say(f"Correct! Gate {self.gates_passed} open.", theme.TEAL)
+                self.say(f"Relay {self.gates_passed} live. Power gate {self.gates_passed} open.", theme.TEAL)
                 self.time_left = self.time_limit
                 self._load_question_for_gate(self.gates_passed + 1)
             self.pad_flash = {}
             self.done_pad = [pad, question["options"][index], DONE_PAD_SECONDS]
+            self.sfx("switch")                    # the breaker clunks over, then the gate hums open
             self.sfx("door")
             self._praise()
         else:
@@ -143,7 +206,7 @@ class GridRoom(RoomMixin, Level2):
             self.pad_flash[index] = FLASH_SECONDS
             self.shake.add(0.55)
             self.burst(spot, theme.CORAL, 12)
-            self.technician.say(SCOLD)
+            self.engineer.say(SCOLD)
             if self.game:
                 self.game.security.increase(WRONG_SECURITY)
                 self.game.score.penalize(WRONG_PENALTY)
@@ -152,7 +215,7 @@ class GridRoom(RoomMixin, Level2):
         n = self._praised
         self._praised += 1
         if n % 2 == 0 and self.gates_passed < GATES_PER_LEVEL:
-            self.technician.say(PRAISE[(n // 2) % len(PRAISE)])
+            self.engineer.say(PRAISE[(n // 2) % len(PRAISE)])
 
     def _tick_timer(self, dt):
         if self.gates_passed >= GATES_PER_LEVEL:
@@ -171,6 +234,10 @@ class GridRoom(RoomMixin, Level2):
         dt = max(0.0, dt)
         self.update_room(dt)
         self.ambience.update(dt)
+        goal = min(1.0, self.gates_passed / GATES_PER_LEVEL)
+        self._power += (goal - self._power) * min(1.0, dt * 1.5)      # the lights come up as relays go live
+        self.lightlayer.ambient = tuple(round(a + (b - a) * self._power)
+                                        for a, b in zip(AMBIENT, POWERED_AMBIENT))
         self._update_npcs(dt)
         self.pad_flash = {i: left - dt for i, left in self.pad_flash.items() if left - dt > 0}
         if self.done_pad is not None:
@@ -180,9 +247,13 @@ class GridRoom(RoomMixin, Level2):
         if self.complete:
             return
         self._tick_timer(dt)
+        self._update_panels(dt)
         for i in range(GATES_PER_LEVEL):
             target = 1.0 if i < self.gates_passed else 0.0
-            self.gate_open[i] += (target - self.gate_open[i]) * min(1.0, dt * GATE_OPEN_RATE)
+            if i == GATES_PER_LEVEL - 1:                       # the exit door runs scan -> slide on a clock
+                self.gate_open[i] = min(target, self.gate_open[i] + dt / EXIT_SECONDS)
+            else:
+                self.gate_open[i] += (target - self.gate_open[i]) * min(1.0, dt * GATE_OPEN_RATE)
             if self.gate_open[i] > 0.9:
                 self.gate_blocks[i].size = (0, 0)
         if self.gate_open[2] > 0.9:
@@ -191,19 +262,53 @@ class GridRoom(RoomMixin, Level2):
                     self._finish()
                     break
 
-    def _update_npcs(self, dt):
-        self.technician.update(dt)
+    def _update_panels(self, dt):
+        """Stepping on a live panel (its expression is True) zaps: score only, never security."""
+        self.panel_flash = {k: v - dt for k, v in self.panel_flash.items() if v - dt > 0}
         for player, _ in self.players():
-            if self.technician.notice(player.rect, id(player)):
-                self.technician.say(TECH_LINES[self._tech_lines % len(TECH_LINES)])
-                self._tech_lines += 1
+            key = id(player)
+            self.zap_wait[key] = max(0.0, self.zap_wait.get(key, 0.0) - dt)
+            tile = G.panel_under(self.panels, player.rect)
+            if tile is None:
+                continue
+            index = self.panels.index(tile)
+            if not tile["live"]:
+                self.panel_state.setdefault(index, "safe")
+                continue
+            if self.zap_wait[key] > 0:
+                continue
+            self.zap_wait[key] = PANEL_COOLDOWN
+            self.zaps += 1
+            self.panel_state[index] = "live"
+            self.panel_flash[index] = 0.8
+            self.shake.add(0.4)
+            self.burst(player.rect.center, theme.PAPER, 10)
+            self.sfx("zap")
+            self.say(f"ZAP! -{PANEL_PENALTY}. {tile['expr']} is True, so it is live.", theme.CORAL)
+            self.engineer.alert(player.rect, 1.2)         # he turns to look at the sparks
+            self.engineer.say(PANEL_LINE)
+            if self.game:
+                self.game.score.penalize(PANEL_PENALTY)
+
+    def _update_npcs(self, dt):
+        self.engineer.update(dt)
+        self._idle_wait -= dt
+        if self._idle_wait <= 0 and not self.complete:
+            self._idle_wait = IDLE_EVERY
+            if not self.engineer.speech:
+                self.engineer.say(IDLE_LINES[self._idles % len(IDLE_LINES)])
+                self._idles += 1
+        for player, _ in self.players():
+            if self.engineer.notice(player.rect, id(player)):
+                self.engineer.say(ENGINEER_LINES[self._engineer_lines % len(ENGINEER_LINES)])
+                self._engineer_lines += 1
 
     def _finish(self):
         self.complete = True
-        self.technician.say(FAREWELL)
+        self.engineer.say(FAREWELL)
         if self.game:
             self.game.score.add(FINISH_BONUS)
-        self.say("SECURITY CODE ACCEPTED - grid unlocked!", theme.GOLD)
+        self.say("Grid powered - the way down is open!", theme.GOLD)
 
     def is_complete(self):
         return self.complete
@@ -222,7 +327,40 @@ class GridRoom(RoomMixin, Level2):
         title = shadowed(self.title_font, "FLOOR 2 - MAINTENANCE GRID",
                          theme.mix(accent, theme.PAPER, 0.4))
         bg.blit(title, (TILE * 2, TITLE_Y))
+        self._title = (title, (TILE * 2, TITLE_Y))
         self._background = bg
+
+    def _lights(self):
+        """Every light in the tunnel: relay screens, amber bulbs (one flickers per corridor), gate lamps."""
+        accent = theme.floor_palette(LEVEL_KEY)["accent"]
+        out = []
+        for gate in range(GATES_PER_LEVEL):
+            r = G.screen_rect(gate)
+            state = self._screen_state(gate)
+            colour = theme.TEAL if state == "accepted" else accent
+            out.append(lighting.Light((r.centerx, r.bottom + 8), 150, colour, {"active": 0.95, "accepted": 0.6, "standby": 0.35}[state]))
+        for corridor, (row, cols) in enumerate(zip(G.LANE_ROW, BULB_COLS)):
+            for k, col in enumerate(cols):
+                flick = lobby_juice.flicker(self.time, corridor * 4 + 1.7) if k == 1 else 1.0
+                out.append(lighting.Light((col * TILE + TILE // 2, row * TILE + TILE // 2), 125, BULB, 0.85 * flick))
+        for i, rect in enumerate(G.GATE_RECTS):
+            lamp = theme.mix(theme.CORAL, theme.TEAL, self.gate_open[i])
+            centre = (rect.x - 10, rect.centery) if i == 2 else rect.center
+            out.append(lighting.Light(centre, 85, lamp, 0.65))
+        for rack in G.rack_rects():
+            out.append(lighting.Light(rack.center, 55, theme.TEAL, 0.35))
+        for index in self.panel_flash:                      # only a panel that has just zapped gives off light
+            out.append(lighting.Light(self.panels[index]["rect"].center, 95, theme.CORAL, 0.9))
+        for desk in G.desk_rects():
+            out.append(lighting.Light(desk.center, 90, BULB, 0.7))
+        for sep, (lo, hi) in zip(G.SEPARATORS, G.SHAFTS):
+            out.append(lighting.Light(((lo + hi + 1) * TILE // 2, sep * TILE + TILE // 2), 90, BULB, 0.5))
+        return out
+
+    def _draw_shadows(self, world):
+        lighting.blob_shadow(world, self.engineer.rect, 90)
+        for rect in G.rack_rects() + G.desk_rects() + G.transformer_rects():
+            lighting.blob_shadow(world, rect.inflate(10, 0), 60, squash=0.3)
 
     def _screen_state(self, gate):
         if gate < self.gates_passed:
@@ -248,8 +386,7 @@ class GridRoom(RoomMixin, Level2):
                           seconds=max(0, math.ceil(self.time_left)), time=self.time)
         for gate_rect, openness in zip(G.GATE_RECTS[:2], self.gate_open[:2]):
             G.draw_gate(world, gate_rect, openness, self.time)
-        lamp = theme.mix(theme.CORAL, theme.TEAL, self.gate_open[2])
-        G.draw_shutter(world, G.GATE_RECTS[2], self.gate_open[2], lamp)
+        badge_door.draw_badge_door(world, G.GATE_RECTS[2], self.gate_open[2], self.time)
         G.draw_chevrons(world, self.gate_open[2], self.time)
         standing = {self.pad_at(p) for p, _ in self.players()} - {None}
         if self.gates_passed < GATES_PER_LEVEL:
@@ -258,8 +395,13 @@ class GridRoom(RoomMixin, Level2):
                 G.draw_pad(world, rect, option, state, accent, self.time)
         if self.done_pad is not None:
             G.draw_pad(world, self.done_pad[0], self.done_pad[1], "right", accent, self.time)
+        for index, tile in enumerate(self.panels):
+            G.draw_floor_panel(world, tile, self.panel_state.get(index, "unknown"), self.time)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
-        self.technician.draw(world, self.small)
+        self._draw_shadows(world)
+        self.engineer.draw(world, self.small)
         self.draw_sparks(world)
-        self.draw_message(world, "E: answer on a pad", self.line_font, self.small)
+        self.lightlayer.apply(world, self._lights())
+        world.blit(*self._title)                  # the title stays readable above the lighting
+        self.draw_message(world, "E: throw the breaker", self.line_font, self.small)
         self.present(surface, world)

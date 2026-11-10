@@ -36,17 +36,17 @@ STORY = {
         "title": "LEVEL 2 - THE MAINTENANCE GRID",
         "concept": "Operators",
         "lines": [
-            "Three sealed chambers, each with a wall screen and answer pads.",
-            "Read the screen, stand on the right answer and press E to open the gate.",
+            "Power to the lower floors runs through three relay bays and wall screens.",
+            "Stand on the breaker whose value makes it true and press E to throw it.",
         ],
     },
     "level3": {
         "warden": True,
-        "title": "LEVEL 3 - THE LASER LOOP",
+        "title": "LEVEL 3 - THE NIGHT PATROL",
         "concept": "Loops",
         "lines": [
-            "The lasers sweep in cycles that never stop on their own.",
-            "Understand the loop, then slip through the gaps.",
+            "NovaCorp's night patrol is a loop: lanes fire, cameras sweep, a robot walks.",
+            "Answer the loop question at each door. Move when the pattern allows.",
         ],
     },
     "level4": {

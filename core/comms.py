@@ -28,7 +28,7 @@ COMMS = {
         "danger": ("WARDEN", ["Security has been notified. I am sorry about the inconvenience."]),
     },
     "level2": {
-        "enter": ("Echo", ["Maintenance grid. Read the screen, then stand on the answer."]),
+        "enter": ("Echo", ["Maintenance grid. Read the relay, then throw the right breaker."]),
         "mistake": ("WARDEN", [
             "Incorrect operation. The grid remains locked.",
             "Arithmetic is not optional.",
@@ -38,14 +38,14 @@ COMMS = {
         "danger": ("WARDEN", ["Lockdown procedures are warming up. Stop now."]),
     },
     "level3": {
-        "enter": ("Echo", ["Laser corridor. They repeat on a cycle. Count it, then go."]),
+        "enter": ("Echo", ["Night patrol. Everything here repeats. Read the pattern, then go."]),
         "mistake": ("WARDEN", [
             "A loop does not end because you wish it to.",
             "I have seen this mistake forty times today.",
-            "Again? The lasers do not forgive.",
+            "Again? The patrol does not forget.",
         ]),
         "progress": ("Echo", ["You read the loop. Next gap is yours.", "Clean pass."]),
-        "danger": ("WARDEN", ["The lasers are speeding up. Step away from the corridor."]),
+        "danger": ("WARDEN", ["The patrol is speeding up. Watch the pattern."]),
     },
     "level4": {
         "enter": ("Echo", ["Archive vault. Everything is a key and a value. Find the right key."]),
