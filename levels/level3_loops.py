@@ -21,7 +21,7 @@ from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
-from levels import lighting, patrol_decor, patrol_lanes
+from levels import lighting, patrol_cameras, patrol_decor, patrol_lanes
 from ui.fonts import ui_font
 
 
@@ -160,6 +160,7 @@ class Level3LaserLoop:
 
         self.lasers = []
         self.lane_loop = None               # Room 1's four-lane loop (levels/patrol_lanes.py)
+        self.camera_bank = None             # Room 2's sweeping cameras (levels/patrol_cameras.py)
 
         # -------------------------
         # Security robot
@@ -410,30 +411,54 @@ class Level3LaserLoop:
                 self.laser_hit_feedback_timer - dt,
             )
 
+        player_rects = self._player_rects()
+        spotted = None
+
+        if self.camera_bank is not None:
+            gate = self._current_gate()
+
+            if gate.is_open() and self.camera_bank.on:
+                self.camera_bank.switch_off()               # the answer ran "camera.on = False"
+                self._sfx("door")
+
+            spotted = self.camera_bank.update(dt, player_rects)
+
         if self.laser_penalty_cooldown > 0:
             return
 
-        player_rects = self._player_rects()
+        if spotted is not None:
+            self._hazard_hit("CAMERA SPOTTED! SCORE -10", "alarm")
+            return
 
         for laser_rect in self.active_beam_rects():
 
             if any(r.colliderect(laser_rect) for r in player_rects):
-                self.laser_penalty_cooldown = self.laser_penalty_duration
-                self.laser_hit_feedback_timer = 1.0
-
-                self.feedback = "LASER HIT! SCORE -10"
-                self._sfx("zap")
-                self._guard_says(patrol_decor.GUARD_HIT)
-
-                self.game.score.penalize(10)               # a hazard costs score only, never security
-
-                # Recovery: every laser re-arms, giving a safe window.
-                self.laser_clock = 0.0
-
-                if self.lane_loop is not None:
-                    self.lane_loop.rearm()
-
+                self._hazard_hit("LASER HIT! SCORE -10", "zap")
                 break
+
+    def _hazard_hit(self, text, sound):
+        """A hazard caught the player: score only, then everything re-arms."""
+
+        self.laser_penalty_cooldown = self.laser_penalty_duration
+        self.laser_hit_feedback_timer = 1.0
+
+        self.feedback = text
+        self._sfx(sound)
+        self._guard_says(patrol_decor.GUARD_HIT)
+
+        self.game.score.penalize(10)               # a hazard costs score only, never security
+
+        # Recovery: every hazard re-arms, giving a safe window.
+        self.laser_clock = 0.0
+
+        if self.lane_loop is not None:
+            self.lane_loop.rearm()
+
+        if self.camera_bank is not None:
+            self.camera_bank.rearm()
+
+    def _current_gate(self):
+        return (self.gate1, self.gate2, self.gate3)[self.current_room_number() - 1]
 
     # =========================================================
     # ROOM / PROGRESSION
@@ -509,11 +534,11 @@ class Level3LaserLoop:
         self.lasers = [
             laser.copy()
             for laser in laser_patterns[room]
-        ] if room != 1 else []
+        ] if room == 3 else []
 
-        self.lane_loop = (
-            patrol_lanes.LaneLoop(self.get_selected_difficulty()) if room == 1 else None
-        )
+        difficulty = self.get_selected_difficulty()
+        self.lane_loop = patrol_lanes.LaneLoop(difficulty) if room == 1 else None
+        self.camera_bank = patrol_cameras.CameraBank(difficulty) if room == 2 else None
 
         self.robot_speed = 120 + ((room - 1) * 30)
         self.gap_width = self.GAP_WIDTHS.get(self.get_selected_difficulty(), 130)
@@ -2238,6 +2263,9 @@ class Level3LaserLoop:
         if self.lane_loop is not None:
             beams.extend(self.lane_loop.light_rects((ox, oy)))
 
+        if self.camera_bank is not None:
+            beams.extend(self.camera_bank.light_rects((ox, oy)))
+
         emitters = []
 
         for i, l in enumerate(self.lasers):
@@ -2298,6 +2326,9 @@ class Level3LaserLoop:
 
         if self.lane_loop is not None:
             self.lane_loop.draw(surface, self._seconds())
+
+        if self.camera_bank is not None:
+            self.camera_bank.draw(surface, self._seconds())
 
         # -------------------------
         # Exit gate and status
@@ -2389,6 +2420,8 @@ class Level3LaserLoop:
             patrol_decor.draw_lane_board(
                 surface, self.lane_loop, gate.is_open(), self._seconds()
             )
+        elif self.camera_bank is not None:
+            patrol_decor.draw_camera_board(surface, self.camera_bank, self._seconds())
         else:
             patrol_decor.draw_board(
                 surface, any_beam_live, gate.is_open(), self._seconds()

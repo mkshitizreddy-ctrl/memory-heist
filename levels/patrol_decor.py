@@ -194,6 +194,31 @@ def draw_notice(surface, text_lines):
         surface.blit(img, (NOTICE.x + 8, NOTICE.y + 12 + i * 15))
 
 
+def draw_camera_board(surface, bank, t):
+    """Room 2's board: the camera loop as code.  It stops when the gate opens."""
+    panel = pygame.Surface(BOARD.size, pygame.SRCALPHA)
+    pygame.draw.rect(panel, (*theme.INK, 225), panel.get_rect(), border_radius=6)
+    pygame.draw.rect(panel, (*ACCENT, 255), panel.get_rect(), 2, border_radius=6)
+    surface.blit(panel, BOARD.topleft)
+    head = ui_font(13, bold=True).render("PATROL  LOOP", True, ACCENT)
+    surface.blit(head, (BOARD.x + 10, BOARD.y + 4))
+
+    seen = bank.on and bank.seen_by is not None
+    font = code_font(17)
+    lines = (
+        ("while camera.on:", theme.SKY if bank.on else theme.SLATE),
+        ("    sweep()", theme.CORAL if seen else (theme.GOLD if bank.on else theme.SLATE)),
+        ("camera.on = False", theme.SLATE if bank.on else theme.TEAL),
+    )
+    for i, (text, colour) in enumerate(lines):
+        surface.blit(font.render(text, True, colour), (BOARD.x + 10, BOARD.y + 20 + i * 15))
+
+    chip = ui_font(14, bold=True).render("on = True" if bank.on else "on = False", True,
+                                         theme.CORAL if seen else theme.MIST)
+    surface.blit(chip, chip.get_rect(bottomright=(BOARD.right - 10, BOARD.bottom - 6)))
+    pygame.draw.circle(surface, theme.CORAL if seen else theme.SLATE, (BOARD.right - 14, BOARD.y + 12), 4)
+
+
 def draw_lane_board(surface, loop, gate_open, t):
     """Room 1's board: the lane loop as code.  The line being run lights up,
     the loop's own variable shows which lane it is on."""

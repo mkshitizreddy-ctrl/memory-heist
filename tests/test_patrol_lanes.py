@@ -75,7 +75,7 @@ def test_room_one_uses_the_lane_loop_and_a_live_lane_hurts_score_only():
 def test_rooms_two_and_three_have_no_lane_loop():
     for room in (2, 3):
         level, _ = make_level(room)
-        assert level.lane_loop is None and level.lasers
+        assert level.lane_loop is None
 
 
 def test_the_room_one_guard_paces_between_lanes_never_through_one():

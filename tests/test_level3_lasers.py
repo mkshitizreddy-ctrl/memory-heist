@@ -133,7 +133,7 @@ def test_room_entry_is_safe_for_the_whole_grace_period(room, spawn):
 
 
 def test_a_player_in_the_beam_path_is_still_punished_after_the_grace_period():
-    level, events = make_level(2, player_at=(100, 446))
+    level, events = make_level(3, player_at=(100, 446))
     player = level.game.player.rect
     level.game.score.add(1000)
 
@@ -146,7 +146,7 @@ def test_a_player_in_the_beam_path_is_still_punished_after_the_grace_period():
 
 
 def test_only_active_beams_hurt_and_a_hit_is_applied_once():
-    level, events = make_level(2)
+    level, events = make_level(3)
     level.game.score.add(100)
     player = level.game.player.rect
     laser = level.lasers[0]
@@ -223,7 +223,7 @@ def test_clock_resets_when_entering_the_next_room():
 
 @pytest.mark.parametrize("phase", ("off", "warning", "active"))
 def test_phases_look_different_and_only_active_uses_the_danger_colour(phase, monkeypatch):
-    level, _ = make_level(2)
+    level, _ = make_level(3)
     level.laser_phase = lambda index: phase
     monkeypatch.setattr(level, "_seconds", lambda: 0.0)    # fixed flicker frame
     surface = pygame.Surface((960, 640))
