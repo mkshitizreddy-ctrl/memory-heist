@@ -122,7 +122,7 @@ def test_render_does_not_change_gameplay_state():
             level.time_left,
             level.robot_x,
             level.robot_alert,
-            [laser["x"] for laser in level.lasers],
+            (level.lane_loop or level.camera_bank).clock if (level.lane_loop or level.camera_bank) else 0,
             level.gate2.state,
             level.game.score.get_score(),
         )
@@ -133,19 +133,6 @@ def test_render_does_not_change_gameplay_state():
         level.render(surface)
 
     assert snapshot() == before
-
-
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_laser_labels_stay_out_of_the_robot_band(room):
-    question_id = next(
-        key for key, value in QUESTIONS.items() if value["room"] == room
-    )
-    level = make_level(room, question_id)
-
-    band = pygame.Rect(90, 154, 800, 62)
-
-    for rect in level._laser_label_rects():
-        assert not rect.colliderect(band)
 
 
 def test_gate_sparks_do_not_touch_private_gate_state_or_global_random():
@@ -168,42 +155,31 @@ def test_gate_sparks_do_not_touch_private_gate_state_or_global_random():
     assert level._vis_state()["sparks"]
 
 
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_drawn_beam_matches_collision_box(room):
+@pytest.mark.parametrize("room", (1, 3))
+def test_a_live_lane_is_drawn_inside_its_collision_box(room):
     question_id = next(
         key for key, value in QUESTIONS.items() if value["room"] == room
     )
     level = make_level(room, question_id)
-    level.robot_x = 700
-    level.laser_phase = lambda index: "active"      # beam drawn at full strength
-
-    for index, laser in enumerate(level.lasers):
-        laser["x"] = 200.0 + 111 * index
+    lane = level.lane_loop
+    lane.clock = 2.0 + 0.1                                   # lane 0 is live
 
     surface = pygame.Surface((960, 640))
     surface.fill((0, 0, 0))
-    level._draw_rails(surface)          # before the room lighting tints the beam
+    lane.draw(surface, 0.0)
 
-    for laser, collision in ((l, seg) for l in level.lasers for seg in level.beam_segments(l)):
-        strip = pygame.Rect(
-            collision.left, collision.top - 4, collision.width, collision.height + 8
-        )
-        red = [
-            (x, y)
-            for x in range(strip.left, strip.right, 5)
-            for y in range(strip.top, strip.bottom)
-            if tuple(surface.get_at((x, y)))[:3] == (255, 45, 45)
-        ]
+    box = lane.rect(0)
+    red = [
+        (x, y)
+        for x in range(box.left - 6, box.right + 6, 2)
+        for y in range(box.top - 6, box.bottom + 6)
+        if tuple(surface.get_at((x, y)))[:3] == (255, 45, 45)
+    ]
 
-        assert red
-        assert min(y for _, y in red) == collision.top
-        assert max(y for _, y in red) == collision.bottom - 1
-
-        # The rail is centred on the beam (8 px of housing each side).
-        rail_top = laser["y"] - level.RAIL_TOP_PAD
-        rail_bottom = rail_top + level.RAIL_HEIGHT
-
-        assert collision.top - rail_top == rail_bottom - collision.bottom == 8
+    assert red
+    assert all(box.collidepoint(p) for p in red)             # never drawn outside what hurts
+    assert max(x for x, _ in red) - min(x for x, _ in red) >= box.width * 0.8 or box.width < box.height
+    assert max(y for _, y in red) - min(y for _, y in red) >= box.height * 0.5
 
 
 @pytest.mark.parametrize("room", (1, 2, 3))
@@ -258,26 +234,6 @@ def rendered_text_rects(level):
             rects.append(ink.move(box.topleft))
 
     return rects
-
-
-def rail_bodies(level):
-    return [
-        pygame.Rect(
-            level.track_x,
-            laser["y"] - level.RAIL_TOP_PAD,
-            level.track_width,
-            level.RAIL_HEIGHT,
-        )
-        for laser in level.lasers
-    ]
-
-
-def rail_emitters(level):
-    return [
-        pygame.Rect(x, laser["y"] - level.RAIL_TOP_PAD - 3, 22, level.RAIL_HEIGHT + 6)
-        for laser in level.lasers
-        for x in (level.track_x - 22, level.track_x + level.track_width)
-    ]
 
 
 @pytest.mark.parametrize("question_id", sorted(QUESTIONS))
@@ -361,53 +317,61 @@ def test_each_room_has_its_own_baked_look(room):
         assert mine != pygame.image.tostring(other.subsurface(wall), "RGB")
 
 
-def test_the_patrol_board_lights_its_if_line_only_while_a_beam_is_live():
+def test_the_lane_board_lights_zap_only_while_a_lane_is_live():
     from levels import patrol_decor as P
+    from levels import patrol_lanes
 
     surface = pygame.Surface((960, 640))
-    P.draw_board(surface, False, False, 0.0)
+    loop = patrol_lanes.LaneLoop("medium", "rows")
+    P.draw_lane_board(surface, loop, False, 0.0, nested=True)
     quiet = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    loop.clock = patrol_lanes.GRACE + 0.1
     surface.fill((0, 0, 0))
-    P.draw_board(surface, True, False, 0.0)
+    P.draw_lane_board(surface, loop, False, 0.0, nested=True)
     live = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
-    assert quiet != live
+    surface.fill((0, 0, 0))
+    P.draw_lane_board(surface, loop, True, 0.0, nested=True)
+    broken = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    assert len({quiet, live, broken}) == 3
 
 
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
+@pytest.mark.parametrize("room", (1, 3))
+def test_lane_collisions_use_check_laser_collision_on_all_four_edges(room):
     question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
     level = make_level(room, question_id)
     hits = []
     player = pygame.Rect(0, 0, 32, 32)
-    level.laser_phase = lambda index: "active"      # only active beams can hit
     level.game = SimpleNamespace(
         player=SimpleNamespace(rect=player),
         security=SimpleNamespace(increase=lambda amount: (_ for _ in ()).throw(AssertionError("no security"))),
         score=SimpleNamespace(penalize=lambda amount: hits.append(amount)),
         coop=False,
     )
+    lane = level.lane_loop
+    lane.clock = 2.0 + 0.1                                    # lane 0 live
 
-    for laser in level.lasers:
-      for beam in level.beam_segments(laser):
-        mid_x, mid_y = beam.centerx - 16, beam.centery - 16
+    beam = lane.rect(0)
+    mid_x, mid_y = beam.centerx - 16, beam.centery - 16
 
-        for edge in ("left", "right", "above", "below"):
-            for inside in (0, 1):
-                if edge == "left":
-                    player.topleft = (beam.left - 32 + inside, mid_y)
-                elif edge == "right":
-                    player.topleft = (beam.right - inside, mid_y)
-                elif edge == "above":
-                    player.topleft = (mid_x, beam.top - 32 + inside)
-                else:
-                    player.topleft = (mid_x, beam.bottom - inside)
+    for edge in ("left", "right", "above", "below"):
+        for inside in (0, 1):
+            if edge == "left":
+                player.topleft = (beam.left - 32 + inside, mid_y)
+            elif edge == "right":
+                player.topleft = (beam.right - inside, mid_y)
+            elif edge == "above":
+                player.topleft = (mid_x, beam.top - 32 + inside)
+            else:
+                player.topleft = (mid_x, beam.bottom - inside)
 
-                level.laser_penalty_cooldown = 0.0
-                hits.clear()
-                level.check_laser_collision(0.0)
+            level.laser_penalty_cooldown = 0.0
+            lane.clock = 2.0 + 0.1
+            hits.clear()
+            level.check_laser_collision(0.0)
 
-                assert bool(hits) == bool(inside), (room, edge, inside, tuple(beam))
-                assert player.colliderect(beam) == bool(inside)
+            assert bool(hits) == bool(inside), (room, edge, inside, tuple(beam))
+            assert player.colliderect(beam) == bool(inside)
+
 
 def test_night_guard_walks_greets_and_reacts_without_touching_the_rules():
     from levels import patrol_decor as P
@@ -426,13 +390,13 @@ def test_night_guard_walks_greets_and_reacts_without_touching_the_rules():
         assert P.GUARD_GREETING[room] and P.GUARD_IDLE[room]
 
 
-def test_the_guard_lap_stays_clear_of_every_rail_and_the_question_panel():
+def test_the_guard_lap_stays_clear_of_every_lane_and_the_question_panel():
     from levels import patrol_decor as P
 
     for room in (1, 2, 3):
         level = make_level(room, next(k for k, v in QUESTIONS.items() if v["room"] == room))
         route = P.GUARD_ROUTES[room]
         lap = pygame.Rect(route[0][0], route[0][1], route[1][0] - route[0][0] + 32, 32)
-        for rail in rail_bodies(level) + rail_emitters(level):
-            assert not lap.colliderect(rail), (room, rail)
+        for lane in (level.lane_loop.rects if level.lane_loop else []):
+            assert not lap.colliderect(lane.inflate(12, 12)), (room, lane)
         assert lap.bottom < level._bottom_layout()["panel"].top

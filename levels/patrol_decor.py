@@ -32,8 +32,6 @@ NOTICE = pygame.Rect(400, 84, 148, 64)
 BANNER_LANE = pygame.Rect(150, 84, 405, 32)
 
 DIM_CODE = theme.mix(theme.SLATE, theme.MIST, 0.45)          # an unlit line is still readable
-BOARD_LINES = ("while True:", "    if laser_detected:", "        break")
-
 
 # --- static room -------------------------------------------------------------
 
@@ -291,9 +289,10 @@ def draw_camera_board(surface, bank, t):
     pygame.draw.circle(surface, theme.CORAL if seen else theme.SLATE, (BOARD.right - 14, BOARD.y + 12), 4)
 
 
-def draw_lane_board(surface, loop, gate_open, t):
-    """Room 1's board: the lane loop as code.  The line being run lights up,
-    the loop's own variable shows which lane it is on."""
+def draw_lane_board(surface, loop, gate_open, t, nested=False):
+    """The lane loop as code.  The line being run lights up, the loop's own
+    variable shows which lane it is on.  Room 3 nests it in the robot's `while`
+    loop, and the open gate runs `break`."""
     panel = pygame.Surface(BOARD.size, pygame.SRCALPHA)
     pygame.draw.rect(panel, (*theme.INK, 225), panel.get_rect(), border_radius=6)
     pygame.draw.rect(panel, (*ACCENT, 255), panel.get_rect(), 2, border_radius=6)
@@ -307,40 +306,29 @@ def draw_lane_board(surface, loop, gate_open, t):
     resting = loop.resting() or gate_open
 
     font = code_font(17)
-    lines = (
-        ("for lane in range(4):", theme.GOLD if "warning" in phases and not live else theme.SKY),
-        ("    zap(lane)", theme.CORAL if live else theme.SLATE),
-        ("rest()", theme.TEAL if resting else theme.SLATE),
-    )
+    loop_colour = theme.GOLD if "warning" in phases and not live else theme.SKY
+    if nested:
+        lines = (
+            ("while patrol():", theme.TEAL if gate_open else theme.SKY),
+            ("  for lane in range(3):", loop_colour),
+            ("    zap(lane)", theme.CORAL if live else theme.SLATE),
+        )
+    else:
+        lines = (
+            ("for lane in range(4):", loop_colour),
+            ("    zap(lane)", theme.CORAL if live else theme.SLATE),
+            ("rest()", theme.TEAL if resting else theme.SLATE),
+        )
     for i, (text, colour) in enumerate(lines):
         surface.blit(font.render(text, True, colour), (BOARD.x + 10, BOARD.y + 20 + i * 15))
 
-    chip = f"lane = {lane}" if lane is not None else "lane = -"
-    img = ui_font(14, bold=True).render(chip, True, theme.CORAL if live else theme.MIST)
+    if nested and gate_open:
+        chip, chip_colour = "break", theme.TEAL
+    else:
+        chip, chip_colour = (f"lane = {lane}" if lane is not None else "lane = -"), (theme.CORAL if live else theme.MIST)
+    img = ui_font(14, bold=True).render(chip, True, chip_colour)
     surface.blit(img, img.get_rect(bottomright=(BOARD.right - 10, BOARD.bottom - 6)))
     pygame.draw.circle(surface, theme.CORAL if live else theme.SLATE, (BOARD.right - 14, BOARD.y + 12), 4)
-
-
-def draw_board(surface, laser_live, gate_open, t):
-    """The same loop as code.  The 'if' line lights while a beam is live;
-    'break' lights once the gate is open, as the patrol stops."""
-    panel = pygame.Surface(BOARD.size, pygame.SRCALPHA)
-    pygame.draw.rect(panel, (*theme.INK, 225), panel.get_rect(), border_radius=6)
-    pygame.draw.rect(panel, (*ACCENT, 255), panel.get_rect(), 2, border_radius=6)
-    surface.blit(panel, BOARD.topleft)
-    head = ui_font(14, bold=True).render("PATROL  LOOP", True, ACCENT)
-    surface.blit(head, (BOARD.x + 10, BOARD.y + 4))
-    font = code_font(15)
-    for i, line in enumerate(BOARD_LINES):
-        if i == 0:
-            colour = theme.SKY
-        elif i == 1:
-            colour = theme.CORAL if laser_live else DIM_CODE
-        else:
-            colour = theme.TEAL if gate_open else DIM_CODE
-        surface.blit(font.render(line, True, colour), (BOARD.x + 10, BOARD.y + 21 + i * 15))
-    dot = theme.CORAL if laser_live else theme.SLATE
-    pygame.draw.circle(surface, dot, (BOARD.right - 14, BOARD.y + 12), 4)
 
 
 # --- the night guard and the lighting ------------------------------------------

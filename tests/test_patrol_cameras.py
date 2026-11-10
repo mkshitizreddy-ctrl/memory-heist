@@ -71,7 +71,7 @@ def test_switching_off_stops_detection():
 
 def test_room_two_uses_cameras_and_a_sighting_costs_score_only():
     level, events = make_level(2)
-    assert level.camera_bank is not None and level.lasers == [] and level.lane_loop is None
+    assert level.camera_bank is not None and level.lane_loop is None
     level.game.score.add(100)
     rect = aim(level.camera_bank, 0)
     level.game.player.rect.topleft = rect.topleft
