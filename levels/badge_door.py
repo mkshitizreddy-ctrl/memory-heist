@@ -119,6 +119,29 @@ def _leaf(surface, area, tone, upper):
     pygame.draw.rect(surface, tone, (area.x + 3, area.y + 4 if upper else area.bottom - 7, 3, 3))   # status stud
 
 
+def _draw_vents(surface, door, progress):
+    """While the leaves slide, a little steam hisses out of each pocket and a glow lights the reader."""
+    s = state(progress)
+    if s == "opening":
+        u = (progress - SCAN_END) / (1.0 - SCAN_END)
+        layer = pygame.Surface((door.w + 24, 50), pygame.SRCALPHA)
+        for sign in (-1, 1):
+            base = door.top if sign < 0 else door.bottom
+            for k in range(3):
+                uu = (u - k * 0.15) / 0.65
+                if 0 < uu < 1:
+                    pos = (layer.get_width() // 2 + (k - 1) * 7, 25 + sign * int(4 + 16 * uu))
+                    pygame.draw.circle(layer, (206, 212, 220, int(80 * (1 - uu))), pos, int(3 + 7 * uu))
+            surface.blit(layer, (door.centerx - layer.get_width() // 2, base - 25))
+            layer.fill((0, 0, 0, 0))
+    if s != "locked":
+        reader = reader_rect(door)
+        halo = pygame.Surface((reader.w + 24, reader.h + 24), pygame.SRCALPHA)
+        tone = lamp_colour(progress)
+        pygame.draw.rect(halo, (*tone, 34), halo.get_rect(), border_radius=12)
+        surface.blit(halo, (reader.x - 12, reader.y - 12))
+
+
 def draw_badge_door(surface, door, progress, time):
     """Draw the door in the opening `door` (a vertical strip) for the given progress."""
     progress = _clamp(progress)
@@ -149,4 +172,5 @@ def draw_badge_door(surface, door, progress, time):
         spill.fill((*GRANTED, 26 + int(14 * (0.5 + 0.5 * math.sin(time * 3)))))
         surface.blit(spill, door.topleft)
 
+    _draw_vents(surface, door, progress)
     _draw_reader(surface, door, progress, time)

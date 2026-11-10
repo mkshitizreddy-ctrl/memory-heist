@@ -50,6 +50,9 @@ def pose_for(frames, moving, anim_time, idle_time):
     return frames["idle"], breath_offset(idle_time)
 
 
+RIM_LIGHT = (150, 190, 255, 120)                       # the cool rim that lifts characters off a dark floor
+
+
 def draw_character(surface, rect, image, lift, facing_left, squash=None):
     """Draw a character at `rect`: shadow first, then the sprite.
 
@@ -69,4 +72,6 @@ def draw_character(surface, rect, image, lift, facing_left, squash=None):
     if squash is not None and not squash.at_rest:
         image, (ox, oy) = scaled(image, *squash.scale)
         x, y = x + ox, y + oy
+    rim = pygame.mask.from_surface(image).to_surface(setcolor=RIM_LIGHT, unsetcolor=(0, 0, 0, 0))
+    surface.blit(rim, (x - 1, y - lift - 1))            # a thin lit edge, as if the ceiling lamp were up and left
     surface.blit(image, (x, y - lift))

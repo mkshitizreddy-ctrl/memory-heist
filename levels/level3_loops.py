@@ -21,7 +21,7 @@ from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
-from levels import badge_door, lighting, patrol_cameras, patrol_decor, patrol_lanes
+from levels import badge_door, depth_fx, lighting, patrol_cameras, patrol_decor, patrol_lanes
 from ui.fonts import code_font, ui_font
 from ui.kit import draw_panel
 
@@ -1175,6 +1175,21 @@ class Level3LaserLoop:
 
     SCAN_CLIP = pygame.Rect(64, 152, 782, 326)       # the room floor between the walls
 
+    def _draw_room_effects(self, surface, room):
+        """Life in the room: dust, light through the grilles, a hissing drain, a sparking junction box."""
+
+        t = self._seconds()
+        depth_fx.motes(surface, self.SCAN_CLIP, t, count=22, seed=room)
+
+        if room == 1:
+            depth_fx.light_bars(surface, self.SCAN_CLIP, t, alpha=13)
+            depth_fx.steam(surface, (164, 392), t, period=8.0, seed=0.2)
+        elif room == 2:
+            depth_fx.sparks(surface, (610, 168), t, period=9.0, seed=0.1)
+            depth_fx.sparks(surface, (330, 168), t, period=13.0, seed=0.55)
+        else:
+            depth_fx.light_bars(surface, self.SCAN_CLIP, t, colour=(190, 215, 255), alpha=11, width=22, gap=90)
+
     def draw_robot_scan(self, surface):
         """The droid's sensor field: a soft disc with a dashed rim and a pulse that spreads from it.
 
@@ -1892,6 +1907,8 @@ class Level3LaserLoop:
         # -------------------------
         # Robot, guard, lighting, then the crisp wall text on top
         # -------------------------
+
+        self._draw_room_effects(surface, room_number)
 
         if not self._robot_stood_down():
             self.draw_robot_scan(surface)
