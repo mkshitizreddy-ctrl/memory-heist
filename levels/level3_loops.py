@@ -21,8 +21,28 @@ from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
-from levels import lighting, patrol_cameras, patrol_decor, patrol_lanes
+from levels import badge_door, lighting, patrol_cameras, patrol_decor, patrol_lanes
 from ui.fonts import ui_font
+
+
+class PatrolGate(Gate):
+    """The room's exit door: a Gate whose unlock runs the badge scan, then the slide."""
+
+    SECONDS = 1.2                      # scan the badge, then the leaves slide apart
+
+    def unlock(self):
+        if self.state == "locked":
+            super().unlock()
+            self._timer = self.SECONDS
+
+    @property
+    def progress(self):
+        """0 locked .. 1 open, the number levels.badge_door draws from."""
+        if self.state == "locked":
+            return 0.0
+        if self.state == "open":
+            return 1.0
+        return max(0.001, 1.0 - self._timer / self.SECONDS)
 
 
 class Level3LaserLoop:
@@ -77,21 +97,21 @@ class Level3LaserLoop:
         self.room_width = 880
         self.room_height = 560
 
-        self.gate1 = Gate(
+        self.gate1 = PatrolGate(
             850,
             180,
             width=20,
             height=120,
         )
 
-        self.gate2 = Gate(
+        self.gate2 = PatrolGate(
             850,
             180,
             width=20,
             height=120,
         )
 
-        self.gate3 = Gate(
+        self.gate3 = PatrolGate(
             850,
             180,
             width=20,
@@ -1126,87 +1146,51 @@ class Level3LaserLoop:
             self.game.score.penalize(15)               # an alert costs score only
             self._sfx("alarm")
 
+    SCAN_CLIP = pygame.Rect(64, 152, 782, 326)       # the room floor between the walls
+
     def draw_robot_scan(self, surface):
+        """The droid's sensor field: a soft disc with a dashed rim and a pulse that spreads from it.
 
-        center_x = int(
-            self.robot_x
-            + self.robot_width // 2
-        )
+        It is the same circle the detection uses (robot_scan_radius), so a courier inside it is seen.
+        Amber while the droid patrols, red while it has spotted you.
+        """
 
-        center_y = int(
-            self.robot_y
-            + self.robot_height
-        )
+        radius = self.robot_scan_radius
+        centre_x = int(self.robot_x + self.robot_width // 2)
+        centre_y = int(self.robot_y + self.robot_height // 2)
+        t = self._seconds()
+        alert = self.robot_alert
+        tone = (255, 74, 62) if alert else (255, 170, 72)
 
-        pulse = (
-            pygame.math.Vector2(
-                1,
-                0,
-            )
-            .rotate(
-                self.robot_scan_phase * 35
-            )
-            .x
-            + 1
-        ) * 0.5
+        size = radius * 2 + 8
+        c = size // 2
+        layer = pygame.Surface((size, size), pygame.SRCALPHA)
 
-        radius = int(
-            self.robot_scan_radius
-            + pulse * 15
-        )
+        steps = 8                                           # brighter toward the rim, clear in the middle
+        top = 70 if alert else 30
+        for k in range(steps):
+            r = int(radius * (1 - k / steps))
+            pygame.draw.circle(layer, (*tone, int(top * (1 - k / steps) ** 1.5)), (c, c), r)
 
-        scan_surface = pygame.Surface(
-            (
-                surface.get_width(),
-                surface.get_height(),
-            ),
-            pygame.SRCALPHA,
-        )
+        pulse_speed = 1.6 if alert else 0.55                # an expanding ring, like a ping
+        u = (t * pulse_speed) % 1.0
+        pygame.draw.circle(layer, (*tone, int(130 * (1 - u))), (c, c), max(2, int(radius * u)), 2)
 
-        pygame.draw.circle(
-            scan_surface,
-            (255, 80, 80, 22),
-            (
-                center_x,
-                center_y,
-            ),
-            radius,
-            2,
-        )
+        ticks = 40
+        spin = t * (0.9 if alert else 0.25)
+        for i in range(ticks):
+            if not alert and i % 2:
+                continue                                    # dashed while patrolling, solid when alert
+            a0 = spin + i * 2 * math.pi / ticks
+            a1 = a0 + (2 * math.pi / ticks) * (0.95 if alert else 0.55)
+            p0 = (c + math.cos(a0) * radius, c + math.sin(a0) * radius)
+            p1 = (c + math.cos(a1) * radius, c + math.sin(a1) * radius)
+            pygame.draw.line(layer, (*tone, 210 if alert else 150), p0, p1, 3 if alert else 2)
 
-        scan_angle = (
-            self.robot_scan_phase * 35
-        )
-
-        scan_vector = pygame.math.Vector2(
-            radius,
-            0,
-        ).rotate(scan_angle)
-
-        pygame.draw.line(
-            scan_surface,
-            (255, 100, 100, 70),
-            (
-                center_x,
-                center_y,
-            ),
-            (
-                int(
-                    center_x
-                    + scan_vector.x
-                ),
-                int(
-                    center_y
-                    + scan_vector.y
-                ),
-            ),
-            3,
-        )
-
-        surface.blit(
-            scan_surface,
-            (0, 0),
-        )
+        previous = surface.get_clip()
+        surface.set_clip(self.SCAN_CLIP)
+        surface.blit(layer, (centre_x - c, centre_y - c))
+        surface.set_clip(previous)
 
     # =========================================================
     # PHASE 1 VISUALS (presentation only)
@@ -1348,6 +1332,9 @@ class Level3LaserLoop:
         if entry["start"] is None:
             return 1.0
 
+        if hasattr(gate, "progress"):
+            return gate.progress                      # the gate's own scan-then-slide clock
+
         return self._ease_out_cubic(
             (now - entry["start"]) / self.GATE_OPEN_SECONDS
         )
@@ -1434,44 +1421,9 @@ class Level3LaserLoop:
         progress = self._gate_progress(gate)
         locked = gate.state == "locked"
 
-        red, amber, green = (200, 60, 60), (240, 200, 70), (60, 200, 120)
-
-        if locked:
-            tone = red
-        elif progress < 0.5:
-            tone = self._mix(red, amber, progress * 2)
-        else:
-            tone = self._mix(amber, green, (progress - 0.5) * 2)
-
+        tone = badge_door.lamp_colour(progress)
         frame = rect.inflate(16, 4)
-
-        pygame.draw.rect(surface, (12, 14, 26), frame, border_radius=6)
-        pygame.draw.rect(surface, tone, frame, 2, border_radius=6)
-
-        door_height = int(round(rect.height * (1 - progress)))
-
-        if door_height > 0:
-
-            door = pygame.Rect(rect.x, rect.y, rect.width, door_height)
-            slat = self._mix(tone, (0, 0, 0), 0.45)
-
-            pygame.draw.rect(surface, tone, door)
-
-            for y in range(door.y + 6, door.bottom - 2, 12):
-                pygame.draw.line(
-                    surface, slat, (door.x + 2, y), (door.right - 3, y), 2
-                )
-
-        if progress >= 1.0:
-            glow = pygame.Surface(frame.inflate(20, 20).size, pygame.SRCALPHA)
-
-            pygame.draw.rect(
-                glow, (60, 200, 120, 45), glow.get_rect(), border_radius=12
-            )
-            surface.blit(glow, frame.inflate(20, 20).topleft)
-
-        if locked:
-            self._draw_lock(surface, rect.center)
+        badge_door.draw_badge_door(surface, rect.inflate(8, 0), progress, self._seconds())
 
         self._draw_sparks(surface)
 

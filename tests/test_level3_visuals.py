@@ -100,16 +100,16 @@ def test_gate_progress_is_render_side_and_eased(monkeypatch):
     assert level._gate_progress(level.gate1) == 0.0
 
     level.gate1.unlock()
-    assert level._gate_progress(level.gate1) == 0.0     # animation just started
+    assert level._gate_progress(level.gate1) < 0.01     # the badge scan just started
+    assert level.gate1.state == "unlocking"
 
-    clock["t"] += 0.3
+    level.gate1.update(0.3)
     middle = level._gate_progress(level.gate1)
-    clock["t"] += 1.0
-    finished = level._gate_progress(level.gate1)
+    assert 0.0 < middle < 1.0 and level.gate1.state == "unlocking"   # still shut: the reader is scanning
 
-    assert 0.0 < middle < 1.0
-    assert finished == 1.0
-    assert level.gate1.state == "unlocking"              # gameplay state untouched
+    level.gate1.update(1.2)
+    assert level._gate_progress(level.gate1) == 1.0     # leaves fully slid into the wall
+    assert level.gate1.state == "open"
 
 
 def test_render_does_not_change_gameplay_state():

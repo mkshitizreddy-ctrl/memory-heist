@@ -28,7 +28,7 @@ import pygame
 
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lighting, lobby_juice
+from levels import badge_door, lighting, lobby_juice
 from levels import snake_decor as G
 from levels.level2 import GATES_PER_LEVEL, POINTS_FALLBACK, Level2
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
@@ -41,6 +41,7 @@ FINISH_BONUS = 100
 WRONG_SECURITY, WRONG_PENALTY = 20, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
+EXIT_SECONDS = 1.2              # the exit door: badge scan, then the leaves slide apart
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
 ENGINEER_ROUTE = [(5 * TILE, 9 * TILE), (11 * TILE, 9 * TILE), (16 * TILE, 9 * TILE), (11 * TILE, 9 * TILE)]
@@ -249,7 +250,10 @@ class GridRoom(RoomMixin, Level2):
         self._update_panels(dt)
         for i in range(GATES_PER_LEVEL):
             target = 1.0 if i < self.gates_passed else 0.0
-            self.gate_open[i] += (target - self.gate_open[i]) * min(1.0, dt * GATE_OPEN_RATE)
+            if i == GATES_PER_LEVEL - 1:                       # the exit door runs scan -> slide on a clock
+                self.gate_open[i] = min(target, self.gate_open[i] + dt / EXIT_SECONDS)
+            else:
+                self.gate_open[i] += (target - self.gate_open[i]) * min(1.0, dt * GATE_OPEN_RATE)
             if self.gate_open[i] > 0.9:
                 self.gate_blocks[i].size = (0, 0)
         if self.gate_open[2] > 0.9:
@@ -382,8 +386,7 @@ class GridRoom(RoomMixin, Level2):
                           seconds=max(0, math.ceil(self.time_left)), time=self.time)
         for gate_rect, openness in zip(G.GATE_RECTS[:2], self.gate_open[:2]):
             G.draw_gate(world, gate_rect, openness, self.time)
-        lamp = theme.mix(theme.CORAL, theme.TEAL, self.gate_open[2])
-        G.draw_shutter(world, G.GATE_RECTS[2], self.gate_open[2], lamp)
+        badge_door.draw_badge_door(world, G.GATE_RECTS[2], self.gate_open[2], self.time)
         G.draw_chevrons(world, self.gate_open[2], self.time)
         standing = {self.pad_at(p) for p, _ in self.players()} - {None}
         if self.gates_passed < GATES_PER_LEVEL:

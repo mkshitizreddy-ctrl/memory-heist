@@ -25,10 +25,10 @@ import random
 import pygame
 
 from core.animation import Shake, SquashStretch
-from core.easing import Tween, ease_out_cubic
+from core.easing import Tween
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import lighting, lobby_decor, lobby_extras, lobby_juice, novacorp_style
+from levels import badge_door, lighting, lobby_decor, lobby_extras, lobby_juice, novacorp_style
 from ui import theme
 from ui.kit import draw_panel, shadowed
 from ui.fonts import code_font, ui_font
@@ -36,6 +36,7 @@ from ui.fonts import code_font, ui_font
 LEVEL_KEY = "level1"
 COLS, ROWS = 30, 20            # 960 x 640: exactly one screen
 GATES = 3
+DOOR_SECONDS = 1.2               # exit door: the reader scans the badge, then the leaves slide apart
 CRATES_PER_GATE = 2
 CRATE_POINTS = 25               # two crates = 50, same per-gate value as Level 1
 FINISH_BONUS = 100
@@ -456,7 +457,7 @@ class FloorOneLobby:
             self.gates_passed = gates
         if self.sorted_count >= GATES * CRATES_PER_GATE and self.door_tween is None \
                 and self.door_open < 1.0:
-            self.door_tween = Tween(0.0, 1.0, 0.8, ease_out_cubic)
+            self.door_tween = Tween(0.0, 1.0, DOOR_SECONDS, lambda t: t)       # scan the badge, then slide
             self._sfx("door")
             self._say("Badge reader online. The exit is open.", theme.GOLD)
 
@@ -960,15 +961,7 @@ class FloorOneLobby:
 
     def _draw_exit(self, surf):
         d = self.door
-        pygame.draw.rect(surf, theme.INK, d)
-        open_px = int((d.h // 2) * self.door_open)
-        top = pygame.Rect(d.x, d.y - open_px, d.w, d.h // 2)
-        bot = pygame.Rect(d.x, d.centery + open_px, d.w, d.h // 2)
-        for half in (top, bot):
-            pygame.draw.rect(surf, theme.SLATE, half)
-            pygame.draw.rect(surf, theme.MIST, half, 2)
-        lamp = theme.mix(theme.CORAL, theme.TEAL, self.door_open)
-        pygame.draw.circle(surf, lamp, (d.x - 10, d.centery), 6)
+        badge_door.draw_badge_door(surf, d, float(self.door_open), self.time)
         if self.door_open >= 1.0:
             pulse = 0.5 + 0.5 * math.sin(self.time * 6)
             arrow = theme.mix(theme.TEAL, theme.PAPER, pulse)

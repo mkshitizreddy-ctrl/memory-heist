@@ -117,7 +117,7 @@ def test_a_hit_rearms_the_loop_giving_a_safe_recovery_window(room):
 def test_clock_resets_when_entering_the_next_room():
     level, _ = make_level(1)
     level.gate1.unlock()
-    level.gate1.update(1.0)
+    level.gate1.update(level.gate1.SECONDS)
     level.game.player.rect.topleft = (860, 200)
     level.lane_loop.clock = 9.0
     level.update(1 / 60)
