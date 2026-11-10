@@ -22,7 +22,7 @@ from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
 from levels import badge_door, lighting, patrol_cameras, patrol_decor, patrol_lanes
-from ui.fonts import ui_font
+from ui.fonts import code_font, ui_font
 from ui.kit import draw_panel
 
 
@@ -208,6 +208,7 @@ class Level3LaserLoop:
         self._droid_idles = 0
         self._stood_down_said = False
         self._exchanged = False
+        self._droid_reply = None                      # the droid answers the guard a beat later
         self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
         self._guard_idles = 0
 
@@ -352,10 +353,17 @@ class Level3LaserLoop:
                 guard.face(droid.rect)
                 droid.face(guard.rect)
                 guard.say(patrol_decor.EXCHANGE[0])
-                droid.say(patrol_decor.EXCHANGE[1])
+                self._droid_reply = patrol_decor.EXCHANGE_REPLY_AFTER
                 self._exchanged = True
             elif not near:
                 self._exchanged = False
+
+        if self._droid_reply is not None:
+            self._droid_reply -= dt
+
+            if self._droid_reply <= 0:
+                droid.say(patrol_decor.EXCHANGE[1])
+                self._droid_reply = None
 
     def _player_rects(self):
         """Return active player rectangles."""
@@ -512,6 +520,7 @@ class Level3LaserLoop:
         self._droid_idles = 0
         self._stood_down_said = False
         self._exchanged = False
+        self._droid_reply = None
 
         route = patrol_decor.GUARD_ROUTES[room]
         self.guard = NPC("night_guard", route[0], patrol=route)
@@ -1440,35 +1449,18 @@ class Level3LaserLoop:
 
         self._draw_sparks(surface)
 
-        # EXIT marker above the robot's patrol band (y 154-216), with a
-        # dotted guide and a down arrow pointing at the gate.
-        chip = pygame.Rect(rect.centerx - 11, 134, 60, 18)
+        # The exit sign is bolted to the wall above the door and shows the door's state as code,
+        # so the lock is the same `open` boolean the questions are about.
+        text = "open = True" if progress >= 1.0 else ("badge.scan()" if progress > 0 else "open = False")
+        sign = pygame.Rect(rect.centerx - 36, 117, 90, 34)
 
-        for y in range(chip.bottom + 3, frame.top - 2, 6):
-            pygame.draw.line(
-                surface,
-                self._mix(tone, (12, 14, 26), 0.35),
-                (rect.centerx, y),
-                (rect.centerx, y + 2),
-                2,
-            )
+        pygame.draw.rect(surface, (12, 14, 26), sign, border_radius=4)
+        pygame.draw.rect(surface, self._mix(tone, (12, 14, 26), 0.2), sign, 2, border_radius=4)
 
-        pygame.draw.rect(surface, (12, 14, 26), chip, border_radius=9)
-        pygame.draw.rect(surface, tone, chip, 2, border_radius=9)
-
-        nudge = int(round(1.5 * math.sin(self._seconds() * 5.0)))
-        cy = chip.centery - 1 + nudge
-
-        pygame.draw.polygon(
-            surface,
-            tone,
-            [(rect.centerx - 5, cy - 3), (rect.centerx + 5, cy - 3), (rect.centerx, cy + 4)],
-        )
-
-        sign = self._font(22).render("EXIT", True, (238, 241, 248))
-        surface.blit(
-            sign, (chip.x + 21, chip.centery - sign.get_height() // 2)
-        )
+        label = self._font(18).render("EXIT", True, (238, 241, 248))
+        surface.blit(label, label.get_rect(midtop=(sign.centerx, sign.y + 3)))
+        code = code_font(12).render(text, True, tone)
+        surface.blit(code, code.get_rect(midbottom=(sign.centerx, sign.bottom - 3)))
 
     # ---- question panel -------------------------------------------------
 

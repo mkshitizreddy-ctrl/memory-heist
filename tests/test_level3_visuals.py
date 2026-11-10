@@ -445,7 +445,9 @@ def test_the_guard_and_the_droid_greet_each_other_once_per_meeting():
     level.guard.speech = level.droid.speech = None
     level._droid_wait = 99
     level._update_droid(1 / 60)
-    assert level.guard.speech == P.EXCHANGE[0] and level.droid.speech == P.EXCHANGE[1]
+    assert level.guard.speech == P.EXCHANGE[0] and level.droid.speech is None      # the guard speaks first
+    level._update_droid(P.EXCHANGE_REPLY_AFTER + 0.1)
+    assert level.droid.speech == P.EXCHANGE[1]                                      # the droid answers a beat later
     level.guard.speech = level.droid.speech = None
     level._update_droid(1 / 60)
     assert level.guard.speech is None                                     # not again while they stay close
@@ -481,3 +483,26 @@ def test_the_droid_speaks_below_itself_not_over_the_wall_board():
     level._draw_droid(surface)
     bubble_row = level.droid.rect.bottom + 12
     assert surface.get_at((level.droid.rect.centerx, bubble_row))[:3] != (0, 0, 0)
+
+
+def test_each_room_has_its_own_floor_and_the_baked_rooms_differ():
+    from levels import patrol_decor as P
+
+    images = [pygame.image.tostring(P.build_room(room, (880, 560)), "RGB") for room in (1, 2, 3)]
+    assert len(set(images)) == 3
+
+
+def test_the_exit_sign_shows_the_door_state_as_code_and_the_old_floating_chip_is_gone():
+    level = make_level(1, "level3_loop_1")
+    surface = pygame.Surface((960, 640))
+    sign = pygame.Rect(level.gate1.rect.centerx - 36, 117, 90, 34)
+
+    level._draw_gate(surface, level.gate1)
+    locked = pygame.image.tostring(surface.subsurface(sign), "RGB")
+    level.gate1.unlock()
+    level.gate1.update(level.gate1.SECONDS)
+    level._draw_gate(surface, level.gate1)
+    opened = pygame.image.tostring(surface.subsurface(sign), "RGB")
+
+    assert locked != opened                                  # `open = False` becomes `open = True`
+    assert surface.get_at((level.gate1.rect.centerx, 134))[:3] != (0, 0, 0)

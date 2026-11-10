@@ -122,7 +122,77 @@ def _checkpoint(surface):
     pygame.draw.line(surface, theme.CORAL, (36, 82), (296, 82), 2)
 
 
+def _stencil(surface, text, centre, size, alpha=70):
+    """Paint a number on the floor: it sits under the beams, so it reads while a lane is off."""
+    image = ui_font(size, bold=True).render(text, True, theme.mix(FLOOR, theme.PAPER, 0.5))
+    image.set_alpha(alpha)
+    surface.blit(image, image.get_rect(center=centre))
+
+
+def _vending(surface):
+    """Room 1: the staff vending machine between the time clock and the notice board."""
+    body = pygame.Rect(312, 54, 44, 62)
+    _frame(surface, body, theme.mix(theme.NAVY, theme.SLATE, 0.3), theme.SLATE)
+    window = pygame.Rect(body.x + 5, body.y + 6, 24, 36)
+    pygame.draw.rect(surface, theme.INK, window)
+    for row in range(3):                                                  # tins on three shelves
+        for col in range(3):
+            tone = (theme.TEAL, theme.GOLD, theme.CORAL)[(row + col) % 3]
+            pygame.draw.rect(surface, theme.mix(tone, theme.INK, 0.3), (window.x + 2 + col * 7, window.y + 3 + row * 11, 5, 8))
+    pygame.draw.rect(surface, theme.SLATE, (body.x + 33, body.y + 8, 7, 14))          # coin slot panel
+    pygame.draw.rect(surface, theme.INK, (body.x + 5, body.bottom - 14, 34, 8))       # delivery flap
+
+
+def _floor_staff(surface):
+    """Room 1: each lane is a rubber runner on the lino, numbered like the loop's `lane`."""
+    for lane, cx in enumerate((210, 360, 510, 660)):
+        mat = pygame.Rect(cx - 34, 138, 68, 294)
+        pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.28), mat, border_radius=4)
+        for y in range(mat.top + 6, mat.bottom - 4, 12):
+            pygame.draw.line(surface, theme.mix(theme.INK, FLOOR, 0.4), (mat.x + 6, y), (mat.right - 7, y))
+        pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.45), mat, 1, border_radius=4)
+        _stencil(surface, str(lane), (cx, 285), 34)
+    for x, y in ((110, 360), (770, 250)):                                 # floor drains
+        pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.3), (x, y, 28, 20), border_radius=3)
+        for gx in range(x + 5, x + 25, 5):
+            pygame.draw.line(surface, theme.INK, (gx, y + 4), (gx, y + 16))
+
+
+def _floor_gallery(surface):
+    """Room 2: a raised floor with access hatches, and the cable tray that feeds the ceiling cameras."""
+    for hx, hy in ((120, 200), (440, 300), (240, 360), (600, 200)):
+        hatch = pygame.Rect(hx, hy, 40, 40)
+        pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.3), hatch)
+        pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.55), hatch, 2)
+        pygame.draw.rect(surface, theme.SLATE, (hatch.centerx - 6, hatch.centery - 2, 12, 4), border_radius=2)
+    tray = pygame.Rect(270, 124, 480, 8)                                  # from the monitor desk to the cameras
+    pygame.draw.rect(surface, theme.mix(theme.INK, theme.GOLD, 0.18), tray)
+    for x in range(tray.x, tray.right, 12):
+        pygame.draw.line(surface, theme.INK, (x, tray.y), (x + 6, tray.bottom - 1))
+    pygame.draw.rect(surface, theme.mix(theme.INK, theme.SLATE, 0.5), tray, 1)
+    for cx in (290, 570, 730):                                            # a junction box under each camera
+        box = pygame.Rect(cx - 9, 122, 18, 14)
+        _frame(surface, box, theme.mix(theme.NAVY, theme.SLATE, 0.5), theme.SLATE)
+        pygame.draw.circle(surface, theme.TEAL, (box.centerx, box.centery), 2)
+
+
+def _floor_checkpoint(surface):
+    """Room 3: bare concrete, the checkpoint zone ruled off in yellow, rows numbered like the nested loop."""
+    tint = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    tint.fill((60, 66, 78, 40))
+    surface.blit(tint, (0, 0))
+    zone = pygame.Rect(24, 250, 782, 170)
+    amber = theme.mix(theme.GOLD, FLOOR, 0.35)
+    for corner, (dx, dy) in (((zone.left, zone.top), (1, 1)), ((zone.right, zone.top), (-1, 1)),
+                             ((zone.left, zone.bottom), (1, -1)), ((zone.right, zone.bottom), (-1, -1))):
+        pygame.draw.line(surface, amber, corner, (corner[0] + dx * 40, corner[1]), 3)
+        pygame.draw.line(surface, amber, corner, (corner[0], corner[1] + dy * 40), 3)
+    for row, y in enumerate((278, 338, 398)):
+        _stencil(surface, f"row {row}", (70, y - 22), 15, alpha=110)
+
+
 _DRESSING = {1: _lockers, 2: _monitors, 3: _checkpoint}
+_FLOORS = {1: _floor_staff, 2: _floor_gallery, 3: _floor_checkpoint}
 
 # Room-local rectangles of the solid walls (the room surface starts at screen (40, 30)).
 # The same walls are handed to the game as collision rectangles (see WALLS_SCREEN).
@@ -202,9 +272,12 @@ def build_room(room, size):
     surface = pygame.Surface(size)
     _floor(surface, width, height)
     _patrol_line(surface, width)
+    _FLOORS[room](surface)
     _wall(surface, width)
     _side_walls(surface, width, height)
     _DRESSING[room](surface)
+    if room == 1:
+        _vending(surface)
     vignette = pygame.Surface(size, pygame.SRCALPHA)
     for i in range(36):
         pygame.draw.rect(vignette, (0, 0, 0, int(150 * (1 - i / 36) ** 2)),
@@ -359,6 +432,7 @@ DROID_IDLE_EVERY = 15.0
 DROID_IDLE = ("Patrol 7. Nothing to report.", "Counting lanes. Four. Three. Four.", "Every loop ends. Mine does not.")
 DROID_STAND_DOWN = "Patrol ended. Standing down."
 EXCHANGE_RANGE = 120                                    # how close the guard and the droid must pass to talk
+EXCHANGE_REPLY_AFTER = 1.6                               # the droid answers a beat after the guard, so the bubbles never stack
 EXCHANGE = ("Evening, Unit 7.", "Greeting logged.")
 
 _WALL_LAMPS = {
