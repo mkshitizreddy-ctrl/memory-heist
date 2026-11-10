@@ -23,6 +23,7 @@ from core.npc import NPC
 from entities.gate import Gate
 from levels import badge_door, lighting, patrol_cameras, patrol_decor, patrol_lanes
 from ui.fonts import ui_font
+from ui.kit import draw_panel
 
 
 class PatrolGate(Gate):
@@ -193,7 +194,7 @@ class Level3LaserLoop:
         self.robot_alert = False
         self.robot_alert_timer = 0
         self.robot_alert_duration = 2.5
-        self.robot_detection_cooldown = 0
+        self.robot_detection_cooldown = patrol_decor.DROID_GRACE
 
         # -------------------------
         # Robot scanning animation
@@ -499,7 +500,7 @@ class Level3LaserLoop:
         self.robot_x = 120
         self.robot_direction = 1
 
-        self.robot_detection_cooldown = 0
+        self.robot_detection_cooldown = patrol_decor.DROID_GRACE
         self.robot_alert = False
         self.robot_alert_timer = 0
 
@@ -1110,13 +1111,30 @@ class Level3LaserLoop:
     # ROBOT DRAWING
     # =========================================================
 
+    def _droid_bubble(self, surface, text):
+        """The droid's speech sits below it, so it never covers the code board it patrols under."""
+
+        image = self._guard_font.render(str(text), True, (238, 241, 248))
+        box = image.get_rect().inflate(16, 10)
+        box.midtop = (self.droid.rect.centerx, self.droid.rect.bottom + 9)
+        box.clamp_ip(surface.get_rect())
+        draw_panel(surface, box, fill=(16, 20, 34), border=(170, 184, 210), radius=7)
+        tip_x = max(box.left + 10, min(box.right - 10, self.droid.rect.centerx))
+        tail = [(tip_x - 5, box.top + 1), (tip_x + 5, box.top + 1), (tip_x, box.top - 5)]
+        pygame.draw.polygon(surface, (16, 20, 34), tail)
+        pygame.draw.lines(surface, (170, 184, 210), False, [tail[0], tail[2], tail[1]], 2)
+        surface.blit(image, image.get_rect(center=box.center))
+
     def _draw_droid(self, surface):
         """The patrol droid, drawn like every other character, with an alert mark when it spots you."""
 
         if self.droid is None:
             return
 
-        self.droid.draw(surface, self._guard_font)
+        self.droid.draw(surface, None)                 # no bubble above: that is where the wall board is
+
+        if self.droid.speech:
+            self._droid_bubble(surface, self.droid.speech)
 
         if self.robot_alert:
             rect = self.droid.rect

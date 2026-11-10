@@ -449,3 +449,35 @@ def test_the_guard_and_the_droid_greet_each_other_once_per_meeting():
     level.guard.speech = level.droid.speech = None
     level._update_droid(1 / 60)
     assert level.guard.speech is None                                     # not again while they stay close
+
+
+def test_the_droid_cannot_spot_you_in_the_first_moments_of_a_room():
+    from tests.test_level3_lasers import make_level as laser_level
+
+    level, _ = laser_level(3)
+    game = level.game
+    level.robot_x = 120
+    level.game.player.rect.center = (136, 182)             # standing right under the droid
+    before = game.score.get_score()
+
+    for _ in range(60):                                      # one second: still inside the grace period
+        level.update(1 / 60)
+    assert not level.robot_alert and game.score.get_score() == before
+
+    for _ in range(100):                                     # grace over: stand beside it and it sees you
+        level.update(1 / 60)
+    level.robot_x = level.game.player.rect.centerx - level.robot_width / 2
+    level.game.player.rect.centery = level.robot_y + level.robot_height / 2
+    level.update(1 / 60)
+    assert level.robot_alert
+
+
+def test_the_droid_speaks_below_itself_not_over_the_wall_board():
+    from tests.test_level3_lasers import make_level as laser_level
+
+    level, _ = laser_level(3)
+    level.droid.say("Greeting logged.")
+    surface = pygame.Surface((960, 640))
+    level._draw_droid(surface)
+    bubble_row = level.droid.rect.bottom + 12
+    assert surface.get_at((level.droid.rect.centerx, bubble_row))[:3] != (0, 0, 0)

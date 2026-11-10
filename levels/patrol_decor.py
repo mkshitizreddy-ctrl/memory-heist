@@ -353,6 +353,8 @@ GUARD_ALERT = "The droid saw you. Keep moving."
 DROID_ROUTE_Y = 166                                     # its feet sit on the dashed patrol line
 DROID_NOTICE = "Courier. Badge logged."
 DROID_ALERT = "Unauthorised. Hold position."
+DROID_GRACE = 2.5                                         # the droid cannot spot you for this long after a room starts
+
 DROID_IDLE_EVERY = 15.0
 DROID_IDLE = ("Patrol 7. Nothing to report.", "Counting lanes. Four. Three. Four.", "Every loop ends. Mine does not.")
 DROID_STAND_DOWN = "Patrol ended. Standing down."
