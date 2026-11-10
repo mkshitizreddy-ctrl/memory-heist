@@ -112,7 +112,7 @@ def test_cycle_is_deterministic():
 
 @pytest.mark.parametrize(
     "room, spawn",
-    [(1, (100, 100)), (2, (100, 350)), (2, (136, 350)), (3, (100, 350))],
+    [(1, (100, 446)), (2, (100, 446)), (2, (140, 446)), (3, (100, 446))],
 )
 def test_room_entry_is_safe_for_the_whole_grace_period(room, spawn):
     level, events = make_level(room, player_at=spawn)
@@ -122,27 +122,24 @@ def test_room_entry_is_safe_for_the_whole_grace_period(room, spawn):
     for _ in range(int((level.LASER_ENTRY_GRACE - 0.05) * 60)):
         level.update(1 / 60)
         overlapped |= any(
-            pygame.Rect(int(l["x"]), int(l["y"]), level.laser_width, level.laser_height)
-            .colliderect(player)
+            seg.colliderect(player)
             for l in level.lasers
+            for seg in level.beam_segments(l)
         )
 
     assert events.count(10) == 0                          # no laser hit
     assert level.game.score.get_score() >= 0
 
-    if (room, spawn) == (2, (100, 350)):
-        # The old always-on rule would have hit this spawn point.
-        assert overlapped
 
 
 def test_a_player_in_the_beam_path_is_still_punished_after_the_grace_period():
-    level, events = make_level(2, player_at=(100, 350))
+    level, events = make_level(2, player_at=(100, 446))
     player = level.game.player.rect
     level.game.score.add(1000)
 
     for _ in range(60 * 8):
         beam = level.lasers[1]
-        player.topleft = (int(beam["x"]) + 10, int(beam["y"]) - 8)
+        player.topleft = (level.beam_segments(beam)[-1].x + 10, int(beam["y"]) - 8)
         level.update(1 / 60)
 
     assert events.count(10) >= 1                    # it costs score (and never security: see make_level)
@@ -153,7 +150,7 @@ def test_only_active_beams_hurt_and_a_hit_is_applied_once():
     level.game.score.add(100)
     player = level.game.player.rect
     laser = level.lasers[0]
-    player.topleft = (int(laser["x"]) + 10, int(laser["y"]) - 8)
+    player.topleft = (level.beam_segments(laser)[-1].x + 10, int(laser["y"]) - 8)
 
     for clock in (0.0, level.LASER_ENTRY_GRACE - 0.5):    # off, then warning
         level.laser_clock = clock
@@ -181,8 +178,7 @@ def test_a_hit_rearms_every_laser_giving_a_safe_recovery_window():
     level, events = make_level(3)
     level.laser_clock = 50.0
     beam = level.lasers[0]
-    level.game.player.rect.topleft = (int(beam["x"]) + 10, int(beam["y"]) - 8)
-    level.lasers[0]["x"] = float(level.game.player.rect.x)
+    level.game.player.rect.topleft = (level.beam_segments(beam)[-1].x + 10, int(beam["y"]) - 8)
     level.laser_phase = Level3LaserLoop.laser_phase.__get__(level)
 
     for clock in range(0, 4000, 5):                        # find an active moment
@@ -236,7 +232,7 @@ def test_phases_look_different_and_only_active_uses_the_danger_colour(phase, mon
     laser = level.lasers[0]
     colours = {
         tuple(surface.get_at((x, y)))[:3]
-        for x in range(int(laser["x"]), int(laser["x"]) + level.laser_width, 3)
+        for x in range(60, 300, 3)
         for y in range(int(laser["y"]), int(laser["y"]) + level.laser_height)
     }
 

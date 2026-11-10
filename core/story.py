@@ -46,7 +46,7 @@ STORY = {
         "concept": "Loops",
         "lines": [
             "NovaCorp's night patrol is a loop: lasers sweep, a robot walks its route.",
-            "Answer the loop question at each door, then cross while the beam is off.",
+            "Answer the loop question at each door, then slip through the gaps.",
         ],
     },
     "level4": {

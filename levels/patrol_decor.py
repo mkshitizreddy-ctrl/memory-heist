@@ -219,7 +219,7 @@ def draw_board(surface, laser_live, gate_open, t):
 # --- the night guard and the lighting ------------------------------------------
 
 AMBIENT = (150, 160, 166)                               # dim, cool: the wing runs on night lighting
-GUARD_ROUTE = [(330, 395), (640, 395)]                  # the clear floor below the lowest rail
+GUARD_ROUTE = [(330, 246), (640, 246)]                  # the clear floor between the robot lane and the curtains
 GUARD_IDLE_EVERY = 18.0
 GUARD_GREETING = {
     1: "Night shift. Mind the beam.",

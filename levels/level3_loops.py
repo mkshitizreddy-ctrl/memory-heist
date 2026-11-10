@@ -118,6 +118,9 @@ class Level3LaserLoop:
 
         self.final_exit_rect = pygame.Rect(850, 180, 50, 120)
 
+        # Everyone starts below the curtains; the gates are above them.
+        self.spawn_points = ((100, 446), (140, 446))
+
         self.room_map = RoomMap(
             [room1, room2, room3],
             exits=[
@@ -125,13 +128,13 @@ class Level3LaserLoop:
                     "level3_room1",
                     (850, 180, 50, 120),
                     "level3_room2",
-                    (100, 350),
+                    (100, 446),
                 ),
                 (
                     "level3_room2",
                     (850, 180, 50, 120),
                     "level3_room3",
-                    (100, 350),
+                    (100, 446),
                 ),
             ],
         )
@@ -144,7 +147,10 @@ class Level3LaserLoop:
         self.track_width = 810
         self.track_height = 42
 
-        self.laser_width = 150
+        # Each laser is a curtain across the whole room with one moving gap.
+        self.gap_width = 130
+        self.curtain_left = 40
+        self.curtain_right = 920
         self.laser_height = 14
         self.laser_speed = 200
 
@@ -171,7 +177,7 @@ class Level3LaserLoop:
         # -------------------------
         # Robot detection system
         # -------------------------
-        self.robot_scan_radius = 180
+        self.robot_scan_radius = 120
         self.robot_alert = False
         self.robot_alert_timer = 0
         self.robot_alert_duration = 2.5
@@ -351,18 +357,33 @@ class Level3LaserLoop:
 
         return "warning"
 
+    GAP_WIDTHS = {"easy": 170, "medium": 130, "hard": 110}
+
+    def beam_segments(self, laser):
+        """The two curtain pieces left and right of the laser's gap.
+
+        laser["x"] is the left edge of the gap; the curtain spans the whole
+        room so the only way across is through the gap."""
+
+        gap_left = int(laser["x"])
+        gap_right = gap_left + self.gap_width
+        y = int(laser["y"])
+
+        pieces = (
+            pygame.Rect(self.curtain_left, y, gap_left - self.curtain_left, self.laser_height),
+            pygame.Rect(gap_right, y, self.curtain_right - gap_right, self.laser_height),
+        )
+
+        return [piece for piece in pieces if piece.width > 0]
+
     def active_beam_rects(self):
         """Collision rectangles of the beams that are dangerous right now."""
 
         return [
-            pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
+            piece
             for index, laser in enumerate(self.lasers)
             if self.laser_phase(index) == "active"
+            for piece in self.beam_segments(laser)
         ]
 
     def check_laser_collision(self, dt):
@@ -433,7 +454,7 @@ class Level3LaserLoop:
             1: [
                 {
                     "x": 120,
-                    "y": 250,
+                    "y": 360,
                     "direction": 1,
                     "speed": 200,
                 },
@@ -442,13 +463,13 @@ class Level3LaserLoop:
             2: [
                 {
                     "x": 120,
-                    "y": 230,
+                    "y": 330,
                     "direction": 1,
                     "speed": 190,
                 },
                 {
                     "x": 520,
-                    "y": 350,
+                    "y": 392,
                     "direction": -1,
                     "speed": 230,
                 },
@@ -457,19 +478,19 @@ class Level3LaserLoop:
             3: [
                 {
                     "x": 120,
-                    "y": 210,
+                    "y": 312,
                     "direction": 1,
                     "speed": 180,
                 },
                 {
                     "x": 450,
-                    "y": 330,
+                    "y": 366,
                     "direction": -1,
                     "speed": 220,
                 },
                 {
                     "x": 250,
-                    "y": 450,
+                    "y": 420,
                     "direction": 1,
                     "speed": 260,
                 },
@@ -482,6 +503,7 @@ class Level3LaserLoop:
         ]
 
         self.robot_speed = 120 + ((room - 1) * 30)
+        self.gap_width = self.GAP_WIDTHS.get(self.get_selected_difficulty(), 130)
 
         self.time_limit = self.base_time_limit - (room - 1)
         self.time_left = self.time_limit
@@ -1002,14 +1024,14 @@ class Level3LaserLoop:
                 laser["direction"] = 1
 
             elif (
-                laser["x"] + self.laser_width
+                laser["x"] + self.gap_width
                 >= self.track_x + self.track_width
             ):
 
                 laser["x"] = (
                     self.track_x
                     + self.track_width
-                    - self.laser_width
+                    - self.gap_width
                 )
 
                 laser["direction"] = -1
@@ -1458,25 +1480,26 @@ class Level3LaserLoop:
 
         return strip
 
-    def _build_glow(self):
-        """Soft red halo drawn behind each laser beam."""
+    def _glow_for(self, width):
+        """Soft red halo behind a beam piece, cached per width."""
 
-        # The halo reaches at most 8 px beyond the beam: exactly the rail
-        # housing (RAIL_TOP_PAD), so it never suggests a larger hazard.
-        glow = pygame.Surface(
-            (self.laser_width + 16, self.laser_height + 16),
-            pygame.SRCALPHA,
-        )
+        cache = self.__dict__.setdefault("_glow_cache", {})
 
-        for pad, alpha in ((8, 18), (6, 32), (4, 52)):
-            pygame.draw.rect(
-                glow,
-                (255, 50, 50, alpha),
-                glow.get_rect().inflate(-(8 - pad) * 2, -(8 - pad) * 2),
-                border_radius=8,
-            )
+        if width not in cache:
+            # The halo reaches at most 8 px beyond the beam, the rail housing.
+            glow = pygame.Surface((width + 16, self.laser_height + 16), pygame.SRCALPHA)
 
-        return glow
+            for pad, alpha in ((8, 18), (6, 32), (4, 52)):
+                pygame.draw.rect(
+                    glow,
+                    (255, 50, 50, alpha),
+                    glow.get_rect().inflate(-(8 - pad) * 2, -(8 - pad) * 2),
+                    border_radius=8,
+                )
+
+            cache[width] = glow
+
+        return cache[width]
 
     # ---- laser rails ----------------------------------------------------
 
@@ -1526,11 +1549,63 @@ class Level3LaserLoop:
 
         return rects
 
+    def _draw_curtain(self, surface, laser, phase, pulse):
+        """One laser curtain: two beam pieces and the safe gap between them."""
+
+        segments = self.beam_segments(laser)
+
+        for beam in segments:
+
+            if phase == "active":
+
+                glow = self._glow_for(beam.width)
+                glow.set_alpha(int(170 + 70 * pulse))
+                surface.blit(glow, (beam.x - 8, beam.y - 8))
+
+                pygame.draw.rect(surface, (255, 45, 45), beam)
+                pygame.draw.line(
+                    surface,
+                    (255, 175, 175),
+                    (beam.x, beam.centery),
+                    (beam.right - 1, beam.centery),
+                    2,
+                )
+
+            elif phase == "warning":
+
+                # Safe, but about to fire.  Dashed, so it reads without colour.
+                lit = int(self._seconds() * 8) % 2 == 0
+
+                pygame.draw.rect(
+                    surface, (110, 62, 30) if lit else (62, 32, 30), beam
+                )
+
+                for x in range(beam.x, beam.right, 12):
+                    pygame.draw.rect(
+                        surface,
+                        (255, 190, 60) if lit else (150, 100, 45),
+                        (x, beam.y, min(6, beam.right - x), beam.height),
+                    )
+
+            else:
+
+                pygame.draw.rect(surface, (52, 28, 36), beam)
+
+        # The gap: bright brackets on both edges so it is easy to find.
+        gap_left = int(laser["x"])
+        gap_right = gap_left + self.gap_width
+        bracket = (120, 255, 190) if phase != "off" else (110, 150, 140)
+        top, bottom = int(laser["y"]) - 3, int(laser["y"]) + self.laser_height + 2
+
+        for x, hook in ((gap_left, 5), (gap_right - 1, -5)):
+            pygame.draw.line(surface, bracket, (x, top), (x, bottom), 2)
+            pygame.draw.line(surface, bracket, (x, top), (x + hook, top), 2)
+            pygame.draw.line(surface, bracket, (x, bottom), (x + hook, bottom), 2)
+
     def _draw_rails(self, surface):
         """Rails with hazard stripes and emitters, then beams and labels."""
 
         stripes = self._cached("stripes", self._build_stripes)
-        glow = self._cached("glow", self._build_glow)
         pulse = 0.5 + 0.5 * math.sin(self._seconds() * 6.0)
 
         for index, laser in enumerate(self.lasers):
@@ -1548,6 +1623,8 @@ class Level3LaserLoop:
             surface.blit(stripes, (rail.x, rail.y))
             surface.blit(stripes, (rail.x, rail.bottom - 4))
             pygame.draw.rect(surface, (80, 62, 135), rail, 1)
+
+            self._draw_curtain(surface, laser, phase, pulse)
 
             for ex in (rail.x - 22, rail.right):
 
@@ -1573,43 +1650,6 @@ class Level3LaserLoop:
                 pygame.draw.circle(
                     surface, shine, (box.centerx - 1, rail.centery - 1), 2
                 )
-
-            beam = pygame.Rect(
-                int(laser["x"]),
-                int(laser["y"]),
-                self.laser_width,
-                self.laser_height,
-            )
-
-            if phase == "active":
-
-                glow.set_alpha(int(170 + 70 * pulse))
-                surface.blit(glow, (laser["x"] - 8, laser["y"] - 8))
-
-                pygame.draw.rect(surface, (255, 45, 45), beam)
-                pygame.draw.line(
-                    surface,
-                    (255, 175, 175),
-                    (beam.x, beam.centery),
-                    (beam.right - 1, beam.centery),
-                    2,
-                )
-
-            elif phase == "warning":
-
-                # Safe, but about to fire: flickering amber outline.
-                lit = int(self._seconds() * 8) % 2 == 0
-
-                pygame.draw.rect(
-                    surface, (110, 62, 30) if lit else (62, 32, 30), beam
-                )
-
-                if lit:
-                    pygame.draw.rect(surface, (255, 190, 60), beam, 1)
-
-            else:
-
-                pygame.draw.rect(surface, (52, 28, 36), beam)
 
         label_font = self._font(self.BODY_SIZE)
 
@@ -2152,6 +2192,18 @@ class Level3LaserLoop:
     #   y 592-640  reserved for the shared radio toast
     # =========================================================
 
+    @staticmethod
+    def _light_chunks(rect, step=220):
+        """Split a long beam into pieces so each gets its own pool of light."""
+
+        count = max(1, round(rect.width / step))
+        width = rect.width / count
+
+        return [
+            pygame.Rect(int(rect.x + i * width), rect.y, int(width), rect.height)
+            for i in range(count)
+        ]
+
     def _apply_lighting(self, surface, room_number, gate):
         """Light the room (beams, emitters, robot torch, gate lamp); text is drawn after."""
 
@@ -2160,11 +2212,10 @@ class Level3LaserLoop:
         ox, oy = region.topleft
 
         beams = [
-            (
-                pygame.Rect(int(l["x"]) - ox, int(l["y"]) - oy, self.laser_width, self.laser_height),
-                self.laser_phase(i),
-            )
+            (chunk, self.laser_phase(i))
             for i, l in enumerate(self.lasers)
+            for piece in self.beam_segments(l)
+            for chunk in self._light_chunks(piece.move(-ox, -oy))
         ]
         emitters = []
 
@@ -2184,6 +2235,14 @@ class Level3LaserLoop:
             room_number, beams, emitters, robot_centre, self.robot_alert, gate_centre, gate.is_open()
         )
         self._lightlayer.apply(world, lights)
+        # A laser hit flashes the room red for a moment.
+        flash = min(1.0, self.laser_hit_feedback_timer) if self.laser_hit_feedback_timer > 0.6 else 0.0
+
+        if flash:
+            tint = pygame.Surface(region.size, pygame.SRCALPHA)
+            tint.fill((255, 40, 40, int(110 * (flash - 0.6) / 0.4)))
+            world.blit(tint, (0, 0))
+
         surface.blit(world, region.topleft)
 
     def render(self, surface):
@@ -2235,7 +2294,7 @@ class Level3LaserLoop:
         surface.blit(
             gate_surface,
             gate_surface.get_rect(
-                topright=(gate.rect.right + 8, gate.rect.bottom + 4)
+                midright=(gate.rect.x - 14, gate.rect.centery + 24)    # beside the door, clear of the curtains
             ),
         )
 

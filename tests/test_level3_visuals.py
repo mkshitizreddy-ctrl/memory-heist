@@ -184,11 +184,7 @@ def test_drawn_beam_matches_collision_box(room):
     surface.fill((0, 0, 0))
     level._draw_rails(surface)          # before the room lighting tints the beam
 
-    for laser in level.lasers:
-        collision = pygame.Rect(
-            int(laser["x"]), int(laser["y"]),
-            level.laser_width, level.laser_height,
-        )
+    for laser, collision in ((l, seg) for l in level.lasers for seg in level.beam_segments(l)):
         strip = pygame.Rect(
             collision.left, collision.top - 4, collision.width, collision.height + 8
         )
@@ -392,7 +388,7 @@ def test_laser_collisions_use_check_laser_collision_on_all_four_edges(room):
     )
 
     for laser in level.lasers:
-        beam = pygame.Rect(int(laser["x"]), int(laser["y"]), level.laser_width, level.laser_height)
+      for beam in level.beam_segments(laser):
         mid_x, mid_y = beam.centerx - 16, beam.centery - 16
 
         for edge in ("left", "right", "above", "below"):

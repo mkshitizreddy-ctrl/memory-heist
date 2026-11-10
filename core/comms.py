@@ -38,7 +38,7 @@ COMMS = {
         "danger": ("WARDEN", ["Lockdown procedures are warming up. Stop now."]),
     },
     "level3": {
-        "enter": ("Echo", ["Night patrol. The lasers repeat on a cycle. Count it, then go."]),
+        "enter": ("Echo", ["Night patrol. Each curtain has a gap that sweeps. Time it, then go."]),
         "mistake": ("WARDEN", [
             "A loop does not end because you wish it to.",
             "I have seen this mistake forty times today.",
