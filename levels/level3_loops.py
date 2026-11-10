@@ -219,7 +219,7 @@ class Level3LaserLoop:
         # -------------------------
         self.code_lines = [
             "while True:",
-            "    if laser_detected:",
+            "    if spotted:",
             "        break",
         ]
 
@@ -441,7 +441,7 @@ class Level3LaserLoop:
         for laser_rect in self.active_beam_rects():
 
             if any(r.colliderect(laser_rect) for r in player_rects):
-                self._hazard_hit("LASER HIT! SCORE -10", "zap")
+                self._hazard_hit("LANE HIT! SCORE -10", "zap")
                 break
 
     def _hazard_hit(self, text, sound):
@@ -942,7 +942,7 @@ class Level3LaserLoop:
         self.complete = True
 
         self.feedback = (
-            "LEVEL COMPLETE! All laser loops bypassed."
+            "LEVEL COMPLETE! Night patrol cleared."
         )
 
         if self.game:
@@ -961,19 +961,19 @@ class Level3LaserLoop:
 
             self.gate1.unlock()
             self._sfx("door")
-            self.feedback = "GATE 1 UNLOCKING!"
+            self.feedback = "DOOR 1: BADGE SCAN..."
 
         elif room == 2:
 
             self.gate2.unlock()
             self._sfx("door")
-            self.feedback = "GATE 2 UNLOCKING!"
+            self.feedback = "DOOR 2: BADGE SCAN..."
 
         elif room == 3:
 
             self.gate3.unlock()
             self._sfx("door")
-            self.feedback = "GATE 3 UNLOCKING!"
+            self.feedback = "DOOR 3: BADGE SCAN..."
 
     # =========================================================
     # UPDATE
@@ -1103,7 +1103,7 @@ class Level3LaserLoop:
                 self.robot_detection_cooldown = 4
 
                 self.feedback = (
-                    "SECURITY ROBOT DETECTED YOU!"
+                    "PATROL DROID SAW YOU!"
                 )
 
                 self.game.score.penalize(10)               # the patrol robot costs score only
@@ -1164,8 +1164,8 @@ class Level3LaserLoop:
         )
 
         self.feedback = (
-            "SECURITY ALERT! "
-            "ROBOT DETECTED INTRUSION!"
+            "DROID ALERT! "
+            "INTRUSION LOGGED."
         )
 
         if self.game:
@@ -1488,9 +1488,9 @@ class Level3LaserLoop:
 
         room = self.current_room_number()
         tail = (
-            "GATE 3 UNLOCKED! REACH THE FINAL EXIT."
+            "DOOR 3 OPEN! REACH THE FINAL EXIT."
             if room == 3
-            else f"GATE {room} UNLOCKED! CROSS THE GATE TO CONTINUE."
+            else f"DOOR {room} OPEN! WALK THROUGH TO CONTINUE."
         )
         success = (
             f"CORRECT! +{max(10, self.question_points)} points. "
@@ -1509,7 +1509,7 @@ class Level3LaserLoop:
         return self._cached(
             ("foot_ink", size),
             lambda: self._font(size)
-            .render("Progress: 0/3 gates/challenges | gHjpq", True, (255, 255, 255))
+            .render("Doors opened: 0/3 | gHjpq", True, (255, 255, 255))
             .get_bounding_rect()
             .bottom,
         )
@@ -1769,9 +1769,9 @@ class Level3LaserLoop:
 
             if self.complete or "CORRECT" in self.feedback:
                 colour = (60, 230, 110)
-            elif "SECURITY ALERT" in self.feedback:
+            elif "ALERT" in self.feedback:
                 colour = (255, 180, 60)
-            elif "GATE" in self.feedback:
+            elif "DOOR" in self.feedback:
                 colour = (255, 220, 80)
             else:
                 colour = (255, 100, 100)
@@ -1790,8 +1790,8 @@ class Level3LaserLoop:
         )
 
         progress = foot.render(
-            f"Progress: {self.current_question_number}"
-            f"/{self.total_questions} gates/challenges",
+            f"Doors opened: {self.current_question_number}"
+            f"/{self.total_questions}",
             True,
             (180, 200, 210),
         )
@@ -1922,10 +1922,10 @@ class Level3LaserLoop:
         banner_text = None
 
         if self.laser_hit_feedback_timer > 0:
-            banner_text = "LASER HIT! SCORE -10"
+            banner_text = "LANE HIT! SCORE -10"
             banner_fill, banner_ink = (170, 30, 30, 220), (255, 245, 245)
         elif self.robot_alert:
-            banner_text = "!! SECURITY ALERT - ROBOT DETECTION !!"
+            banner_text = "!! PATROL DROID ALERT !!"
             banner_fill, banner_ink = (150, 20, 20, 210), (255, 240, 240)
 
         if banner_text:
@@ -2067,7 +2067,7 @@ class Level3LaserLoop:
 
                 self.feedback = (
                     f"CORRECT! +{earned_points} points. "
-                    "GATE 3 UNLOCKED! "
+                    "DOOR 3 OPEN! "
                     "REACH THE FINAL EXIT."
                 )
 
@@ -2075,9 +2075,9 @@ class Level3LaserLoop:
 
                 self.feedback = (
                     f"CORRECT! +{earned_points} points. "
-                    f"GATE {self.current_room_number()} "
-                    "UNLOCKED! "
-                    "CROSS THE GATE TO CONTINUE."
+                    f"DOOR {self.current_room_number()} "
+                    "OPEN! "
+                    "WALK THROUGH TO CONTINUE."
                 )
 
             if explanation:

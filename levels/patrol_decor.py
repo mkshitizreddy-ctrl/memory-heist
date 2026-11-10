@@ -328,13 +328,21 @@ def draw_header(surface, room, question_no, total, difficulty, points, time_left
 
 
 def draw_notice(surface, text_lines):
-    """The objective, as a notice pinned to the wall."""
-    _frame(surface, NOTICE, (214, 206, 170), (120, 110, 80))
+    """The objective, as a worn state form pinned to the wall: stained paper, a pin, a red stamp."""
+    _frame(surface, NOTICE, (198, 190, 156), (110, 100, 72))
+    pygame.draw.line(surface, (176, 168, 134), (NOTICE.x + 3, NOTICE.bottom - 4), (NOTICE.right - 4, NOTICE.bottom - 4))   # a fold
     pygame.draw.circle(surface, theme.CORAL, (NOTICE.centerx, NOTICE.y + 5), 3)                # the pin
     font = ui_font(14, bold=True)
     for i, line in enumerate(text_lines):
         img = font.render(line, True, (40, 36, 28))
         surface.blit(img, (NOTICE.x + 8, NOTICE.y + 12 + i * 15))
+    stamp = ui_font(11, bold=True).render("FORM 7-C", True, (170, 40, 36))
+    ring = pygame.Surface((stamp.get_width() + 8, stamp.get_height() + 4), pygame.SRCALPHA)
+    pygame.draw.rect(ring, (170, 40, 36, 190), ring.get_rect(), 1, border_radius=3)
+    ring.blit(stamp, (4, 2))
+    ring = pygame.transform.rotate(ring, 12)
+    ring.set_alpha(170)
+    surface.blit(ring, ring.get_rect(bottomright=(NOTICE.right - 3, NOTICE.bottom - 3)))
 
 
 def draw_camera_board(surface, bank, t):

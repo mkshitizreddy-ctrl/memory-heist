@@ -66,7 +66,7 @@ def test_question_panel_fits_and_footer_is_above_585(question_id):
     assert panel.height <= layout["available"]
     assert panel.top >= level._lowest_rail_bottom() + 6
 
-    footer = layout["foot_font"].render("Progress: 0/3 gates/challenges", True, (255, 255, 255))
+    footer = layout["foot_font"].render("Doors opened: 0/3", True, (255, 255, 255))
     footer_bottom = layout["foot_y"] + footer.get_bounding_rect().bottom
 
     assert footer_bottom <= 585
@@ -254,7 +254,7 @@ def test_question_and_hint_never_extend_beyond_the_panel(question_id):
 
     for state in (
         "Hint revealed. Final score for this question is reduced by 15.",
-        f"CORRECT! +60 points. GATE 3 UNLOCKED! REACH THE FINAL EXIT.  {question['explanation']}",
+        f"CORRECT! +60 points. DOOR 3 OPEN! REACH THE FINAL EXIT.  {question['explanation']}",
     ):
         level.feedback = state
 
@@ -284,7 +284,7 @@ def test_header_notice_and_patrol_board_text_stay_inside_their_areas(room, diffi
     if alert:
         # The banner text is drawn inside its own surface: it must fit the lane.
         lane = P.BANNER_LANE
-        for banner in ("LASER HIT! SCORE -10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
+        for banner in ("LANE HIT! SCORE -10", "!! PATROL DROID ALERT !!"):
             font = level._font(level.BODY_SIZE)
 
             if font.size(banner)[0] > lane.width - 16:

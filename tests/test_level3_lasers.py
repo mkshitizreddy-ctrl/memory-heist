@@ -93,7 +93,7 @@ def test_only_live_lanes_hurt_and_a_hit_is_applied_once():
 
     assert events == [10]
     assert level.game.score.get_score() == 90
-    assert level.feedback == "LASER HIT! SCORE -10"
+    assert level.feedback == "LANE HIT! SCORE -10"
 
     lane.clock = patrol_lanes.GRACE + 0.2                   # still overlapping
     level.check_laser_collision(0.0)
