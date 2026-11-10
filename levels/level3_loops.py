@@ -21,7 +21,7 @@ from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
-from levels import lighting, patrol_decor
+from levels import lighting, patrol_decor, patrol_lanes
 from ui.fonts import ui_font
 
 
@@ -159,6 +159,7 @@ class Level3LaserLoop:
         self.laser_hit_feedback_timer = 0.0
 
         self.lasers = []
+        self.lane_loop = None               # Room 1's four-lane loop (levels/patrol_lanes.py)
 
         # -------------------------
         # Security robot
@@ -379,12 +380,17 @@ class Level3LaserLoop:
     def active_beam_rects(self):
         """Collision rectangles of the beams that are dangerous right now."""
 
-        return [
+        rects = [
             piece
             for index, laser in enumerate(self.lasers)
             if self.laser_phase(index) == "active"
             for piece in self.beam_segments(laser)
         ]
+
+        if self.lane_loop is not None:
+            rects.extend(self.lane_loop.active_rects())
+
+        return rects
 
     def check_laser_collision(self, dt):
         """Apply a penalty when a player touches an active laser."""
@@ -423,6 +429,9 @@ class Level3LaserLoop:
 
                 # Recovery: every laser re-arms, giving a safe window.
                 self.laser_clock = 0.0
+
+                if self.lane_loop is not None:
+                    self.lane_loop.rearm()
 
                 break
 
@@ -500,7 +509,11 @@ class Level3LaserLoop:
         self.lasers = [
             laser.copy()
             for laser in laser_patterns[room]
-        ]
+        ] if room != 1 else []
+
+        self.lane_loop = (
+            patrol_lanes.LaneLoop(self.get_selected_difficulty()) if room == 1 else None
+        )
 
         self.robot_speed = 120 + ((room - 1) * 30)
         self.gap_width = self.GAP_WIDTHS.get(self.get_selected_difficulty(), 130)
@@ -519,7 +532,8 @@ class Level3LaserLoop:
         self.laser_hit_feedback_timer = 0.0
         self.laser_clock = 0.0
 
-        self.guard = NPC("night_guard", patrol_decor.GUARD_ROUTE[0], patrol=patrol_decor.GUARD_ROUTE)
+        route = patrol_decor.GUARD_ROUTES[room]
+        self.guard = NPC("night_guard", route[0], patrol=route)
         self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
 
     def try_room_transition(self):
@@ -1037,6 +1051,10 @@ class Level3LaserLoop:
                 laser["direction"] = -1
 
         self.laser_clock += max(0.0, dt)
+
+        if self.lane_loop is not None:
+            self.lane_loop.update(dt)
+
         self.check_laser_collision(dt)
 
         # -------------------------
@@ -2217,6 +2235,9 @@ class Level3LaserLoop:
             for piece in self.beam_segments(l)
             for chunk in self._light_chunks(piece.move(-ox, -oy))
         ]
+        if self.lane_loop is not None:
+            beams.extend(self.lane_loop.light_rects((ox, oy)))
+
         emitters = []
 
         for i, l in enumerate(self.lasers):
@@ -2274,6 +2295,9 @@ class Level3LaserLoop:
         # -------------------------
 
         self._draw_rails(surface)
+
+        if self.lane_loop is not None:
+            self.lane_loop.draw(surface, self._seconds())
 
         # -------------------------
         # Exit gate and status
@@ -2361,9 +2385,14 @@ class Level3LaserLoop:
         any_beam_live = any(
             self.laser_phase(i) == "active" for i in range(len(self.lasers))
         )
-        patrol_decor.draw_board(
-            surface, any_beam_live, gate.is_open(), self._seconds()
-        )
+        if self.lane_loop is not None:
+            patrol_decor.draw_lane_board(
+                surface, self.lane_loop, gate.is_open(), self._seconds()
+            )
+        else:
+            patrol_decor.draw_board(
+                surface, any_beam_live, gate.is_open(), self._seconds()
+            )
 
         # -------------------------
         # Question panel

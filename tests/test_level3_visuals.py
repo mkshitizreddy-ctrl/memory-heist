@@ -415,9 +415,11 @@ def test_night_guard_walks_greets_and_reacts_without_touching_the_rules():
     level = make_level(1, next(k for k, v in QUESTIONS.items() if v["room"] == 1))
     assert level.guard.kind == "night_guard"
     start = level.guard.rect.topleft
-    for _ in range(120):
+    seen = set()
+    for _ in range(600):
         level._update_guard(1 / 30)
-    assert level.guard.rect.topleft != start                 # he walks his lap
+        seen.add(level.guard.rect.topleft)
+    assert len(seen) > 1                 # he walks his lap
     level._guard_says(P.GUARD_HIT)
     assert level.guard.speech == P.GUARD_HIT
     for room in (1, 2, 3):                                    # every room has lines, none too wide for a bubble
@@ -429,7 +431,8 @@ def test_the_guard_lap_stays_clear_of_every_rail_and_the_question_panel():
 
     for room in (1, 2, 3):
         level = make_level(room, next(k for k, v in QUESTIONS.items() if v["room"] == room))
-        lap = pygame.Rect(P.GUARD_ROUTE[0][0], P.GUARD_ROUTE[0][1], P.GUARD_ROUTE[1][0] - P.GUARD_ROUTE[0][0] + 32, 32)
+        route = P.GUARD_ROUTES[room]
+        lap = pygame.Rect(route[0][0], route[0][1], route[1][0] - route[0][0] + 32, 32)
         for rail in rail_bodies(level) + rail_emitters(level):
             assert not lap.colliderect(rail), (room, rail)
         assert lap.bottom < level._bottom_layout()["panel"].top

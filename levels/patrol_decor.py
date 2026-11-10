@@ -194,6 +194,36 @@ def draw_notice(surface, text_lines):
         surface.blit(img, (NOTICE.x + 8, NOTICE.y + 12 + i * 15))
 
 
+def draw_lane_board(surface, loop, gate_open, t):
+    """Room 1's board: the lane loop as code.  The line being run lights up,
+    the loop's own variable shows which lane it is on."""
+    panel = pygame.Surface(BOARD.size, pygame.SRCALPHA)
+    pygame.draw.rect(panel, (*theme.INK, 225), panel.get_rect(), border_radius=6)
+    pygame.draw.rect(panel, (*ACCENT, 255), panel.get_rect(), 2, border_radius=6)
+    surface.blit(panel, BOARD.topleft)
+    head = ui_font(13, bold=True).render("PATROL  LOOP", True, ACCENT)
+    surface.blit(head, (BOARD.x + 10, BOARD.y + 4))
+
+    phases = loop.phases()
+    live = "active" in phases
+    lane = loop.current_lane()
+    resting = loop.resting() or gate_open
+
+    font = code_font(17)
+    lines = (
+        ("for lane in range(4):", theme.GOLD if "warning" in phases and not live else theme.SKY),
+        ("    zap(lane)", theme.CORAL if live else theme.SLATE),
+        ("rest()", theme.TEAL if resting else theme.SLATE),
+    )
+    for i, (text, colour) in enumerate(lines):
+        surface.blit(font.render(text, True, colour), (BOARD.x + 10, BOARD.y + 20 + i * 15))
+
+    chip = f"lane = {lane}" if lane is not None else "lane = -"
+    img = ui_font(14, bold=True).render(chip, True, theme.CORAL if live else theme.MIST)
+    surface.blit(img, img.get_rect(bottomright=(BOARD.right - 10, BOARD.bottom - 6)))
+    pygame.draw.circle(surface, theme.CORAL if live else theme.SLATE, (BOARD.right - 14, BOARD.y + 12), 4)
+
+
 def draw_board(surface, laser_live, gate_open, t):
     """The same loop as code.  The 'if' line lights while a beam is live;
     'break' lights once the gate is open, as the patrol stops."""
@@ -219,7 +249,8 @@ def draw_board(surface, laser_live, gate_open, t):
 # --- the night guard and the lighting ------------------------------------------
 
 AMBIENT = (150, 160, 166)                               # dim, cool: the wing runs on night lighting
-GUARD_ROUTE = [(330, 246), (640, 246)]                  # the clear floor between the robot lane and the curtains
+GUARD_ROUTES = {1: [(466, 246), (508, 246)], 2: [(330, 246), (640, 246)], 3: [(330, 246), (640, 246)]}
+GUARD_ROUTE = GUARD_ROUTES[2]                  # the clear floor between the robot lane and the curtains
 GUARD_IDLE_EVERY = 18.0
 GUARD_GREETING = {
     1: "Night shift. Mind the beam.",
