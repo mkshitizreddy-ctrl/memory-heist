@@ -284,25 +284,6 @@ def rail_emitters(level):
     ]
 
 
-@pytest.mark.parametrize("room", (1, 2, 3))
-def test_robot_label_never_touches_any_rail_along_the_whole_patrol(room):
-    question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
-    level = make_level(room, question_id)
-    font = level._font(24)
-    blocked = rail_bodies(level) + rail_emitters(level)
-
-    for x in range(level.robot_left_boundary, level.robot_right_boundary + 1, 2):
-        level.robot_x = x
-        size = (
-            max(font.size("SECURITY ROBOT")[0], font.size(f"SPEED {level.robot_speed}")[0]),
-            font.get_height() * 2,
-        )
-        label = level._robot_label_rect(size)
-
-        for rail in blocked:
-            assert not label.colliderect(rail), (room, x, label, rail)
-
-
 @pytest.mark.parametrize("question_id", sorted(QUESTIONS))
 def test_question_and_hint_never_extend_beyond_the_panel(question_id):
     question = QUESTIONS[question_id]
@@ -333,26 +314,24 @@ def test_question_and_hint_never_extend_beyond_the_panel(question_id):
 @pytest.mark.parametrize("room", (1, 2, 3))
 @pytest.mark.parametrize("difficulty", ("easy", "medium", "hard"))
 @pytest.mark.parametrize("alert", (False, True))
-def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficulty, alert):
+def test_header_notice_and_patrol_board_text_stay_inside_their_areas(room, difficulty, alert):
+    from levels import patrol_decor as P
+
     question_id = next(k for k, v in QUESTIONS.items() if v["room"] == room)
     level = make_level(room, question_id, difficulty)
     level.robot_alert = alert
     level.time_left = 20.0
 
-    header = pygame.Rect(60, 54, 840, 46)
-    lane = pygame.Rect(150, 102, 405, 32)
-    code_panel = pygame.Rect(562, 102, 256, 50)
-
     texts = rendered_text_rects(level)
-    header_texts = [t for t in texts if 54 <= t.top < 100]
-    lane_texts = [t for t in texts if 150 <= t.left < 556 and 102 <= t.top < 136]
-    code_texts = [t for t in texts if 562 <= t.left < 830 and 102 <= t.top < 152]
+    header_texts = [t for t in texts if P.HEADER.top <= t.top < P.HEADER.bottom]
+    board_texts = [t for t in texts if P.BOARD.collidepoint(t.topleft)]
+    notice_texts = [t for t in texts if P.NOTICE.collidepoint(t.topleft)]
 
-    assert len(header_texts) >= 4 and len(code_texts) >= 5
+    assert len(header_texts) >= 3 and len(board_texts) >= 4
 
     if alert:
-        # Banner text is drawn inside its own surface: check it fits the lane
-        # at the font size render() selects (18 px, falling back to 16 px).
+        # The banner text is drawn inside its own surface: it must fit the lane.
+        lane = P.BANNER_LANE
         for banner in ("LASER HIT! SCORE -10", "!! SECURITY ALERT - ROBOT DETECTION !!"):
             font = level._font(level.BODY_SIZE)
 
@@ -361,15 +340,41 @@ def test_header_lane_and_code_panel_text_stay_inside_their_areas(room, difficult
 
             assert font.size(banner)[0] <= lane.width - 16
     else:
-        assert lane_texts
+        assert notice_texts
 
-    for area, items in ((header, header_texts), (lane, lane_texts), (code_panel, code_texts)):
+    for area, items in ((P.HEADER, header_texts), (P.BOARD, board_texts), (P.NOTICE, notice_texts)):
         for ink in items:
             assert area.contains(ink), (area, ink)
 
     for first in range(len(header_texts)):
         for second in range(first + 1, len(header_texts)):
             assert not header_texts[first].colliderect(header_texts[second])
+
+
+@pytest.mark.parametrize("room", (1, 2, 3))
+def test_each_room_has_its_own_baked_look(room):
+    from levels import patrol_decor as P
+
+    level = make_level(room, next(k for k, v in QUESTIONS.items() if v["room"] == room))
+    look = P.build_room(room, (level.room_width, level.room_height))
+    others = [P.build_room(r, (level.room_width, level.room_height)) for r in (1, 2, 3) if r != room]
+    wall = pygame.Rect(0, 40, 400, 80)
+
+    mine = pygame.image.tostring(look.subsurface(wall), "RGB")
+    for other in others:
+        assert mine != pygame.image.tostring(other.subsurface(wall), "RGB")
+
+
+def test_the_patrol_board_lights_its_if_line_only_while_a_beam_is_live():
+    from levels import patrol_decor as P
+
+    surface = pygame.Surface((960, 640))
+    P.draw_board(surface, False, False, 0.0)
+    quiet = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    surface.fill((0, 0, 0))
+    P.draw_board(surface, True, False, 0.0)
+    live = pygame.image.tostring(surface.subsurface(P.BOARD), "RGB")
+    assert quiet != live
 
 
 @pytest.mark.parametrize("room", (1, 2, 3))

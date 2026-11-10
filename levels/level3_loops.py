@@ -20,6 +20,7 @@ import pygame
 from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from entities.gate import Gate
+from levels import patrol_decor
 
 
 class Level3LaserLoop:
@@ -1357,86 +1358,6 @@ class Level3LaserLoop:
 
     # ---- cached artwork (pygame drawing only, no image files) ---------
 
-    def _build_floor(self):
-        """Futuristic tiled floor with shaded edges and violet wall trim."""
-
-        width, height = self.room_width, self.room_height
-        tile = 40
-        floor = pygame.Surface((width, height))
-
-        dark, light = (17, 20, 36), (23, 27, 48)
-
-        for ty in range(0, height, tile):
-            for tx in range(0, width, tile):
-                checker = (tx // tile + ty // tile) % 2 == 0
-
-                pygame.draw.rect(
-                    floor,
-                    light if checker else dark,
-                    (tx, ty, tile, tile),
-                )
-
-        lines = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        for x in range(0, width, tile):
-            pygame.draw.line(lines, (130, 100, 230, 26), (x, 0), (x, height))
-
-        for y in range(0, height, tile):
-            pygame.draw.line(lines, (130, 100, 230, 26), (0, y), (width, y))
-
-        floor.blit(lines, (0, 0))
-
-        # Darker edges give the room depth.
-        shade = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        for i in range(40):
-            alpha = int(170 * (1 - i / 40) ** 2)
-
-            pygame.draw.rect(
-                shade,
-                (0, 0, 0, alpha),
-                (i, i, width - 2 * i, height - 2 * i),
-                1,
-            )
-
-        floor.blit(shade, (0, 0))
-
-        # Wall band, violet trim and a soft inner glow.
-        pygame.draw.rect(floor, (11, 12, 24), (0, 0, width, height), 8)
-        pygame.draw.rect(
-            floor,
-            self.LAYOUT_ACCENT,
-            (8, 8, width - 16, height - 16),
-            2,
-        )
-
-        glow = pygame.Surface((width, height), pygame.SRCALPHA)
-
-        pygame.draw.rect(
-            glow,
-            (150, 110, 255, 40),
-            (10, 10, width - 20, height - 20),
-            3,
-        )
-        floor.blit(glow, (0, 0))
-
-        for cx in (0, width - 14):
-            for cy in (0, height - 14):
-                pygame.draw.rect(
-                    floor,
-                    self.LAYOUT_ACCENT,
-                    (cx, cy, 14, 14),
-                    border_radius=3,
-                )
-                pygame.draw.rect(
-                    floor,
-                    (11, 12, 24),
-                    (cx + 4, cy + 4, 6, 6),
-                    border_radius=2,
-                )
-
-        return floor
-
     def _build_stripes(self):
         """Yellow/black hazard stripe strip for the rail edges."""
 
@@ -1503,7 +1424,7 @@ class Level3LaserLoop:
 
         for index, laser in enumerate(self.lasers):
 
-            width, height = font.size(f"LASER {index + 1}")
+            width, height = font.size(f"L{index + 1}")
             rail_top = laser["y"] - self.RAIL_TOP_PAD
 
             rect = pygame.Rect(
@@ -1609,52 +1530,9 @@ class Level3LaserLoop:
 
         for index, rect in enumerate(self._laser_label_rects()):
             surface.blit(
-                label_font.render(f"LASER {index + 1}", True, (255, 120, 120)),
+                label_font.render(f"L{index + 1}", True, (255, 120, 120)),
                 rect.topleft,
             )
-
-    # ---- robot label ----------------------------------------------------
-
-    def _robot_label_rect(self, size):
-        """Place the robot label beside the robot with a clear gap.
-
-        It prefers the robot's right; it flips to the left when that
-        side would reach the gate or touch a laser label.
-        """
-
-        width, height = size
-        gap = self.ROBOT_LABEL_GAP
-        top = int(self.robot_y - 12)
-
-        right_rect = pygame.Rect(
-            int(self.robot_x + self.robot_width) + gap,
-            top,
-            width,
-            height,
-        )
-        left_rect = pygame.Rect(
-            int(self.robot_x) - gap - width,
-            top,
-            width,
-            height,
-        )
-
-        blocked = [
-            rect.inflate(12, 6) for rect in self._laser_label_rects()
-        ]
-        gate_limit = self.final_exit_rect.left - 22
-
-        def fits(rect):
-            return (
-                rect.right <= gate_limit
-                and rect.left >= self.room_x + 20
-                and not any(rect.colliderect(b) for b in blocked)
-            )
-
-        if fits(right_rect) or not fits(left_rect):
-            return right_rect
-
-        return left_rect
 
     # ---- exit gate ------------------------------------------------------
 
@@ -2191,88 +2069,44 @@ class Level3LaserLoop:
 
     def render(self, surface):
 
-        # Existing drawing (floor, gates and their spark particles) first;
-        # the tiled floor and restyled gate below are drawn over it.
+        # The room: baked floor, wall and furniture, then the live wall parts.
         self.room_map.draw(surface)
 
+        room_number = self.current_room_number()
+        size = (self.room_width, self.room_height)
+
         surface.blit(
-            self._cached("floor", self._build_floor),
+            self._cached(
+                f"room{room_number}",
+                lambda: patrol_decor.build_room(room_number, size),
+            ),
             (self.room_x, self.room_y),
         )
+        patrol_decor.draw_wall_life(surface, room_number, self._seconds())
 
-        room_number = self.current_room_number()
+        patrol_decor.draw_header(
+            surface,
+            room_number,
+            self.current_question_number + 1,
+            self.total_questions,
+            self.current_difficulty,
+            self.question_points,
+            self.time_left,
+        )
 
-        left = self.room_x + 20
-        right = self.room_x + self.room_width - 20
+        if room_number == 1:
+            gate, gate_text = self.gate1, "GATE 1"
+        elif room_number == 2:
+            gate, gate_text = self.gate2, "GATE 2"
+        else:
+            gate, gate_text = self.gate3, "GATE 3"
 
         # -------------------------
-        # Header panel (y 54-100)
+        # Top lane: a banner when something just happened, otherwise
+        # the objective pinned to the wall.
         # -------------------------
 
-        self._draw_panel(surface, pygame.Rect(left, 54, right - left, 46))
-
-        surface.blit(
-            self.title_font.render(
-                f"LEVEL 3 - THE LASER LOOP | ROOM {room_number}",
-                True,
-                (255, 255, 255),
-            ),
-            (left + 12, 56),
-        )
-
-        timer_text = self.timer_font.render(
-            f"SECURITY TIMER: {self.time_left:.1f}s",
-            True,
-            (255, 210, 60),
-        )
-        surface.blit(
-            timer_text, timer_text.get_rect(topright=(right - 12, 58))
-        )
-
-        counter = self._font(self.BODY_SIZE).render(
-            f"QUESTION: {self.current_question_number + 1}"
-            f"/{self.total_questions}",
-            True,
-            (90, 220, 255),
-        )
-        surface.blit(counter, (left + 12, 80))
-
-        difficulty_text = (
-            f"DIFFICULTY: {self.current_difficulty.upper()}  |  "
-            f"POINTS: {self.question_points}"
-        )
-        progression_text = f"SECURITY PROGRESSION: ROOM {room_number}/3"
-
-        for info_size in (self.BODY_SIZE, 24):
-
-            info_font = self._font(info_size)
-            difficulty = info_font.render(
-                difficulty_text, True, (210, 190, 120)
-            )
-            progression = info_font.render(
-                progression_text, True, (180, 220, 240)
-            )
-            difficulty_x = left + 12 + counter.get_width() + 20
-
-            if (
-                difficulty_x + difficulty.get_width() + 18
-                <= right - 12 - progression.get_width()
-            ):
-                break
-
-        row_y = 80 + (counter.get_height() - difficulty.get_height()) // 2
-
-        surface.blit(difficulty, (difficulty_x, row_y))
-        surface.blit(
-            progression, progression.get_rect(topright=(right - 12, row_y))
-        )
-
-        # -------------------------
-        # Top lane (x 150-555, y 102-134): banners or objective.
-        # Starts right of the spawn so a banner never hides the player.
-        # -------------------------
-
-        lane = pygame.Rect(150, 102, 405, 32)
+        lane = patrol_decor.BANNER_LANE
         banner_text = None
 
         if self.laser_hit_feedback_timer > 0:
@@ -2301,51 +2135,15 @@ class Level3LaserLoop:
 
         else:
 
-            objective_font = self._font(24)
-            lines = self._wrap_text(
-                objective_font,
-                "Objective: Solve the loop challenge to unlock the gate.",
-                lane.width - 110,               # balanced two-line wrap
-                2,
+            patrol_decor.draw_notice(
+                surface, ("Answer the loop", "question to open", "the door.")
             )
 
-            for row, line in enumerate(lines):
-                surface.blit(
-                    objective_font.render(line, True, (205, 210, 220)),
-                    (lane.x + 4, lane.y - 1 + row * 16),
-                )
-
-        # -------------------------
-        # Security code panel (top right, x 565-900, y 102-152)
-        # -------------------------
-
-        code_panel = pygame.Rect(562, 102, 256, 50)
-
-        self._draw_panel(surface, code_panel)
-
-        code_font = self._font(22)
-
-        for offset, word in enumerate(("SECURITY", "CODE")):
-            surface.blit(
-                code_font.render(word, True, (240, 240, 240)),
-                (code_panel.x + 12, code_panel.y + 10 + offset * 15),
-            )
-
-        for row, line in enumerate(self.code_lines):
-            surface.blit(
-                code_font.render(line, True, (90, 220, 255)),
-                (code_panel.x + 102, code_panel.y + 3 + row * 15),
-            )
-
-        # -------------------------
-        # Laser heading (y 136, below the spawn)
-        # -------------------------
-
-        surface.blit(
-            self.heading_font.render(
-                "LASER SECURITY SYSTEM", True, (255, 90, 90)
-            ),
-            (left + 5, 136),
+        any_beam_live = any(
+            self.laser_phase(i) == "active" for i in range(len(self.lasers))
+        )
+        patrol_decor.draw_board(
+            surface, any_beam_live, gate.is_open(), self._seconds()
         )
 
         # -------------------------
@@ -2357,13 +2155,6 @@ class Level3LaserLoop:
         # -------------------------
         # Exit gate and status
         # -------------------------
-
-        if room_number == 1:
-            gate, gate_text = self.gate1, "GATE 1"
-        elif room_number == 2:
-            gate, gate_text = self.gate2, "GATE 2"
-        else:
-            gate, gate_text = self.gate3, "GATE 3"
 
         self._draw_gate(surface, gate)
 
@@ -2390,25 +2181,6 @@ class Level3LaserLoop:
 
         self.draw_robot_scan(surface)
         self.draw_robot(surface)
-
-        label_font = self._font(24)
-        name_line = label_font.render("SECURITY ROBOT", True, (255, 180, 80))
-        speed_line = label_font.render(
-            f"SPEED {self.robot_speed}", True, (255, 180, 80)
-        )
-
-        label_rect = self._robot_label_rect(
-            (
-                max(name_line.get_width(), speed_line.get_width()),
-                name_line.get_height() + speed_line.get_height(),
-            )
-        )
-
-        surface.blit(name_line, label_rect.topleft)
-        surface.blit(
-            speed_line,
-            (label_rect.x, label_rect.y + name_line.get_height()),
-        )
 
         # -------------------------
         # Question panel
