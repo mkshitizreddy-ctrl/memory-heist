@@ -15,6 +15,7 @@ import math
 
 import pygame
 
+from levels.lighting import Light
 from ui import theme
 from ui.fonts import code_font, ui_font
 
@@ -213,3 +214,50 @@ def draw_board(surface, laser_live, gate_open, t):
         surface.blit(font.render(line, True, colour), (BOARD.x + 10, BOARD.y + 21 + i * 15))
     dot = theme.CORAL if laser_live else theme.SLATE
     pygame.draw.circle(surface, dot, (BOARD.right - 14, BOARD.y + 12), 4)
+
+
+# --- the night guard and the lighting ------------------------------------------
+
+AMBIENT = (150, 160, 166)                               # dim, cool: the wing runs on night lighting
+GUARD_ROUTE = [(330, 395), (640, 395)]                  # the clear floor below the lowest rail
+GUARD_IDLE_EVERY = 18.0
+GUARD_GREETING = {
+    1: "Night shift. Mind the beam.",
+    2: "The cameras see you. I only pretend not to.",
+    3: "Last checkpoint. Nobody gets this far.",
+}
+GUARD_IDLE = {
+    1: ("Nobody told me the loop had a break.", "Same lap, every night."),
+    2: ("Forty screens. Nothing ever happens.", "Count the cycle. Then go."),
+    3: ("Three rooms, one loop. I am not paid enough.", "WARDEN never blinks. I do."),
+}
+GUARD_HIT = "Told you. Count the cycle."
+GUARD_ALERT = "The robot saw you. Keep moving."
+
+_WALL_LAMPS = {
+    1: ((150, 96), (255, 236, 200), 150, 0.8),          # over the lockers
+    2: ((130, 90), (110, 220, 200), 160, 0.9),          # the monitors' glow
+    3: ((185, 82), (255, 107, 94), 150, 0.9),           # WARDEN's plaque
+}
+
+
+def room_lights(room, beams, emitters, robot_centre, robot_alert, gate_centre, gate_open):
+    """Every light in a room, in room-local coordinates (the room surface starts at 0, 0).
+
+    beams: [(rect, phase)]; emitters: [(x, y, phase)]; phase is off/warning/active.
+    """
+    lamp = _WALL_LAMPS[room]
+    lights = [Light(lamp[0], lamp[2], lamp[1], lamp[3]),
+              Light((440, 290), 300, (210, 222, 235), 0.45)]            # the corridor's own ceiling light
+    for rect, phase in beams:
+        if phase == "active":
+            lights.append(Light(rect.center, 120, (255, 70, 60), 1.1))
+        elif phase == "warning":
+            lights.append(Light(rect.center, 70, (255, 190, 60), 0.6))
+    for x, y, phase in emitters:
+        colour = {"active": (255, 70, 60), "warning": (255, 190, 60)}.get(phase, (120, 120, 140))
+        lights.append(Light((x, y), 34, colour, 0.7 if phase != "off" else 0.25))
+    lights.append(Light(robot_centre, 130, (255, 70, 60) if robot_alert else (120, 220, 255),
+                        1.0 if robot_alert else 0.55))
+    lights.append(Light(gate_centre, 100, (64, 214, 190) if gate_open else (255, 70, 70), 0.8))
+    return lights

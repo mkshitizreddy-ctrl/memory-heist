@@ -45,8 +45,8 @@ STORY = {
         "title": "LEVEL 3 - THE LASER LOOP",
         "concept": "Loops",
         "lines": [
-            "The lasers sweep in cycles that never stop on their own.",
-            "Understand the loop, then slip through the gaps.",
+            "NovaCorp's night patrol is a loop: lasers sweep, a robot walks its route.",
+            "Answer the loop question at each door, then cross while the beam is off.",
         ],
     },
     "level4": {

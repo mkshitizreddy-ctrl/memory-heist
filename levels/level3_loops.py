@@ -19,8 +19,10 @@ import pygame
 
 from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
+from core.npc import NPC
 from entities.gate import Gate
-from levels import patrol_decor
+from levels import lighting, patrol_decor
+from ui.fonts import ui_font
 
 
 class Level3LaserLoop:
@@ -180,6 +182,11 @@ class Level3LaserLoop:
         # -------------------------
         self.robot_scan_phase = 0.0
 
+        self._step_clock = {}
+        self.guard = None
+        self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
+        self._guard_idles = 0
+
         self.setup_room_hazards()
 
         # -------------------------
@@ -203,11 +210,76 @@ class Level3LaserLoop:
         self.feedback_font = pygame.font.Font(None, 23)
         self.instruction_font = pygame.font.Font(None, 21)
 
+        self._lightlayer = lighting.LightLayer(ambient=patrol_decor.AMBIENT)
+        self._guard_font = ui_font(16)
+
         self.start_questions()
 
     # =========================================================
     # PLAYER HELPERS
     # =========================================================
+
+    def _sfx(self, name):
+        """Play a sound effect if the game has audio (tests may not)."""
+        audio = getattr(self.game, "audio", None)
+
+        if audio is not None:
+            audio.play(name)
+
+    def _guard_says(self, text):
+        if self.guard is not None:
+            self.guard.say(text)
+
+    STEP_EVERY = 0.32
+
+    def _update_steps(self, dt):
+        """Metal footsteps while a player walks the grated floor."""
+
+        if not self.game or not hasattr(self.game, "player"):
+            return
+
+        players = [self.game.player]
+
+        if getattr(self.game, "coop", False):
+            players.append(self.game.player2)
+
+        for player in players:
+            clock = self._step_clock.get(id(player), 0.0)
+
+            if getattr(player, "moving", False):
+                clock += dt
+
+                if clock >= self.STEP_EVERY:
+                    clock = 0.0
+                    self._sfx("step_metal")
+            else:
+                clock = self.STEP_EVERY * 0.6
+
+            self._step_clock[id(player)] = clock
+
+    def _update_guard(self, dt):
+        """The night guard: walks his lap, greets you, grumbles now and then."""
+
+        guard = self.guard
+
+        if guard is None:
+            return
+
+        guard.update(dt)
+        room = self.current_room_number()
+
+        if self.game and hasattr(self.game, "player"):
+            for key, rect in enumerate(self._player_rects()):
+                if guard.notice(rect, key):
+                    guard.say(patrol_decor.GUARD_GREETING[room])
+
+        self._guard_wait -= dt
+
+        if self._guard_wait <= 0 and guard.speech is None:
+            lines = patrol_decor.GUARD_IDLE[room]
+            guard.say(lines[self._guard_idles % len(lines)])
+            self._guard_idles += 1
+            self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
 
     def _player_rects(self):
         """Return active player rectangles."""
@@ -323,6 +395,8 @@ class Level3LaserLoop:
                 self.laser_hit_feedback_timer = 1.0
 
                 self.feedback = "LASER HIT! SCORE -10"
+                self._sfx("zap")
+                self._guard_says(patrol_decor.GUARD_HIT)
 
                 self.game.score.penalize(10)               # a hazard costs score only, never security
 
@@ -422,6 +496,9 @@ class Level3LaserLoop:
         self.laser_penalty_cooldown = 0.0
         self.laser_hit_feedback_timer = 0.0
         self.laser_clock = 0.0
+
+        self.guard = NPC("night_guard", patrol_decor.GUARD_ROUTE[0], patrol=patrol_decor.GUARD_ROUTE)
+        self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
 
     def try_room_transition(self):
         """Move through a gate after it has been unlocked."""
@@ -857,16 +934,19 @@ class Level3LaserLoop:
         if room == 1:
 
             self.gate1.unlock()
+            self._sfx("door")
             self.feedback = "GATE 1 UNLOCKING!"
 
         elif room == 2:
 
             self.gate2.unlock()
+            self._sfx("door")
             self.feedback = "GATE 2 UNLOCKING!"
 
         elif room == 3:
 
             self.gate3.unlock()
+            self._sfx("door")
             self.feedback = "GATE 3 UNLOCKING!"
 
     # =========================================================
@@ -880,6 +960,8 @@ class Level3LaserLoop:
             return
 
         self.room_map.update(dt)
+        self._update_steps(dt)
+        self._update_guard(dt)
 
         # -------------------------
         # Countdown timer
@@ -1025,6 +1107,8 @@ class Level3LaserLoop:
                 )
 
                 self.game.score.penalize(10)               # the patrol robot costs score only
+                self._sfx("alarm")
+                self._guard_says(patrol_decor.GUARD_ALERT)
 
         self.try_room_transition()
 
@@ -1161,6 +1245,7 @@ class Level3LaserLoop:
         if self.game:
 
             self.game.score.penalize(15)               # an alert costs score only
+            self._sfx("alarm")
 
     def draw_robot_scan(self, surface):
 
@@ -2067,6 +2152,40 @@ class Level3LaserLoop:
     #   y 592-640  reserved for the shared radio toast
     # =========================================================
 
+    def _apply_lighting(self, surface, room_number, gate):
+        """Light the room (beams, emitters, robot torch, gate lamp); text is drawn after."""
+
+        region = pygame.Rect(self.room_x, self.room_y, self.room_width, self.room_height)
+        world = surface.subsurface(region).copy()
+        ox, oy = region.topleft
+
+        beams = [
+            (
+                pygame.Rect(int(l["x"]) - ox, int(l["y"]) - oy, self.laser_width, self.laser_height),
+                self.laser_phase(i),
+            )
+            for i, l in enumerate(self.lasers)
+        ]
+        emitters = []
+
+        for i, l in enumerate(self.lasers):
+            phase = self.laser_phase(i)
+            y = l["y"] + self.laser_height // 2 - oy
+            emitters.append((self.track_x - 11 - ox, y, phase))
+            emitters.append((self.track_x + self.track_width + 11 - ox, y, phase))
+
+        robot_centre = (
+            int(self.robot_x + self.robot_width // 2) - ox,
+            int(self.robot_y + self.robot_height // 2) - oy,
+        )
+        gate_centre = (gate.rect.centerx - ox, gate.rect.centery - oy)
+
+        lights = patrol_decor.room_lights(
+            room_number, beams, emitters, robot_centre, self.robot_alert, gate_centre, gate.is_open()
+        )
+        self._lightlayer.apply(world, lights)
+        surface.blit(world, region.topleft)
+
     def render(self, surface):
 
         # The room: baked floor, wall and furniture, then the live wall parts.
@@ -2084,6 +2203,54 @@ class Level3LaserLoop:
         )
         patrol_decor.draw_wall_life(surface, room_number, self._seconds())
 
+        if room_number == 1:
+            gate, gate_text = self.gate1, "GATE 1"
+        elif room_number == 2:
+            gate, gate_text = self.gate2, "GATE 2"
+        else:
+            gate, gate_text = self.gate3, "GATE 3"
+
+        # -------------------------
+        # Rails, lasers and labels
+        # -------------------------
+
+        self._draw_rails(surface)
+
+        # -------------------------
+        # Exit gate and status
+        # -------------------------
+
+        self._draw_gate(surface, gate)
+
+        if gate.state == "locked":
+            gate_status = "LOCKED"
+        elif gate.state == "unlocking":
+            gate_status = "UNLOCKING"
+        else:
+            gate_status = "OPEN"
+
+        gate_surface = self._font(22).render(
+            f"{gate_text}: {gate_status}", True, (255, 220, 100)
+        )
+        surface.blit(
+            gate_surface,
+            gate_surface.get_rect(
+                topright=(gate.rect.right + 8, gate.rect.bottom + 4)
+            ),
+        )
+
+        # -------------------------
+        # Robot, guard, lighting, then the crisp wall text on top
+        # -------------------------
+
+        self.draw_robot_scan(surface)
+        self.draw_robot(surface)
+
+        if self.guard is not None:
+            self.guard.draw(surface, self._guard_font)
+
+        self._apply_lighting(surface, room_number, gate)
+
         patrol_decor.draw_header(
             surface,
             room_number,
@@ -2093,13 +2260,6 @@ class Level3LaserLoop:
             self.question_points,
             self.time_left,
         )
-
-        if room_number == 1:
-            gate, gate_text = self.gate1, "GATE 1"
-        elif room_number == 2:
-            gate, gate_text = self.gate2, "GATE 2"
-        else:
-            gate, gate_text = self.gate3, "GATE 3"
 
         # -------------------------
         # Top lane: a banner when something just happened, otherwise
@@ -2145,42 +2305,6 @@ class Level3LaserLoop:
         patrol_decor.draw_board(
             surface, any_beam_live, gate.is_open(), self._seconds()
         )
-
-        # -------------------------
-        # Rails, lasers and labels
-        # -------------------------
-
-        self._draw_rails(surface)
-
-        # -------------------------
-        # Exit gate and status
-        # -------------------------
-
-        self._draw_gate(surface, gate)
-
-        if gate.state == "locked":
-            gate_status = "LOCKED"
-        elif gate.state == "unlocking":
-            gate_status = "UNLOCKING"
-        else:
-            gate_status = "OPEN"
-
-        gate_surface = self._font(22).render(
-            f"{gate_text}: {gate_status}", True, (255, 220, 100)
-        )
-        surface.blit(
-            gate_surface,
-            gate_surface.get_rect(
-                topright=(gate.rect.right + 8, gate.rect.bottom + 4)
-            ),
-        )
-
-        # -------------------------
-        # Robot, with its speed on its own line beside it
-        # -------------------------
-
-        self.draw_robot_scan(surface)
-        self.draw_robot(surface)
 
         # -------------------------
         # Question panel

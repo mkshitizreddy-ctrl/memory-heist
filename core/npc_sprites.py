@@ -155,6 +155,11 @@ PALETTES = {
         "T": (64, 214, 190), "J": (110, 70, 150), "L": (200, 170, 230),
         "G": (222, 170, 130), "B": (40, 30, 48),
     },
+    "night_guard": {                      # the Floor 3 night guard: navy uniform, teal badge, tired
+        "A": (30, 44, 70), "a": (62, 86, 124), "P": (18, 24, 42),
+        "K": (196, 150, 120), "S": (10, 12, 20), "U": (40, 52, 80),
+        "b": (64, 214, 190), "G": (150, 130, 120), "B": (12, 14, 22),
+    },
     "technician": {
         "A": (255, 196, 40), "a": (255, 228, 120), "P": (204, 142, 20),
         "K": (206, 152, 112), "g": (96, 214, 240), "V": (236, 108, 40),
@@ -181,6 +186,7 @@ PALETTES = {
 }
 _PARTS = {
     "guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
+    "night_guard": (_GUARD_HEAD, _GUARD_BODY, _legs("U")),
     "receptionist": (_RECEPTIONIST_HEAD, _RECEPTIONIST_BODY, _legs("J")),
     "technician": (_TECHNICIAN_HEAD, _TECHNICIAN_BODY, _legs("W")),
     "cleaner": (_CLEANER_HEAD, _CLEANER_BODY, _legs("W")),
@@ -190,7 +196,7 @@ _PARTS = {
 }
 # What the eyes become in a blink. A guard in sunglasses has none to close.
 BLINK_COLOURS = {
-    "guard": {},
+    "guard": {}, "night_guard": {},
     "receptionist": {"e": (222, 170, 130)},
     "technician": {},                   # goggles never close
     "cleaner": {}, "engineer": {}, "sysadmin": {}, "curator": {},     # no faces to blink

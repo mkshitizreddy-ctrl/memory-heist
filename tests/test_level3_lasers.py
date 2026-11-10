@@ -231,7 +231,7 @@ def test_phases_look_different_and_only_active_uses_the_danger_colour(phase, mon
     level.laser_phase = lambda index: phase
     monkeypatch.setattr(level, "_seconds", lambda: 0.0)    # fixed flicker frame
     surface = pygame.Surface((960, 640))
-    level.render(surface)
+    level._draw_rails(surface)          # the beam's own colours, before the room lighting tints them
 
     laser = level.lasers[0]
     colours = {
