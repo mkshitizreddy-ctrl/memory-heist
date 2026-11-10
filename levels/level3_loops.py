@@ -101,18 +101,21 @@ class Level3LaserLoop:
         room1 = Room(
             "level3_room1",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate1],
         )
 
         room2 = Room(
             "level3_room2",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate2],
         )
 
         room3 = Room(
             "level3_room3",
             (self.room_x, self.room_y, self.room_width, self.room_height),
+            walls=patrol_decor.WALLS_SCREEN,
             gates=[self.gate3],
         )
 
@@ -142,15 +145,15 @@ class Level3LaserLoop:
         # -------------------------
         # Laser settings
         # -------------------------
-        self.track_x = 75
+        self.track_x = 88
         self.track_y = 215
-        self.track_width = 810
+        self.track_width = 736
         self.track_height = 42
 
         # Each laser is a curtain across the whole room with one moving gap.
         self.gap_width = 130
-        self.curtain_left = 40
-        self.curtain_right = 920
+        self.curtain_left = 64
+        self.curtain_right = 846
         self.laser_height = 14
         self.laser_speed = 200
 
@@ -174,7 +177,7 @@ class Level3LaserLoop:
         self.robot_direction = 1
 
         self.robot_left_boundary = 100
-        self.robot_right_boundary = 810
+        self.robot_right_boundary = 760
 
         # -------------------------
         # Robot detection system
@@ -2312,11 +2315,11 @@ class Level3LaserLoop:
         patrol_decor.draw_wall_life(surface, room_number, self._seconds())
 
         if room_number == 1:
-            gate, gate_text = self.gate1, "GATE 1"
+            gate = self.gate1
         elif room_number == 2:
-            gate, gate_text = self.gate2, "GATE 2"
+            gate = self.gate2
         else:
-            gate, gate_text = self.gate3, "GATE 3"
+            gate = self.gate3
 
         # -------------------------
         # Rails, lasers and labels
@@ -2335,23 +2338,6 @@ class Level3LaserLoop:
         # -------------------------
 
         self._draw_gate(surface, gate)
-
-        if gate.state == "locked":
-            gate_status = "LOCKED"
-        elif gate.state == "unlocking":
-            gate_status = "UNLOCKING"
-        else:
-            gate_status = "OPEN"
-
-        gate_surface = self._font(22).render(
-            f"{gate_text}: {gate_status}", True, (255, 220, 100)
-        )
-        surface.blit(
-            gate_surface,
-            gate_surface.get_rect(
-                midright=(gate.rect.x - 14, gate.rect.centery + 24)    # beside the door, clear of the curtains
-            ),
-        )
 
         # -------------------------
         # Robot, guard, lighting, then the crisp wall text on top

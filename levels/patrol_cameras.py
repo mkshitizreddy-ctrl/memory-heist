@@ -145,7 +145,7 @@ class CameraBank:
         points = self.cone(index)
         xs, ys = [p[0] for p in points], [p[1] for p in points]
         box = pygame.Rect(int(min(xs)) - 2, int(min(ys)) - 2, int(max(xs) - min(xs)) + 4, int(max(ys) - min(ys)) + 4)
-        box = box.clip(pygame.Rect(40, 152, 880, 330))
+        box = box.clip(pygame.Rect(64, 152, 782, 326))   # between the walls, above the panel
         if box.width <= 0 or box.height <= 0:
             return
         local = [(p[0] - box.x, p[1] - box.y) for p in points]

@@ -66,7 +66,7 @@ def _wall(surface, width):
 def _patrol_line(surface, width):
     """The robot's route, painted on the floor: amber dashes."""
     amber = theme.mix(theme.GOLD, FLOOR, 0.55)
-    for x in range(24, width - 70, 28):
+    for x in range(24, width - 96, 28):
         pygame.draw.rect(surface, amber, (x, 168, 16, 3))
 
 
@@ -126,6 +126,77 @@ def _checkpoint(surface):
 
 _DRESSING = {1: _lockers, 2: _monitors, 3: _checkpoint}
 
+# Room-local rectangles of the solid walls (the room surface starts at screen (40, 30)).
+# The same walls are handed to the game as collision rectangles (see WALLS_SCREEN).
+DOOR_Y = (150, 270)                                       # the exit door's opening: gate y 180-300 on screen
+WALL_RECTS_LOCAL = (
+    pygame.Rect(0, 0, 880, 122),                          # back wall
+    pygame.Rect(0, 122, 24, 326),                         # left wall
+    pygame.Rect(806, 122, 28, DOOR_Y[0] - 122),           # right wall above the door
+    pygame.Rect(806, DOOR_Y[1], 28, 448 - DOOR_Y[1]),     # right wall below the door
+    pygame.Rect(0, 448, 880, 112),                        # front wall, behind the question panel
+)
+WALLS_SCREEN = tuple(r.move(40, 30) for r in WALL_RECTS_LOCAL)
+
+
+SIDE = theme.mix(WALL, theme.SLATE, 0.45)                 # side walls: lighter than the back wall so they read
+
+
+def _brick(surface, rect, vertical):
+    """A wall face: panel seams, rivets and a lit edge toward the floor."""
+    pygame.draw.rect(surface, SIDE, rect)
+    seam = theme.mix(SIDE, theme.INK, 0.55)
+    edge = theme.mix(ACCENT, SIDE, 0.35)
+    if vertical:
+        for y in range(rect.top, rect.bottom, 36):
+            pygame.draw.line(surface, seam, (rect.left, y), (rect.right - 1, y))
+        for y in range(rect.top + 18, rect.bottom, 36):
+            pygame.draw.circle(surface, theme.mix(SIDE, theme.PAPER, 0.35), (rect.centerx, y), 2)
+        pygame.draw.line(surface, edge, (rect.left, rect.top), (rect.left, rect.bottom - 1), 2)
+        pygame.draw.line(surface, edge, (rect.right - 1, rect.top), (rect.right - 1, rect.bottom - 1), 2)
+    else:
+        for x in range(rect.left, rect.right, 80):
+            pygame.draw.line(surface, seam, (x, rect.top), (x, rect.bottom - 1))
+        pygame.draw.line(surface, edge, (rect.left, rect.top), (rect.right - 1, rect.top), 2)
+
+
+def _shadow(surface, rect, toward):
+    """A soft shadow the wall throws on the floor: toward is +1 (right of it) or -1 (left of it)."""
+    shade = pygame.Surface((12, rect.height), pygame.SRCALPHA)
+    for i in range(12):
+        x = i if toward > 0 else 11 - i
+        pygame.draw.line(shade, (0, 0, 0, 90 - i * 7), (x, 0), (x, rect.height))
+    surface.blit(shade, (rect.right if toward > 0 else rect.left - 12, rect.top))
+
+
+def _side_walls(surface, width, height):
+    """Left, right and front walls, the door's service corridor and the entry door."""
+    left, right_top, right_bottom, front = WALL_RECTS_LOCAL[1], WALL_RECTS_LOCAL[2], WALL_RECTS_LOCAL[3], WALL_RECTS_LOCAL[4]
+
+    # beyond the exit door: a dark service corridor with chevrons pointing on
+    corridor = pygame.Rect(834, 122, width - 834, 326)
+    pygame.draw.rect(surface, theme.mix(theme.INK, FLOOR, 0.25), corridor)
+    for y in range(corridor.top, corridor.bottom, 20):
+        pygame.draw.rect(surface, theme.mix(theme.INK, theme.GOLD, 0.12), (corridor.x, y, corridor.width, 10))
+    mid = (DOOR_Y[0] + DOOR_Y[1]) // 2
+    for x in (840, 858):
+        pygame.draw.lines(surface, theme.mix(ACCENT, theme.INK, 0.4), False,
+                          [(x, mid - 12), (x + 8, mid), (x, mid + 12)], 3)
+
+    for rect, vertical in ((left, True), (right_top, True), (right_bottom, True), (front, False)):
+        _brick(surface, rect, vertical)
+    _shadow(surface, left, +1)
+    _shadow(surface, right_top.union(right_bottom), -1)
+    pygame.draw.line(surface, theme.mix(WALL, theme.INK, 0.5), (right_top.left, right_top.bottom), (right_top.right, right_top.bottom), 2)
+
+    # the way you came in: a shut steel door in the left wall at the spawn row
+    door = pygame.Rect(left.x, 390, left.width, 60)
+    pygame.draw.rect(surface, theme.mix(theme.NAVY, theme.SLATE, 0.45), door)
+    pygame.draw.rect(surface, theme.INK, door, 2)
+    for y in (door.y + 12, door.y + 30, door.y + 48):
+        pygame.draw.line(surface, theme.mix(theme.NAVY, theme.INK, 0.5), (door.x + 3, y), (door.right - 3, y))
+    pygame.draw.circle(surface, theme.mix(ACCENT, theme.INK, 0.2), (door.centerx, door.y - 6), 3)       # "sealed" lamp
+
 
 def build_room(room, size):
     """The baked room: floor, wall and the room's own furniture."""
@@ -134,6 +205,7 @@ def build_room(room, size):
     _floor(surface, width, height)
     _patrol_line(surface, width)
     _wall(surface, width)
+    _side_walls(surface, width, height)
     _DRESSING[room](surface)
     vignette = pygame.Surface(size, pygame.SRCALPHA)
     for i in range(36):
