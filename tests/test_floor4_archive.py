@@ -280,3 +280,34 @@ def test_the_game_builds_the_archive_unless_the_old_level_is_asked_for(monkeypat
     monkeypatch.setenv("MEMORY_HEIST_OLD_LEVEL4", "1")
     game._register_levels()
     assert isinstance(game.level_manager.levels["level4"], Level4MemoryVault)
+
+
+def test_the_lure_keeps_the_drone_in_its_aisle_not_over_the_stacks():
+    level, _, _ = make_level()
+    level.handle_event(key(pygame.K_x))
+    for _ in range(120):
+        level.update(1 / 60)
+        r = pygame.Rect(0, 0, 16, 12)
+        r.center = level.drone.centre
+        assert not any(r.colliderect(s) for s in A.STACKS)
+    assert abs(level.drone.y - A.DRONE_Y) < 2
+
+
+def test_a_new_slip_drops_out_of_the_tube():
+    level, _, player = make_level()
+    level.update(1.0)
+    assert level.slip_drop == 1.0
+    stand_and_press(level, player, level.request["answer"])
+    assert level.slip_drop == 0.0
+    level.update(0.2)
+    assert 0.0 < level.slip_drop < 1.0
+
+
+def test_the_last_seconds_tick_once_each():
+    level, _, _ = make_level()
+    played = []
+    level.sfx = played.append
+    level.time_left = 5.5
+    for _ in range(100):                                  # 5.5 s down to about 3.8 s
+        level.update(1 / 60)
+    assert played.count("click") == 2                     # 5 and 4, once each

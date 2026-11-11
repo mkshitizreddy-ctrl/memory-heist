@@ -328,12 +328,27 @@ def draw_satchel(surface, items):
     surface.blit(img, (tag.x + 8, tag.y + 22))
 
 
-def draw_slip(surface, request, number, total, fraction, seconds, done, t):
-    """The request slip pinned to the wall: cream paper, typed Python, a red stamp, a burning clock."""
-    r = SLIP
+def draw_slip(surface, request, number, total, fraction, seconds, done, t, drop=1.0, warn=False):
+    """The request slip pinned to the wall: cream paper, typed Python, a red stamp, a burning clock.
+
+    drop 0..1 slides a new slip down out of the pneumatic tube; warn pulses its edge red."""
+    ease = 1 - (1 - max(0.0, min(1.0, drop))) ** 3
+    r = SLIP.move(0, -int((1 - ease) * 34))
+    previous = surface.get_clip()
+    surface.set_clip(pygame.Rect(SLIP.x - 4, SLIP.y - 2, SLIP.w + 10, SLIP.h + 8))
+    try:
+        _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t)
+    finally:
+        surface.set_clip(previous)
+
+
+def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t):
     pygame.draw.rect(surface, (0, 0, 0), r.move(3, 3))
     pygame.draw.rect(surface, PAPER, r)
     pygame.draw.rect(surface, (150, 136, 100), r, 2)
+    if warn:
+        pulse = 0.5 + 0.5 * math.sin(t * 10)
+        pygame.draw.rect(surface, theme.mix((150, 136, 100), theme.CORAL, pulse), r, 3)
     pygame.draw.circle(surface, theme.CORAL, (r.centerx, r.y + 5), 4)                    # the pin
     head = ui_font(13, bold=True)
     if done:

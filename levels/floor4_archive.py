@@ -50,6 +50,8 @@ WRONG_SECURITY, WRONG_PENALTY = 15, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 BASE_SECONDS = 45
 DOOR_SECONDS = 1.2
+WARN_SECONDS = 5                 # the last seconds tick and the slip pulses red
+SLIP_DROP_SECONDS = 0.45
 DRONE_PENALTY = 10
 DRONE_RANGE = 78                 # its searchlight's reach
 DRONE_COOLDOWN = 3.0
@@ -88,6 +90,8 @@ class ArchiveFloor(RoomMixin):
         self.satchel = list(START_SATCHEL)
         self.request = make_request(0, self.rng, self.satchel, self.difficulty)
         self.scanned = False
+        self.slip_drop = 0.0              # 0 -> 1 as a new slip drops out of the tube
+        self._last_tick = None
         self.say("Read the request slip, then do what it asks. E to act.", theme.PAPER)
 
         self.tilemap = TileMap(A.layout_rows())
@@ -215,7 +219,7 @@ class ArchiveFloor(RoomMixin):
             return
         px = self.player.rect.centerx if self.player is not None else A.DRONE_X[0]
         far = A.DRONE_X[1] if px < 15 * TILE else A.DRONE_X[0]
-        self.drone.lure = (far, A.DRONE_Y - 40)
+        self.drone.lure = (far, A.DRONE_Y)                    # along its own aisle, never over the stacks
         self.lure_left = LURE_SECONDS
         self.lure_cooldown = LURE_COOLDOWN
         self.sfx("click")
@@ -230,7 +234,8 @@ class ArchiveFloor(RoomMixin):
             self.solved.append(request)
             if self.game:
                 self.game.score.add(POINTS)
-            self.burst(spot, theme.GOLD, 16)
+            self.burst(spot, A.PAPER, 18)                    # loose file pages
+            self.burst(spot, theme.GOLD, 6)
             self.sfx("switch")
             self.sfx("chime")
             self._praise()
@@ -250,6 +255,7 @@ class ArchiveFloor(RoomMixin):
             self.time_left = self.time_limit
             if self.stage < REQUESTS:
                 self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
+                self.slip_drop = 0.0
                 self.say(f"{request['explain']}  Next request is up.", theme.TEAL)
             else:
                 self.say(f"{request['explain']}  The vault door is opening.", theme.GOLD)
@@ -275,10 +281,15 @@ class ArchiveFloor(RoomMixin):
         if self.stage >= REQUESTS:
             return
         self.time_left -= dt
+        whole = math.ceil(self.time_left)
+        if 0 < whole <= WARN_SECONDS and whole != self._last_tick:
+            self._last_tick = whole
+            self.sfx("click")                               # the slip's clock ticks out loud near the end
         if self.time_left <= 0:
             self.time_left = self.time_limit
             self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
             self.scanned = False
+            self.slip_drop = 0.0
             self.say("TIME'S UP! Security increased. A new slip came down the tube.", theme.CORAL)
             self.shake.add(0.5)
             if self.game:
@@ -324,7 +335,7 @@ class ArchiveFloor(RoomMixin):
 
     def _update_echo(self, dt):
         if self.drone.lure is not None:
-            goal = (self.drone.lure[0], self.drone.lure[1] - 20)
+            goal = (self.drone.lure[0] + (30 if self.drone.lure[0] < 15 * TILE else -30), self.drone.lure[1] - 18)
         elif self.player is not None:
             goal = (self.player.rect.centerx - 26, self.player.rect.centery - 30)
         else:
@@ -342,6 +353,7 @@ class ArchiveFloor(RoomMixin):
             for k in table:
                 table[k] = min(1.0, table[k] + dt * 3)
         self.wrong = {k: v - dt for k, v in self.wrong.items() if v - dt > 0}
+        self.slip_drop = min(1.0, self.slip_drop + dt / SLIP_DROP_SECONDS)
         if self.complete:
             return
         self._tick_timer(dt)
@@ -436,7 +448,8 @@ class ArchiveFloor(RoomMixin):
         self.lightlayer.apply(world, self._lights())
         A.draw_slip(world, self.request, min(self.stage + 1, REQUESTS), REQUESTS,       # paper stays readable
                     self.time_left / self.time_limit, max(0, math.ceil(self.time_left)),
-                    self.stage >= REQUESTS, t)
+                    self.stage >= REQUESTS, t, drop=self.slip_drop,
+                    warn=self.stage < REQUESTS and self.time_left <= WARN_SECONDS)
         A.draw_satchel(world, self.satchel)
         world.blit(*self._title)
         hint = ("E: pull the box", "E: open the drawer", "E: feed the vault", "Walk into the vault")[min(self.stage, 3)]
