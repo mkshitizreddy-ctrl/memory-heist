@@ -22,6 +22,7 @@ from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level2_grid import GridRoom
 from levels.level3_loops import Level3LaserLoop
+from levels.floor4_archive import ArchiveFloor
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.level5_hall import ServerHall
@@ -221,10 +222,11 @@ class Game:
             "level3",
             level3
         )
-        self.level_manager.register(
-            "level4",
-            Level4MemoryVault(player=self.player, game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL4") == "1":
+            level4 = Level4MemoryVault(player=self.player, game=self)   # escape hatch
+        else:
+            level4 = ArchiveFloor(player=self.player, game=self)        # Floor 4 on the shared kit
+        self.level_manager.register("level4", level4)
         if os.environ.get("MEMORY_HEIST_OLD_LEVEL5") == "1":
             level5 = Level5ControlCenter(game=self)               # escape hatch
         else:

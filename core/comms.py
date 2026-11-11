@@ -48,7 +48,7 @@ COMMS = {
         "danger": ("WARDEN", ["The patrol is speeding up. Watch the pattern."]),
     },
     "level4": {
-        "enter": ("Echo", ["Archive vault. Everything is a key and a value. Find the right key."]),
+        "enter": ("Echo", ["Records archive. Shelves count from zero; drawers go by key."]),
         "mistake": ("WARDEN", [
             "That key is not in my records.",
             "You are rummaging through things that are not yours.",

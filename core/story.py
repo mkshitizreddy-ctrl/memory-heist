@@ -51,11 +51,11 @@ STORY = {
     },
     "level4": {
         "warden": True,
-        "title": "LEVEL 4 - THE MEMORY VAULT",
+        "title": "LEVEL 4 - THE RECORDS ARCHIVE",
         "concept": "Lists and dictionaries",
         "lines": [
-            "The vault stores everything as keys and values.",
-            "Collect the right items and look up the Memory Chip.",
+            "NovaCorp keeps a file on every citizen. Yours is down here.",
+            "Fill the request slip: a list index, a dictionary key, a list method.",
         ],
     },
     "level5": {

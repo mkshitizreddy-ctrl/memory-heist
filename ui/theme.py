@@ -32,7 +32,7 @@ FLOORS = {
     "level1": {"name": "Reception lobby",   "floor": (44, 66, 110),  "accent": (80, 150, 255)},
     "level2": {"name": "Maintenance grid",  "floor": (74, 54, 48),   "accent": (255, 140, 80)},
     "level3": {"name": "Night patrol",       "floor": (30, 70, 64),   "accent": (50, 210, 150)},
-    "level4": {"name": "Archive vault",     "floor": (28, 38, 78),   "accent": (120, 130, 255)},
+    "level4": {"name": "Records archive",   "floor": (28, 38, 78),   "accent": (120, 130, 255)},
     "level5": {"name": "Server hall",       "floor": (70, 36, 66),   "accent": (240, 90, 160)},
     "final_vault": {"name": "Master vault", "floor": (72, 30, 36),   "accent": (255, 96, 84)},
 }

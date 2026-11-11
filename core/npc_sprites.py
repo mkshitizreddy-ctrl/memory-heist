@@ -87,6 +87,25 @@ _TECHNICIAN_BODY = [
     "...VVVVVVVVV....",
 ]
 
+# Floor 4's archivist: grey bun, round glasses on a chain, a mustard cardigan over a white collar.
+_ARCHIVIST_HEAD = [
+    "......HHH.......",
+    ".....HHHHH......",
+    "....HHHHHHH.....",
+    "...HHKKKKKHH....",
+    "...HgggKgggH....",
+    "...HKKKKKKKc....",
+    "....KKKKKKc.....",
+    ".....KKKK.......",
+]
+_ARCHIVIST_BODY = [
+    "...JJJLLLJJ.....",
+    "..JJJJLLLJJJ....",
+    "..JJJJJJJJJGG...",
+    "..JJJdJJJJGG....",
+    "...JJJJJJJJ.....",
+]
+
 # The rest of NovaCorp's staff. Their faces are left blank on purpose.
 _CLEANER_HEAD = [
     "................",
@@ -203,6 +222,11 @@ PALETTES = {
         "O": (60, 56, 52), "K": (226, 184, 150), "T": (120, 200, 180), "J": (96, 104, 92),
         "L": (200, 200, 180), "G": (226, 184, 150), "W": (44, 48, 60), "B": (22, 22, 28),
     },
+    "archivist": {                        # Floor 4: the records archivist
+        "H": (168, 166, 160), "K": (214, 178, 150), "g": (40, 44, 52), "c": (200, 170, 70),
+        "J": (176, 140, 50), "L": (226, 222, 210), "d": (90, 70, 30), "G": (214, 178, 150),
+        "W": (54, 50, 58), "B": (24, 22, 26),
+    },
     "curator": {
         "A": (30, 30, 36), "P": (18, 18, 22), "K": (230, 196, 164), "J": (46, 40, 50),
         "L": (170, 40, 40), "G": (220, 190, 160), "W": (40, 36, 44), "B": (16, 16, 20),
@@ -218,6 +242,7 @@ _PARTS = {
     "engineer": (_ENGINEER_HEAD, _ENGINEER_BODY, _legs("W")),
     "sysadmin": (_SYSADMIN_HEAD, _SYSADMIN_BODY, _legs("W")),
     "curator": (_CURATOR_HEAD, _CURATOR_BODY, _legs("W")),
+    "archivist": (_ARCHIVIST_HEAD, _ARCHIVIST_BODY, _legs("W")),
 }
 # What the eyes become in a blink. A guard in sunglasses has none to close.
 BLINK_COLOURS = {
@@ -226,6 +251,7 @@ BLINK_COLOURS = {
     "receptionist": {"e": (222, 170, 130)},
     "technician": {},                   # goggles never close
     "cleaner": {}, "engineer": {}, "sysadmin": {}, "curator": {},     # no faces to blink
+    "archivist": {},                    # her glasses hide the blink
 }
 
 KINDS = tuple(PALETTES)
