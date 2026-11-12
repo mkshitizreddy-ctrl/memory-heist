@@ -50,9 +50,9 @@ EXIT_ZONE = pygame.Rect(28 * TILE + 8, DOOR.y, 2 * TILE, DOOR.h)
 SPAWNS = ((2 * TILE + 8, 15 * TILE), (3 * TILE + 16, 15 * TILE))
 LIFT = pygame.Rect(0, 15 * TILE, 2 * TILE, 3 * TILE)
 
-TICKET = pygame.Rect(9 * TILE, 90, 12 * TILE, 100)
-EYE_SCREEN = pygame.Rect(2 * TILE, 92, 6 * TILE, 92)
-GAUGES = pygame.Rect(22 * TILE, 92, 6 * TILE, 92)
+TICKET = pygame.Rect(9 * TILE, 97, 12 * TILE, 93)        # clear of the message line above it
+EYE_SCREEN = pygame.Rect(2 * TILE, 99, 6 * TILE, 86)
+GAUGES = pygame.Rect(22 * TILE, 99, 6 * TILE, 86)
 VENTS = tuple((col * TILE + TILE // 2, 16 * TILE) for col in (6, 14, 17))
 VENT_PERIOD, VENT_WARN, VENT_BLOW = 5.5, 1.0, 1.5
 SYSADMIN_ROUTE = [(3 * TILE, 9 * TILE + 2), (14 * TILE, 9 * TILE + 2), (25 * TILE, 9 * TILE + 2)]
@@ -61,6 +61,7 @@ MOTE_AREA = pygame.Rect(2 * TILE, 6 * TILE, 26 * TILE, 12 * TILE)
 STEEL = (58, 66, 80)
 STEEL_LIT = (120, 132, 150)
 COLD = (120, 200, 230)                # the hall's cold service light
+OVERHEAT = 0.75                       # past this the reactor alarms and flashes
 CODE_INK = (170, 230, 210)
 
 
@@ -228,6 +229,8 @@ def draw_machine(surface, i, lines, active, done, heat, t):
         surface.blit(img, (face.x + 6, face.y + 18 + k * 13))
     blink = (int(t * 2 + i) % 2 == 0) or done
     pygame.draw.circle(surface, lamp if blink else (40, 44, 52), (face.right - 8, face.y + 8), 3)
+    if i == 2 and heat > OVERHEAT and int(t * 8) % 2 == 0:       # about to trip: the casing flashes
+        pygame.draw.rect(surface, theme.CORAL, r.inflate(4, 4), 3, border_radius=3)
     if i == 2 and heat > 0:                                      # the reactor's heat bar
         bar = pygame.Rect(face.x + 6, face.bottom - 8, face.w - 12, 4)
         pygame.draw.rect(surface, (40, 30, 30), bar)
@@ -250,7 +253,7 @@ def draw_ports(surface, labels, out, highlight, plugged, t):
         pygame.draw.rect(surface, COLD if lit else (80, 90, 104), rect, 1, border_radius=3)
         pygame.draw.circle(surface, (6, 8, 10), (rect.centerx, rect.y + 5), 3)        # the socket
         if i < len(labels):
-            _label(surface, rect.move(0, 4), labels[i], (90, 60, 60) if i in out else CODE_INK, font)
+            _label(surface, rect.move(0, 4), labels[i], (170, 90, 90) if i in out else CODE_INK, font)
         if i in out:
             pygame.draw.line(surface, theme.CORAL, rect.topleft, rect.bottomright, 2)
     if plugged is not None:                                      # the cable from the router's jack
@@ -285,7 +288,7 @@ def draw_bays(surface, labels, out, highlight, routed, t):
         pygame.draw.rect(surface, (16, 18, 24), rect, border_radius=3)
         pygame.draw.rect(surface, tone, rect, 1 if routed != i else 2, border_radius=3)
         if i < len(labels):
-            _label(surface, rect, labels[i], (90, 60, 60) if i in out else CODE_INK, font)
+            _label(surface, rect, labels[i], (170, 90, 90) if i in out else CODE_INK, font)
         if i in out:
             pygame.draw.line(surface, theme.CORAL, rect.topleft, rect.bottomright, 2)
 
@@ -304,7 +307,7 @@ def draw_breakers(surface, labels, out, highlight, pulled, t):
             word = small.render("except", True, (150, 140, 120))
             surface.blit(word, (rect.x + 5, rect.y + 2))
             _label(surface, pygame.Rect(rect.x + 2, rect.y + 11, rect.w - 18, 14), labels[i],
-                   (90, 60, 60) if i in out else (230, 214, 170), font)
+                   (170, 90, 90) if i in out else (230, 214, 170), font)
         if i in out:
             pygame.draw.line(surface, theme.CORAL, rect.topleft, rect.bottomright, 2)
 
@@ -348,10 +351,10 @@ def draw_gauges(surface, heat, uptime, t):
     pygame.draw.rect(surface, (30, 30, 36), bar)
     hot = theme.mix(theme.TEAL, theme.CORAL, min(1.0, heat))
     pygame.draw.rect(surface, hot, (bar.x, bar.y, int(bar.w * min(1.0, heat)), bar.h))
-    surface.blit(font.render("JOBS DONE", True, (150, 160, 176)), (r.x + 4, r.y + 40))
+    surface.blit(font.render("JOBS DONE", True, (150, 160, 176)), (r.x + 4, r.y + 36))
     for k in range(4):
         lamp = theme.TEAL if k < uptime else (40, 46, 56)
-        pygame.draw.circle(surface, lamp, (r.x + 12 + k * 22, r.y + 66), 7)
+        pygame.draw.circle(surface, lamp, (r.x + 12 + k * 22, r.y + 60), 7)
 
 
 def draw_ticket(surface, request, step, total, done, t):
@@ -366,13 +369,13 @@ def draw_ticket(surface, request, step, total, done, t):
         return
     title = head.render(f"JOB {step}/{total} - {request['topic']}  ({['ROUTER', 'PRESS', 'REACTOR'][request['stage']]})",
                         True, theme.GOLD)
-    surface.blit(title, (r.x + 10, r.y + 7))
+    surface.blit(title, (r.x + 10, r.y + 5))
     font = code_font(13)
     for k, line in enumerate(request["lines"][:5]):
         img = font.render(line, True, CODE_INK)
         if img.get_width() > r.w - 20:
             img = pygame.transform.smoothscale(img, (r.w - 20, img.get_height()))
-        surface.blit(img, (r.x + 10, r.y + 25 + k * 14))
+        surface.blit(img, (r.x + 10, r.y + 22 + k * 14))
 
 
 def draw_vents(surface, t):

@@ -222,7 +222,13 @@ class ServerFloor(RoomMixin, Level5ControlCenter):
     def _update_heat(self, dt):
         if self.stage != 2 or self.phase != "questions":
             return
+        before = self.heat
         self.heat += dt / self.heat_seconds
+        if before < S.OVERHEAT <= self.heat:                      # one loud warning before it trips
+            self.sfx("alarm")
+            self.shake.add(0.3)
+            self.sysadmin.say("It's overheating! Pull the right breaker!")
+            self.say("REACTOR OVERHEATING - catch the error before it trips.", theme.CORAL)
         if self.heat >= 1.0:
             self.heat = 0.0
             self.out = set()

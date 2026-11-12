@@ -284,3 +284,23 @@ def test_a_run_through_the_real_game_reaches_the_final_vault():
         assert game.level_manager.current_name == "final_vault"
     finally:
         game.music.stop()
+
+
+def test_the_reactor_warns_once_before_it_trips():
+    floor, game, player = make_floor()
+    do_job(floor, player)
+    do_job(floor, player)
+    played = []
+    floor.sfx = played.append
+    floor.update(floor.heat_seconds * 0.7)
+    assert "alarm" not in played
+    floor.update(floor.heat_seconds * 0.1)
+    assert played.count("alarm") == 1 and "OVERHEATING" in floor.message
+    floor.update(floor.heat_seconds * 0.1)
+    assert played.count("alarm") == 1 and game.security.level == 0
+
+
+def test_the_wall_screens_sit_below_the_message_line():
+    from levels.room_base import MESSAGE_Y
+    for rect in (S.TICKET, S.EYE_SCREEN, S.GAUGES):
+        assert rect.y >= MESSAGE_Y + 22 and rect.bottom <= 6 * 32
