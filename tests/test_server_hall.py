@@ -703,6 +703,8 @@ def test_the_technician_walks_the_south_floor_and_never_blocks_anything():
 def game():
     from core.game import Game
     g = Game()
+    # The real game's Floor 5 is now ServerFloor; these tests cover the previous hall, so they put it back.
+    g.level_manager.register("level5", ServerHall(player=g.player, game=g))
     yield g
     g.music.stop()
     pygame.mixer.stop()
@@ -712,10 +714,11 @@ def game():
 def test_the_real_game_uses_the_server_hall_unless_told_otherwise(monkeypatch):
     from core.game import Game
     monkeypatch.delenv("MEMORY_HEIST_OLD_LEVEL5", raising=False)
+    from levels.floor5_server import ServerFloor          # Floor 5 is now WARDEN's server hall (report item 59)
     g = Game()
-    assert isinstance(g.level_manager.levels["level5"], ServerHall)
+    assert isinstance(g.level_manager.levels["level5"], ServerFloor)
     g.music.stop()
-    for value, cls in (("1", Level5ControlCenter), ("0", ServerHall), ("", ServerHall), ("yes", ServerHall)):
+    for value, cls in (("1", Level5ControlCenter), ("0", ServerFloor), ("", ServerFloor), ("yes", ServerFloor)):
         monkeypatch.setenv("MEMORY_HEIST_OLD_LEVEL5", value)
         g = Game()
         assert type(g.level_manager.levels["level5"]) is cls, value

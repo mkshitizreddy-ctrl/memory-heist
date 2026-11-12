@@ -60,7 +60,7 @@ STORY = {
     },
     "level5": {
         "warden": True,
-        "title": "LEVEL 5 - THE CONTROL CENTER",
+        "title": "LEVEL 5 - THE SERVER HALL",
         "concept": "Functions and exceptions",
         "lines": [
             "WARDEN's functions run the whole building.",
