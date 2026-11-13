@@ -28,6 +28,7 @@ from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.level5_hall import ServerHall
 from levels.final_vault import FinalVault
+from levels.final_core import CoreVault
 from levels.final_vault_hall import VaultHall
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
@@ -236,7 +237,7 @@ class Game:
         if os.environ.get("MEMORY_HEIST_OLD_FINAL_VAULT") == "1":
             vault = FinalVault(game=self)                          # escape hatch
         else:
-            vault = VaultHall(player=self.player, game=self)       # Master Vault on the shared kit
+            vault = CoreVault(player=self.player, game=self)       # the finale: WARDEN's core
         self.level_manager.register("final_vault", vault)
 
     def _apply_difficulty_to_room_timer(self, level):

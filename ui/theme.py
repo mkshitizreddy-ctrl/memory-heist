@@ -34,7 +34,7 @@ FLOORS = {
     "level3": {"name": "Night patrol",       "floor": (30, 70, 64),   "accent": (50, 210, 150)},
     "level4": {"name": "Records archive",   "floor": (28, 38, 78),   "accent": (120, 130, 255)},
     "level5": {"name": "Server hall",       "floor": (70, 36, 66),   "accent": (240, 90, 160)},
-    "final_vault": {"name": "Master vault", "floor": (72, 30, 36),   "accent": (255, 96, 84)},
+    "final_vault": {"name": "WARDEN's core", "floor": (72, 30, 36),   "accent": (255, 96, 84)},
 }
 
 _DEFAULT_FLOOR = {"name": "NovaCorp", "floor": NAVY, "accent": SKY}
