@@ -22,10 +22,13 @@ from levels.level1 import Level1
 from levels.level2 import Level2
 from levels.level2_grid import GridRoom
 from levels.level3_loops import Level3LaserLoop
+from levels.floor4_archive import ArchiveFloor
+from levels.floor5_server import ServerFloor
 from levels.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
 from levels.level5_hall import ServerHall
 from levels.final_vault import FinalVault
+from levels.final_core import CoreVault
 from levels.final_vault_hall import VaultHall
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
@@ -221,19 +224,20 @@ class Game:
             "level3",
             level3
         )
-        self.level_manager.register(
-            "level4",
-            Level4MemoryVault(player=self.player, game=self)
-        )
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL4") == "1":
+            level4 = Level4MemoryVault(player=self.player, game=self)   # escape hatch
+        else:
+            level4 = ArchiveFloor(player=self.player, game=self)        # Floor 4 on the shared kit
+        self.level_manager.register("level4", level4)
         if os.environ.get("MEMORY_HEIST_OLD_LEVEL5") == "1":
             level5 = Level5ControlCenter(game=self)               # escape hatch
         else:
-            level5 = ServerHall(player=self.player, game=self)    # Floor 5 on the shared kit
+            level5 = ServerFloor(player=self.player, game=self)   # Floor 5: WARDEN's server hall
         self.level_manager.register("level5", level5)
         if os.environ.get("MEMORY_HEIST_OLD_FINAL_VAULT") == "1":
             vault = FinalVault(game=self)                          # escape hatch
         else:
-            vault = VaultHall(player=self.player, game=self)       # Master Vault on the shared kit
+            vault = CoreVault(player=self.player, game=self)       # the finale: WARDEN's core
         self.level_manager.register("final_vault", vault)
 
     def _apply_difficulty_to_room_timer(self, level):

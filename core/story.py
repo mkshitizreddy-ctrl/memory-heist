@@ -51,16 +51,16 @@ STORY = {
     },
     "level4": {
         "warden": True,
-        "title": "LEVEL 4 - THE MEMORY VAULT",
+        "title": "LEVEL 4 - THE RECORDS ARCHIVE",
         "concept": "Lists and dictionaries",
         "lines": [
-            "The vault stores everything as keys and values.",
-            "Collect the right items and look up the Memory Chip.",
+            "NovaCorp keeps a file on every citizen. Yours is down here.",
+            "Fill the request slip: a list index, a dictionary key, a list method.",
         ],
     },
     "level5": {
         "warden": True,
-        "title": "LEVEL 5 - THE CONTROL CENTER",
+        "title": "LEVEL 5 - THE SERVER HALL",
         "concept": "Functions and exceptions",
         "lines": [
             "WARDEN's functions run the whole building.",
@@ -69,17 +69,17 @@ STORY = {
     },
     "final_vault": {
         "warden": True,
-        "title": "FINAL VAULT - WARDEN'S LAST STAND",
+        "title": "FINAL VAULT - WARDEN'S CORE",
         "concept": "Everything combined",
         "lines": [
-            "One door left, and WARDEN throws everything at you.",
-            "Use all you have learned to open it.",
+            "Six locks ring WARDEN's core, one for every floor you crossed.",
+            "Open them all, take the Master Memory chip, and get out.",
         ],
     },
     "outro": {
         "title": "MISSION COMPLETE",
         "lines": [
-            "The Memory Chip is in Ghost's hand, and WARDEN goes quiet.",
+            "The Master Memory chip is in Ghost's hand, and WARDEN goes quiet.",
             "Every erased secret is out. Master Memory acquired.",
         ],
     },

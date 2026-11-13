@@ -517,6 +517,8 @@ def test_the_key_hint_and_readout_follow_the_state():
 def game():
     from core.game import Game
     g = Game()
+    # The real game's finale is now CoreVault; these tests cover the previous hall, so they put it back.
+    g.level_manager.register("final_vault", VaultHall(player=g.player, game=g))
     yield g
     g.music.stop()
     pygame.mixer.stop()
@@ -526,10 +528,11 @@ def game():
 def test_the_real_game_uses_the_vault_hall_unless_told_otherwise(monkeypatch):
     from core.game import Game
     monkeypatch.delenv("MEMORY_HEIST_OLD_FINAL_VAULT", raising=False)
+    from levels.final_core import CoreVault               # the finale is now WARDEN's core (report item 61)
     g = Game()
-    assert isinstance(g.level_manager.levels["final_vault"], VaultHall)
+    assert isinstance(g.level_manager.levels["final_vault"], CoreVault)
     g.music.stop()
-    for value, cls in (("1", FinalVault), ("0", VaultHall), ("", VaultHall), ("yes", VaultHall)):
+    for value, cls in (("1", FinalVault), ("0", CoreVault), ("", CoreVault), ("yes", CoreVault)):
         monkeypatch.setenv("MEMORY_HEIST_OLD_FINAL_VAULT", value)
         g = Game()
         assert type(g.level_manager.levels["final_vault"]) is cls, value

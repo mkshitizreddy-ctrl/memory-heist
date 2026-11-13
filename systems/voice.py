@@ -49,6 +49,7 @@ VOICES = {
     "curator": Voice(100.0, "tri", 105, 4, 0.97, 0.26),         # slow, pompous
     "night_guard": Voice(100.0, "tri", 100, 3, 0.90, 0.25),    # tired, low, trailing off
     "patrol_droid": Voice(300.0, "square", 45, 2, 1.00, 0.18),  # flat, quick, mechanical
+    "archivist": Voice(280.0, "tri", 60, 2, 0.95, 0.22),        # dry, clipped, precise
 }
 DEFAULT_VOICE = Voice(220.0, "tri", 70, 2, 1.0, 0.26)
 
