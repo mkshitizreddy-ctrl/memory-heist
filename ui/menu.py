@@ -18,10 +18,10 @@ from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
 
 CONTROLS = [
-    ("Levels 1, 2", "WASD to move, E to pick up, drop or answer"),
-    ("Levels 3, 5, Final Vault", "1-4 keys - select an answer"),
-    ("Levels 3, 4", "WASD to move, E to collect / interact"),
-    ("Co-op (C)", "Player 2: arrow keys to move, Right Shift to interact"),
+    ("Every floor", "WASD to move, E to pick up, answer, pull or open"),
+    ("Floor 3", "1-4 keys to answer at each door, H for a hint"),
+    ("Floors 4, 5, Final", "Floor 4: Q scan, X lure.  Floor 5 and Final: H hint"),
+    ("Co-op (C)", "Player 2: arrow keys to move, Right Shift to act"),
     ("Any time", "ESC to pause or quit, R to retry after a loss"),
 ]
 
