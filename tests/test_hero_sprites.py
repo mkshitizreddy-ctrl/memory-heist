@@ -25,7 +25,14 @@ def test_frames_have_the_shape_player_expects(name):
     f = make_hero_frames(name)
     assert set(f) == {"idle", "walk", "blink"} and len(f["walk"]) == 4
     for img in [f["idle"]] + f["walk"]:
-        assert img.get_size() == (32, 32)
+        assert img.get_size() == (32, (hs.HERO_ROWS + 1) * hs.SCALE)      # a head taller than the NPCs
+
+
+@pytest.mark.parametrize("name", HEROES)
+def test_the_heroes_stand_taller_than_any_npc(name):
+    from core.npc_sprites import KINDS, make_npc_frames
+    hero = make_hero_frames(name)["idle"].get_height()
+    assert all(hero > make_npc_frames(kind)["idle"].get_height() + 10 for kind in KINDS)
 
 
 @pytest.mark.parametrize("name", HEROES)
@@ -42,7 +49,7 @@ def test_source_art_leaves_room_for_the_outline(name):
     head, body, legs = hs._PARTS[name]
     for key, leg_rows in legs.items():
         rows = head + body + leg_rows
-        assert len(rows) <= hs.GRID - 1                 # a free row for the outline
+        assert len(rows) == hs.HERO_ROWS                # the builder adds a free row under it for the outline
         assert all(len(r) == hs.GRID for r in rows)
         assert set(rows[0]) == {"."}
         assert all(r[0] == "." and r[-1] == "." for r in rows)

@@ -68,7 +68,7 @@ def draw_character(surface, rect, image, lift, facing_left, squash=None):
     pygame.draw.ellipse(shade, (0, 0, 0, 90), shade.get_rect())
     surface.blit(shade, shadow)
 
-    x, y = rect.topleft
+    x, y = rect.x, rect.bottom - image.get_height()      # stand on the feet: tall heroes rise above their box
     if squash is not None and not squash.at_rest:
         image, (ox, oy) = scaled(image, *squash.scale)
         x, y = x + ox, y + oy
