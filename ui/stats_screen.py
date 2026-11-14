@@ -10,7 +10,7 @@ import math
 import pygame
 
 from core.floor_stats import format_duration
-from systems.achievements import BADGES
+from systems.achievements import BADGES, FLOOR_COUNT, FLOOR_SHORT_NAMES
 from ui import theme
 from ui.backdrop import draw_backdrop
 from ui.fonts import ui_font
@@ -47,6 +47,7 @@ class StatsScreen:
         self.name_font = ui_font(26)
         self.desc_font = ui_font(20)
         self.chip_font = ui_font(24)
+        self.floor_font = ui_font(16, bold=True)
 
     def layout(self, width=960):
         panel = pygame.Rect((0, 0), PANEL_SIZE)
@@ -61,7 +62,10 @@ class StatsScreen:
             cells.append(cell)
         back = pygame.Rect(0, 0, 220, 38)
         back.midbottom = (panel.centerx, panel.bottom - 16)
-        return {"panel": panel, "slots": slots, "cells": cells, "back": back}
+        chip_w = (panel.width - 40 - 5 * 8) // FLOOR_COUNT
+        top = cells[-1].bottom + 34
+        floors = [pygame.Rect(panel.x + 20 + i * (chip_w + 8), top, chip_w, 28) for i in range(FLOOR_COUNT)]
+        return {"panel": panel, "slots": slots, "cells": cells, "back": back, "floors": floors}
 
     def render(self, surface, stats, tick=0):
         width = surface.get_width()
@@ -95,4 +99,18 @@ class StatsScreen:
                          (cell.x + 74, cell.y + 8))
             surface.blit(self.desc_font.render(how, True, theme.MIST),
                          (cell.x + 74, cell.y + 38))
+        self._draw_floors(surface, lay["floors"], getattr(stats, "deepest", 0), tick)
         draw_chip(surface, lay["back"], "ESC: back", self.chip_font, fg=theme.TEAL, border=theme.TEAL)
+
+    def _draw_floors(self, surface, chips, deepest, tick):
+        """Six floor chips, lobby to core: lit once cleared, the next one outlined in gold."""
+        label = self.caption_font.render(f"DEEPEST FLOOR CLEARED: {deepest} of {FLOOR_COUNT}", True, theme.MIST)
+        surface.blit(label, (chips[0].x, chips[0].y - 24))
+        for i, (chip, name) in enumerate(zip(chips, FLOOR_SHORT_NAMES)):
+            if i < deepest:
+                draw_chip(surface, chip, name, self.floor_font, fg=theme.TEAL, border=theme.TEAL, filled=True)
+            elif i == deepest:
+                glow = theme.mix(theme.GOLD, theme.PAPER, 0.3 * (0.5 + 0.5 * math.sin(tick * 0.08)))
+                draw_chip(surface, chip, name, self.floor_font, fg=glow, border=glow)
+            else:
+                draw_chip(surface, chip, name, self.floor_font, fg=theme.SLATE, border=theme.SLATE)
