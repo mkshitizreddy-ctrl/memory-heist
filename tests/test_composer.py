@@ -186,7 +186,7 @@ def beat_energy(signal, key, beat):
 
 def test_a_four_on_the_floor_kick_hits_every_beat_and_a_half_kick_only_two(monkeypatch):
     """Compare each render with itself: stems are level-matched, so absolute loudness lies."""
-    key = "level1"                                            # bass "pedal" rests on beats 1 and 3
+    key = "level2"            # not level1: its ceiling speaker cuts the kick on purpose. bass "pedal" rests on 1 and 3
     with_theme(monkeypatch, key, bass="pedal", hat=False, snare=False, kick="four")
     four = mono(render_stem("pulse", key, ROOTS[key]))
     with_theme(monkeypatch, key, kick="half")
@@ -272,13 +272,52 @@ def test_voices_keep_to_their_own_registers():
 
 
 def test_the_bass_plays_the_chord_root_an_octave_above_the_key_note(monkeypatch):
-    """Level 1, bar 1: the bass note is A2 (110 Hz); the same bar one chord later is E2."""
-    key = "level1"
+    """Bar 1's bass note is the key note an octave up; bar 2's is its own chord's root.
+    (Level 2, because Level 1's ceiling speaker cuts the bass on purpose.)"""
+    key = "level2"
     with_theme(monkeypatch, key, kick="none", hat=False, snare=False, bass="pedal")
     root = ROOTS[key]
     bass = mono(render_stem("pulse", key, root))
     spb = 60 / THEMES[key].bpm
     assert dominant_hz(bass, 0.02, 0.25) == pytest.approx(root * 2, rel=0.03)
-    bar1_degree = THEMES[key].progression[1]               # degree 4: E in A dorian
-    want = hz(root, degree_semitones("dorian", bar1_degree) + 12)
+    bar1_degree = THEMES[key].progression[1]
+    want = hz(root, degree_semitones(THEMES[key].mode, bar1_degree) + 12)
     assert dominant_hz(bass, 4 * spb + 0.02, 0.25) == pytest.approx(want, rel=0.03)
+
+
+# --- Floor 1: lobby muzak through the ceiling speakers ------------------------------
+
+def test_the_lobby_plays_muzak_soft_and_slow():
+    t = THEMES["level1"]
+    assert t.kick == "none" and not t.snare and t.hat                 # brushed hats, no drums
+    assert t.bpm < THEMES["level2"].bpm and t.bpm > THEMES["menu"].bpm
+
+
+def test_the_lobby_is_heard_through_a_speaker_with_no_bass():
+    from systems.composer import SPEAKER_THEMES
+    assert SPEAKER_THEMES == {"level1"}
+    root = ROOTS["level1"]
+    pad = mono(render_stem("pad", "level1", root))
+    spectrum = np.abs(np.fft.rfft(pad))
+    freqs = np.fft.rfftfreq(len(pad), 1 / SAMPLE_RATE)
+    low = spectrum[(freqs > 40) & (freqs < 150)].sum()
+    mid = spectrum[(freqs > 400) & (freqs < 2000)].sum()
+    assert low < 0.3 * mid
+
+
+def test_the_speaker_keeps_the_loop_seamless():
+    for stem in ("pad", "arp", "lead"):
+        data = render_stem(stem, "level1", ROOTS["level1"]).astype(np.int32)
+        jump = np.abs(data[0] - data[-1]).max()
+        typical = np.abs(np.diff(data, axis=0)).max()
+        assert jump <= typical, stem
+
+
+def test_the_alert_drone_is_never_filtered():
+    from systems.composer import speaker_response
+    assert speaker_response(np.array([1000.0]))[0] > 0.7
+    assert speaker_response(np.array([50.0]))[0] < 0.05
+    a = render_stem("alert", "level1", ROOTS["level1"])
+    spectrum = np.abs(np.fft.rfft(mono(a)))
+    freqs = np.fft.rfftfreq(len(a), 1 / SAMPLE_RATE)
+    assert spectrum[freqs < 120].max() > 0.1 * spectrum.max()        # WARDEN's low drone survives

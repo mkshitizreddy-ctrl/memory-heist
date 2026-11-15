@@ -57,11 +57,14 @@ THEMES = {
     "menu": Theme("minor", 72, (0, 5, 2, 6), "pedal", 2, "updown", "none", False, False, (
         (0, 0, 4, 2), (0, 2, 2, 1.5), (1, 0, 3, 2), (1, 2, 1, 2),
         (2, 0, 4, 1.5), (2, 2, 6, 1), (2, 3, 5, 1), (3, 0, 4, 3.5))),
-    "level1": Theme("dorian", 96, (0, 4, 5, 3), "offbeat", 2, "up", "half", True, False, (
-        (0, 0, 4, 1), (0, 1, 5, 0.5), (0, 1.5, 4, 0.5), (0, 2, 2, 2),
-        (1, 0, 3, 1), (1, 1, 4, 1), (1, 2, 2, 1.5),
-        (2, 0, 5, 1), (2, 1, 6, 1), (2, 2, 4, 1), (2, 3, 2, 1),
-        (3, 0, 1, 2), (3, 2, 2, 0.5), (3, 2.5, 0, 1.5))),
+    # Floor 1 is NovaCorp's lobby muzak: a bland, "calming" tune the ceiling speakers play
+    # between WARDEN's announcements. Slow, no kick, brushed hats, a sweet electric-piano
+    # arpeggio and a hollow, cheerful melody; render_stem squeezes it through a speaker.
+    "level1": Theme("dorian", 88, (0, 3, 0, 3), "steady", 2, "updown", "none", True, False, (
+        (0, 0, 4, 1.5), (0, 1.5, 5, 0.5), (0, 2, 4, 1), (0, 3, 2, 1),
+        (1, 0, 3, 2), (1, 2, 5, 2),
+        (2, 0, 4, 1.5), (2, 1.5, 6, 0.5), (2, 2, 5, 1), (2, 3, 4, 1),
+        (3, 0, 2, 3))),
     "level2": Theme("mixolydian", 104, (0, 6, 3, 0), "steady", 2, "broken", "half", True, True, (
         (0, 0, 2, 0.5), (0, 0.5, 4, 0.5), (0, 1, 6, 1), (0, 2, 4, 1),
         (1, 0, 5, 0.5), (1, 0.5, 4, 0.5), (1, 1, 2, 1), (1, 2, 0, 2),
@@ -88,6 +91,11 @@ THEMES = {
 }
 
 STEMS = ("pad", "pulse", "arp", "lead", "alert")
+# Themes heard through NovaCorp's cheap ceiling speakers: thin, boxy, with a faint
+# tape warble. The alert drone is WARDEN in the room, so it is never filtered.
+SPEAKER_THEMES = frozenset({"level1"})
+SPEAKER_LOW_HZ, SPEAKER_HIGH_HZ = 260.0, 3400.0
+WARBLE_DEPTH = 0.05                     # +/- 5% level, a few slow wobbles per loop
 # Peak level of each stem as a share of full scale, so no stem drowns another.
 PEAKS = {"pad": 0.42, "pulse": 0.50, "arp": 0.34, "lead": 0.38, "alert": 0.36}
 # Register of each voice, in semitones above the theme's root: bass sits low, the pad
@@ -211,6 +219,27 @@ def _echo(loop, delays, gains):
 
 # --- stems -----------------------------------------------------------------
 
+def speaker_response(freqs):
+    """Gain of the ceiling speaker at each frequency: no bass, no air, a boxy middle."""
+    low = (freqs / SPEAKER_LOW_HZ) ** 2
+    high = (freqs / SPEAKER_HIGH_HZ) ** 2
+    return (low / (1.0 + low)) / (1.0 + high)
+
+
+def _through_speaker(mix):
+    """Band-limit a loop like a ceiling speaker and add a slow warble.
+
+    The loop is filtered in the frequency domain, which treats it as circular, so the
+    end still meets the start exactly; the warble makes whole cycles per loop for the
+    same reason.
+    """
+    n = len(mix)
+    gain = speaker_response(np.fft.rfftfreq(n, 1.0 / SAMPLE_RATE))
+    band = np.fft.irfft(np.fft.rfft(mix, axis=0) * gain[:, None], n=n, axis=0)
+    warble = 1.0 + WARBLE_DEPTH * np.sin(2 * math.pi * 3 * np.arange(n) / n)
+    return band * warble[:, None]
+
+
 def render_stem(stem, key, root):
     """One seamless stereo int16 loop of `stem` for theme `key` in the key of `root` (Hz)."""
     if stem not in STEMS:
@@ -270,6 +299,8 @@ def render_stem(stem, key, root):
     mix = loop.finish()
     if stem == "lead":                                    # a spacious echo, wrapped
         mix = _echo(mix, (at(0.75), at(1.5)), (0.38, 0.18))
+    if key in SPEAKER_THEMES and stem != "alert":
+        mix = _through_speaker(mix)
 
     peak = np.abs(mix).max()
     if peak > 0:
