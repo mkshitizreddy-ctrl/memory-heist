@@ -57,6 +57,7 @@ from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
 from ui.fonts import ui_font
+from ui import sidebars
 from ui.stats_screen import StatsScreen
 
 
@@ -100,7 +101,8 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.screen = self._create_window()
+        self.window = self._create_window()
+        self.screen = display.game_area(self.window)    # every screen draws here; the strips are the window's
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -385,14 +387,15 @@ class Game:
     def _create_window(fullscreen=None):
         """Open the game window: full-screen by default, as saved in the settings.
 
-        The drawing surface stays 960x640. SCALED stretches it to the screen
+        The window is 1136x640 (16:9); the game draws in its central 960x640 and
+        ui/sidebars.py fills the strips either side. SCALED stretches it to the screen
         (smoothed, see display.configure_scaling) and maps mouse positions
         back. Setups without a renderer (headless test runs) fall back to
         simpler windows instead of failing.
         """
         if fullscreen is None:
             fullscreen = Settings.load().fullscreen
-        size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        size = display.CANVAS_SIZE                   # 16:9: the game plus a wall strip each side
         display.configure_scaling()
         flags = display.window_flags(fullscreen, pygame.display.get_driver())
         for attempt in (flags, pygame.SCALED, 0):
@@ -408,6 +411,8 @@ class Game:
             pygame.display.toggle_fullscreen()
         except pygame.error:
             return
+        self.window = pygame.display.get_surface() or self.window      # the switch may hand back a new surface
+        self.screen = display.game_area(self.window)
         self.settings.fullscreen = display.is_fullscreen()
         self.settings.save()
 
@@ -776,6 +781,7 @@ class Game:
                 self.level_manager.current_name,
             )
 
+        sidebars.draw_sidebars(self.window, self.state, self.level_manager.current_name, self._bg_tick / 60.0)
         pygame.display.flip()
 
     def _get_pause_assets(self):

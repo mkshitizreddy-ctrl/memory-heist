@@ -134,7 +134,7 @@ def test_the_game_asks_for_a_fullscreen_window_by_default(monkeypatch):
     monkeypatch.setattr(pygame.display, "get_driver", lambda: "windows")
     monkeypatch.setattr(pygame.display, "set_mode", lambda size, flags=0: seen.append((size, flags)) or pygame.Surface(size))
     Game._create_window()
-    assert seen[0] == ((960, 640), pygame.SCALED | pygame.FULLSCREEN)
+    assert seen[0] == (display.CANVAS_SIZE, pygame.SCALED | pygame.FULLSCREEN)     # 16:9: the game plus two wall strips
 
 
 def test_a_saved_windowed_choice_is_respected(monkeypatch, tmp_path):

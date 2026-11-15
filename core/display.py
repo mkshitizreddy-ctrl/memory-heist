@@ -12,6 +12,16 @@ import pygame
 
 HEADLESS_DRIVERS = ('dummy', 'offscreen')
 WINDOWED_ENV = 'MEMORY_HEIST_WINDOWED'   # set to 1 to force a window (development, screenshots)
+GAME_SIZE = (960, 640)                   # what every screen and floor draws
+SIDE_WIDTH = 88                          # a wall strip either side makes the window 16:9
+CANVAS_SIZE = (GAME_SIZE[0] + 2 * SIDE_WIDTH, GAME_SIZE[1])   # 1136 x 640
+
+
+def game_area(window):
+    """The 960x640 slice of the window the game draws into (the whole window if it is that size)."""
+    width = window.get_width()
+    x = (width - GAME_SIZE[0]) // 2 if width >= GAME_SIZE[0] else 0
+    return window.subsurface(pygame.Rect((x, 0), GAME_SIZE).clip(window.get_rect()))
 
 
 def configure_scaling():
