@@ -23,7 +23,7 @@ Rules (Floor 4's original numbers):
     security drone score -10 when it catches you in its light (score only)
     walk out       +100 bonus
 
-The original Level 4 stays in levels/level4_memory.py and returns with
+The original Level 4 stays in levels/legacy/level4_memory.py and returns with
 MEMORY_HEIST_OLD_LEVEL4=1.
 """
 

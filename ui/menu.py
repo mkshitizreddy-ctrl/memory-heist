@@ -22,7 +22,7 @@ CONTROLS = [
     ("Floor 3", "1-4 keys to answer at each door, H for a hint"),
     ("Floors 4, 5, Final", "Floor 4: Q scan, X lure.  Floor 5 and Final: H hint"),
     ("Co-op (C)", "Player 2: arrow keys to move, Right Shift to act"),
-    ("Any time", "ESC to pause or quit, R to retry after a loss"),
+    ("Any time", "ESC pause or quit.  After a loss: F retry floor, R new run"),
 ]
 
 DIFFICULTY_ORDER = ["easy", "medium", "hard"]

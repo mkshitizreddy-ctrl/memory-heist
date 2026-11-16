@@ -1,5 +1,5 @@
 """
-levels/vault_decor.py
+levels/legacy/vault_decor.py
 Owner: Member 4 - Apporov Sahu's Final Vault, rebuilt on the shared kit
 
 Geometry and art for the Master Vault.  It shares Floor 2's and Floor 5's footprint
@@ -24,7 +24,7 @@ import pygame
 
 from core.tilemap import TILE
 from levels import grid_decor as G
-from levels import hall_decor as H
+from levels.legacy import hall_decor as H
 from ui import theme
 from ui.fonts import code_font, ui_font
 from ui.kit import draw_panel, wrap_text

@@ -24,7 +24,7 @@ Rules: Floor 5's numbers, all from Level5ControlCenter (Apporov's Level 5):
     console        the real try/except; denied or invalid input as before, +50 then +100 on success
     steam vents    score -5 if a vent catches you (score only)
 
-The previous Floor 5 (levels/level5_hall.py) and the original Level 5
+The previous Floor 5 (levels/legacy/level5_hall.py) and the original Level 5
 (levels/level5_control.py) are untouched; MEMORY_HEIST_OLD_LEVEL5=1 still
 returns the original.
 """

@@ -13,10 +13,10 @@ import pytest
 
 from core.player import Player
 from core.tilemap import TILE
-from levels import hall_decor as H
+from levels.legacy import hall_decor as H
 from levels import level5_control as L5
 from levels.level5_control import Level5ControlCenter
-from levels.level5_hall import ServerHall
+from levels.legacy.level5_hall import ServerHall
 from levels.level5_questions import GATES, QUESTION_POOL, TERMINAL_LINES
 from systems.scoring import ScoreTracker
 from systems.security import SecurityMeter

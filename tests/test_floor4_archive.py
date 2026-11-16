@@ -273,7 +273,7 @@ def test_render_draws_every_stage_and_changes_no_state():
 
 def test_the_game_builds_the_archive_unless_the_old_level_is_asked_for(monkeypatch):
     from core.game import Game
-    from levels.level4_memory import Level4MemoryVault
+    from levels.legacy.level4_memory import Level4MemoryVault
 
     game = Game()
     assert isinstance(game.level_manager.levels["level4"], ArchiveFloor)

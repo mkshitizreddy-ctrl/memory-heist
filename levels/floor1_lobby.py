@@ -15,7 +15,7 @@ it can never disagree with the language.
 
 Built on the shared kit: ui.theme, core.tilemap, core.animation, core.easing.
 Wrong bin: crate returns, security +20, score -10 (same amounts as Level 1).
-This is Level 1. The original question-screen Level 1 stays in levels/level1.py
+This is Level 1. The original question-screen Level 1 stays in levels/legacy/level1.py
 and returns with MEMORY_HEIST_OLD_LEVEL1=1.
 """
 

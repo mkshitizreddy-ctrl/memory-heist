@@ -13,10 +13,10 @@ import pytest
 
 from core.player import Player
 from core.tilemap import TILE
-from levels import final_vault_hall as FH
-from levels import vault_decor as V
-from levels.final_vault import FinalVault
-from levels.final_vault_hall import VaultHall
+from levels.legacy import final_vault_hall as FH
+from levels.legacy import vault_decor as V
+from levels.legacy.final_vault import FinalVault
+from levels.legacy.final_vault_hall import VaultHall
 from systems.scoring import ScoreTracker
 from systems.security import SecurityMeter
 

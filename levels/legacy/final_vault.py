@@ -1,5 +1,5 @@
 """
-levels/final_vault.py
+levels/legacy/final_vault.py
 Owner: Member 4 - Apporov Sahu
 
 Final Level - Master Vault

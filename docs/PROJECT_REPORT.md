@@ -168,480 +168,158 @@ The game will cover the following Python topics:
 
 ---
 
+> **Note.** Sections 1-10 and 24-33 are the original proposal and are kept as written. Sections 11-23 were rewritten at the end of the project to describe the game as it was actually built; section 34 records how it got there.
+
 # 11. Game Structure
 
-The final game structure contains five main learning levels and one final challenge.
+The finished game is one run through NovaCorp's tower: five floors and WARDEN's core, each teaching one Python idea. Every floor is a walkable room built on one shared kit (tile map, lighting, NPCs, badge doors), so the player learns by doing the job the room asks for, not by answering a quiz screen.
 
-**Start**
+**Menu** → **Intro story** → **Floor 1 – Reception Lobby** (data types) → **Floor 2 – Maintenance Grid** (operators) → **Floor 3 – Night Patrol** (loops) → **Floor 4 – Records Archive** (lists and dictionaries) → **Floor 5 – Server Hall** (functions and exceptions) → **Final Floor – WARDEN's Core** (everything combined) → **Ending and win screen**
 
-↓
-
-**Tutorial**
-
-↓
-
-**Level 1 – The Security Gate**
-
-↓
-
-**Level 2 – The Security Grid**
-
-↓
-
-**Level 3 – The Laser Loop**
-
-↓
-
-**Level 4 – The Memory Vault**
-
-↓
-
-**Level 5 – Control and Recovery Center**
-
-↓
-
-**Final Level – The Master Vault**
-
-↓
-
-**Escape and Victory**
+Before each floor a story card names the concept and the job; between floors the crew rides the elevator. The run is saved at every floor reached.
 
 ---
 
-# 12. Level 1 – The Security Gate
+# 12. Floor 1 – The Reception Lobby (data types)
 
-## Python Topics
+The intake belt is jammed, so parcels lie around the lobby, each stamped with a real Python value such as `"A-4471"`, `-7`, `9.99` or `True`. Ghost carries each parcel (E) to the chute for its type: `int`, `str`, `float` or `bool`. The right chute is Python's own `type(value)`, so the game can never disagree with the language. Two parcels open a gate; three gates open the badge door.
 
-- Variables
-- Data Types
-- Strings
-- Integers
-- Boolean Values
+- Wrong chute: the parcel comes back, security +20, score -10.
+- The receptionist, guard and cleaner patrol and talk; the filing cabinets read out the chute rules; lost visitor badges are bonus points.
 
-The player begins at the first security gate.
-
-A security terminal contains information such as an agent identification number, security clearance level, and access status.
-
-The player must understand the different types of information and correctly use them to unlock the gate.
-
-Examples include:
-
-- Text information representing strings
-- Numerical information representing integers
-- True or False values representing Boolean values
-
-### Learning Outcome
-
-The player understands:
-
-- What variables are
-- How values are stored
-- Basic Python data types
-- Variable assignment
+**Learning outcome:** values have types, and the type decides what a value is for.
 
 ---
 
-# 13. Level 2 – The Security Grid
+# 13. Floor 2 – The Maintenance Grid (operators)
 
-## Python Topics
+A snaking utility tunnel with three relay bays. Each relay screen shows an expression (arithmetic, then comparison, then logic). Ghost stands on the breaker plate that holds its value and throws it (E). A right answer powers the next gate; a wrong one raises security. Floor panels show expressions too, and the ones that evaluate to `True` are live and zap (score only).
 
-- Arithmetic Operators
-- Comparison Operators
-- Logical Operators
-- Conditional Logic
-
-The player enters a security room containing a digital security system.
-
-The system requires the player to solve numerical and logical challenges.
-
-For example, the player may need to construct an expression using available numbers and operators to generate the correct security code.
-
-Conditional challenges may require the player to understand whether a particular condition is true or false.
-
-### Learning Outcome
-
-The player understands:
-
-- Arithmetic operations
-- Comparisons
-- Logical conditions
-- Basic decision-making concepts
+**Learning outcome:** arithmetic, comparison and logical operators, and how Python evaluates an expression to one value.
 
 ---
 
-# 14. Level 3 – The Laser Loop
+# 14. Floor 3 – The Night Patrol (loops)
 
-## Python Topics
+Three rooms, each crossed by laser lanes that fire in a pattern written as a loop on the room's code board, watched by cameras and a patrol droid. Ghost reads the loop, crosses when the lane is safe, and answers the loop question at each door (keys 1-4) before the room timer runs out. The door scans his badge and slides open.
 
-- For Loops
-- While Loops
-- range()
-- break
+- A wrong answer or the room timer running out raises security; lane hits and the droid spotting Ghost cost points only.
 
-The player enters a room containing moving laser barriers and security robots.
-
-The movement patterns repeat according to loop-based logic.
-
-The player must observe the repeated patterns and interact with the environment to progress safely.
-
-The level visually demonstrates how repeated instructions work.
-
-For example:
-
-- A laser repeatedly activates.
-- A robot repeatedly follows a patrol route.
-- A repeated action stops when a specific condition is reached.
-
-### Learning Outcome
-
-The player understands:
-
-- Repetition in programming
-- For loops
-- While loops
-- The purpose of range()
-- Breaking out of repeated processes
+**Learning outcome:** `for` and `while` loops, `range()`, and reading a repeating pattern.
 
 ---
 
-# 15. Level 4 – The Memory Vault
+# 15. Floor 4 – The Records Archive (lists and dictionaries)
 
-## Python Topics
+The archivist's request slips come down a tube, one at a time, against a clock:
 
-- Lists
-- Dictionaries
-- Indexing
-- Adding and Removing Elements
-- Key-Value Pairs
+1. **List indexing.** Pull the shelf box at the index the slip asks for (`shelf[-1]`, `shelf[2]`...).
+2. **Dictionary lookup.** Open the card-catalogue drawer for a key.
+3. **Feeding the vault.** Put the right item from Ghost's satchel (a list) into the intake tray.
 
-This level focuses on managing information.
+Echo's ally drone can scan the shelves (Q) or lure the security drone away (X) while it patrols the aisle.
 
-The player collects items while exploring the Memory Vault.
-
-These items are stored in the player's inventory, representing the practical use of lists.
-
-The player may collect:
-
-- Keys
-- USB devices
-- Access cards
-- Security tokens
-
-The player can add or remove items from the inventory.
-
-The vault also stores information in a key-value format.
-
-The player must retrieve specific information, such as security codes or access keys.
-
-### Learning Outcome
-
-The player understands:
-
-- How lists store multiple items
-- Adding and removing elements
-- Accessing list elements
-- Dictionary key-value pairs
-- Retrieving information from dictionaries
+**Learning outcome:** lists, indexing (including negative indices), dictionaries and key-value lookup.
 
 ---
 
-# 16. Level 5 – Control and Recovery Center
+# 16. Floor 5 – The Server Hall (functions and exceptions)
 
-## Python Topics
+Every machine is a function with its `def` stencilled on the casing. The job ticket asks for three jobs:
 
-- Functions
-- Parameters
-- Arguments
-- Return Values
-- Exception Handling
+1. **Router (arguments):** patch the cable to the port whose value lands in a parameter.
+2. **Press (return values):** route the conveyor to the bay the return value goes to.
+3. **Reactor (exceptions):** pull the `except` breaker that catches its error before the reactor overheats.
 
-The player reaches the central control system.
+Then Ghost types an access level into WARDEN's console, and a real `try/except` runs it. Steam vents cost points (score only).
 
-Different security systems are controlled using functions.
-
-The player interacts with functions that perform specific actions, such as:
-
-- Opening a door
-- Disabling a security system
-- Activating a control panel
-
-The system may also encounter invalid input or unexpected errors.
-
-The player must identify and handle these situations using the basic concept of exception handling.
-
-### Learning Outcome
-
-The player understands:
-
-- The purpose of functions
-- Calling functions
-- Parameters and arguments
-- Return values
-- Basic error handling
-- try and except concepts
+**Learning outcome:** calling functions, parameters and arguments, return values, and `try/except`.
 
 ---
 
-# 17. Final Level – The Master Vault
+# 17. Final Floor – WARDEN's Core (everything combined)
 
-The Master Vault is the final challenge of the game.
+A round chamber with six locks around WARDEN's eye, one for each lesson. Each lock's terminal shows a short piece of code; Ghost stands on the plate with the right answer and presses E, while a searchlight sweeps the floor. The locks can be opened in any order. When all six are open the iris opens, Ghost takes the Master Memory chip (+150), and the extraction door opens.
 
-The player must combine knowledge gained from all previous levels.
-
-The final challenge may involve:
-
-- Setting correct variable values
-- Solving an operator-based security code
-- Understanding a condition
-- Passing a repeated security pattern
-- Managing inventory items
-- Retrieving vault information
-- Activating a function
-- Recovering from an error
-
-After completing the final challenge, the player retrieves the Master Memory.
-
-The player must then reach the final exit.
-
-Upon successful completion:
-
-**ACCESS GRANTED**
-
-**MASTER MEMORY ACQUIRED**
-
-**ESCAPE SUCCESSFUL**
+**Outcome:** ACCESS GRANTED, MASTER MEMORY ACQUIRED, ESCAPE SUCCESSFUL.
 
 ---
 
 # 18. Gameplay Design
 
-Memory Heist uses a hybrid gameplay system.
-
-The game will combine three major types of interaction.
-
-## Exploration
-
-The player can:
-
-- Move through rooms
-- Find objects
-- Locate terminals
-- Discover keys and items
-- Avoid security obstacles
-
-## Interactive Puzzles
-
-The player can:
-
-- Match data types
-- Arrange operators
-- Solve logical conditions
-- Retrieve dictionary values
-- Manage inventory items
-- Complete short programming challenges
-
-## Limited Code Interaction
-
-The player will not be required to write long Python programs.
-
-Instead, small code-based interactions may be used where they improve understanding.
-
-For example, the player may complete a missing condition or select the correct operator.
-
-This keeps the game enjoyable and accessible.
+Every floor follows the same loop: **explore → read the code in the room → act on it → see the result → move on.** Answers are physical: a chute, a breaker plate, a shelf box, a cable port, a floor plate. Correct answers are checked by running real Python, so the game and the language always agree. Short code is shown everywhere; the player never has to type a program, except the one-line access level on WARDEN's console.
 
 ---
 
 # 19. Game Features
 
-The following features are planned for the Good College-Project Version.
-
-## Player Movement
-
-The player can move around the 2D environment.
-
-## Interactive Objects
-
-The player can interact with:
-
-- Doors
-- Terminals
-- Vaults
-- Keys
-- Control panels
-- Security systems
-
-## Lives System
-
-The player receives a limited number of lives.
-
-Incorrect actions or security failures may reduce lives.
-
-## Score System
-
-The player receives points for:
-
-- Solving puzzles
-- Completing levels
-- Completing challenges quickly
-
-## Timer
-
-Certain challenges may have a time limit.
-
-## Hint System
-
-Players can request hints when they are unable to solve a challenge.
-
-Using hints may reduce the player's score.
-
-## Security Meter
-
-Incorrect actions may increase the security level.
-
-If the security level reaches its maximum limit, the system may enter lockdown mode.
-
-## Level Progression
-
-The player unlocks new areas by completing previous challenges.
-
-## Win and Lose Screens
-
-The game will provide clear feedback when the player wins or loses.
+- **Movement and co-op:** Ghost moves with WASD; press C on the menu to add Echo as Player 2 (arrow keys, Right Shift).
+- **Score:** points for right answers, floors and bonuses; mistakes and hazards cost points.
+- **Security meter:** mistakes raise it; at 100 the tower locks down and the run is lost. It cools by 25 in the lift after each floor. (The proposal's lives system was replaced by this meter.)
+- **Timers:** a whole-run clock (15 minutes on Medium) and a per-question clock on Floors 2-5, both scaled by difficulty.
+- **Hints:** H shows a hint for a small score cost; off on Hard.
+- **Difficulty:** Easy, Medium and Hard change the clocks, hints, security penalty and score multiplier.
+- **Story and radio:** intro, a briefing card per floor and an ending, with narrated and spoken lines; Echo and WARDEN talk over the radio during play.
+- **Progress:** the run is saved at each floor (Continue on the menu); after a loss, F retries that floor and R starts a new run.
+- **Badges, stats and leaderboard:** six badges, a stats page with the deepest floor reached, and a local top-five leaderboard.
+- **Sound:** procedural music per floor, generated sound effects and recorded voices, with volume settings.
 
 ---
 
 # 20. Controls
 
-The controls will be kept simple to ensure that the game is easy to play.
+| Key | Action |
+|---|---|
+| WASD | Move |
+| E | Act: pick up, throw, pull, open, stand-and-answer |
+| 1-4 | Answer at a Floor 3 door |
+| H | Hint (where hints are on) |
+| Q / X | Floor 4: ally drone scan / lure |
+| Arrow keys, Right Shift | Player 2 (co-op) |
+| ESC | Pause; skip a story card; quit from the menu |
+| F / R / M | After a loss: retry the floor / new run / menu |
+| F11 | Full screen or window |
 
-- **W** – Move Up
-- **A** – Move Left
-- **S** – Move Down
-- **D** – Move Right
-- **E** – Interact
-- **ESC** – Pause
-- **Mouse** – Menu and puzzle interaction
-
-A tutorial screen will explain the controls before the game begins.
+The menu shows these controls before the run starts.
 
 ---
 
 # 21. Visual Design
 
-The game will use a consistent cyber-security and digital-heist theme.
-
-Visual elements may include:
-
-- Digital rooms
-- Security doors
-- Computer terminals
-- Laser barriers
-- Security robots
-- Vaults
-- Access cards
-- Digital interfaces
-- Score displays
-- Alert screens
-- Animated effects
-
-The objective is not to create complex 3D graphics.
-
-Instead, the project will focus on creating a clean, attractive, and consistent 2D visual design.
+A grim, surveillance-state pixel-art look in the style of Beholder: NovaCorp propaganda posters, WARDEN's red eye on screens and walls, steel badge doors that scan and slide, dynamic lighting with soft shadows, dust motes, steam and sparks. Each floor has its own layout and colour mood, getting warmer and redder as the crew nears the core. The 16:9 window frames the 3:2 play area with NovaCorp wall panels. All sprites, NPCs and portraits are drawn from character maps in code.
 
 ---
 
 # 22. Technology Stack
 
-## Programming Language
-
-**Python**
-
-## Game Development Framework
-
-**Pygame**
-
-## Supporting Components
-
-- JSON for puzzle and game data
-- Git and GitHub for version control and collaboration
-- Image assets for game environments and objects
-- Sound effects for interaction and feedback
-- Fonts for user interface design
+- **Language:** Python 3.11
+- **Framework:** Pygame 2.6
+- **Data:** JSON for puzzles, settings, saves and the leaderboard
+- **Audio:** music composed in code (NumPy), generated sound effects, voices recorded with ElevenLabs
+- **Fonts:** Chakra Petch and Share Tech Mono (SIL Open Font License)
+- **Testing:** pytest, more than 2,000 automated tests, run headless
+- **Version control:** Git and GitHub
 
 ---
 
-# 23. Proposed Project Structure
+# 23. Project Structure (as built)
 
-The project will follow a modular structure.
-
+```text
 memory-heist/
-
-main.py
-
-core/
-
-game.py
-
-player.py
-
-level_manager.py
-
-levels/
-
-level1_variables.py
-
-level2_operators.py
-
-level3_loops.py
-
-level4_memory.py
-
-level5_control.py
-
-systems/
-
-inventory.py
-
-scoring.py
-
-security.py
-
-timer.py
-
-hints.py
-
-ui/
-
-menu.py
-
-hud.py
-
-screens.py
-
-data/
-
-puzzles.json
-
-assets/
-
-images/
-
-sounds/
-
-fonts/
-
-requirements.txt
-
-README.md
-
-This modular structure will improve:
-
-- Code organization
-- Collaboration
-- Debugging
-- Code understanding
-- Future expansion
+├── main.py
+├── core/        game loop, level manager, story, comms, player, NPCs, sprites, tile maps, difficulty
+├── levels/      the five floors and WARDEN's core, their decor and request generators,
+│                the shared room kit (room_base, lighting, badge_door, depth_fx, novacorp_style)
+│   └── legacy/  the first versions of Floor 1, Floor 4, the server hall and the Final Vault
+├── systems/     audio, music, voice, settings, progress, achievements, scoring, hints, leaderboard
+├── ui/          menu, HUD, story and end screens, settings, theme, fonts, side strips
+├── entities/    gates, particles, sprites
+├── data/        puzzle content
+├── assets/      fonts, sounds, voice clips
+├── tools/       voice-clip generator
+├── tests/       automated tests
+└── docs/        this report and the team workflow
+```
 
 ---
 
@@ -727,6 +405,23 @@ Responsibilities:
 - Testing
 
 Each member must contribute meaningful Python code and understand the modules assigned to them.
+
+---
+
+## As built: who made what
+
+The division above was the plan. The finished game credits each part to the member who first built it and, where a floor was later rebuilt on the shared kit, to who rebuilt it. The original versions are kept in `levels/legacy/` (or still extended by the rebuild), so every member's work is still in the project.
+
+| Part | Originally built by | Rebuilt / extended by |
+|---|---|---|
+| Core game system, shared room kit, integration | Kshitiz Reddy (Member 1) | – |
+| Floor 1 – Reception Lobby | Paranthama Selvan (Member 2), question-screen Level 1 | Kshitiz Reddy: walkable lobby |
+| Floor 2 – Maintenance Grid | Paranthama Selvan (Member 2), Level 2 | Kshitiz Reddy: the tunnel extends Level 2 |
+| Floor 3 – Night Patrol | Yashovardhan Kushva (Member 3), the laser loop rooms | Kshitiz Reddy: badge doors, droid, room dressing |
+| Floor 4 – Records Archive | Yashovardhan Kushva (Member 3), memory vault | Kshitiz Reddy: walkable archive |
+| Floor 5 – Server Hall | Apporov Sahu (Member 4), control and recovery centre | Kshitiz Reddy: the hall extends Level 5 and keeps its console |
+| Final Floor – WARDEN's Core | Apporov Sahu (Member 4), master vault | Kshitiz Reddy: the round core |
+| Menu, HUD, screens and systems | Divyash (Member 5) | Kshitiz Reddy: theme, side strips, polish |
 
 ---
 
@@ -1171,6 +866,7 @@ Systems that need to react to the game (sound effects, music, mood colouring, th
 66. **Polish pass, step 5: the 16:9 side strips.** The game draws at 960x640 (3:2), so a 16:9 screen showed black bars either side. The window is now 1136x640 (16:9): every screen and floor still draws into the central 960x640 slice (`display.game_area`), and `ui/sidebars.py` fills the strips with dark NovaCorp wall panels in the current floor's colour, the floor's name stencilled down the left wall and WARDEN's eye and a column of status lights on the right. The game itself is unchanged pixel for pixel; F11 re-takes the slice if the switch hands back a new surface. Six tests added.
 67. **Fresh-review quick fixes.** A review with no memory of the build found small things a player would trip on. The Floor 2 lose tip said False panels zap; it now says panels that read True zap, which is the rule. Floor 3's "INCORRECT! Try again." was drawn green because the colour check looked for the word CORRECT inside it; it now checks the start of the message, so a wrong answer is red. A new run placed the crew at the default corner, over Floor 1's instruction line, because the players were positioned before Floor 1 was started; the reset now runs after, and the lobby has its own spawn points at the elevator door. Radio lines about a mistake are dropped once the crew makes progress, so Echo never scolds after a door has opened. Names agree everywhere: the HUD reads "Floor n of 6" and "Final floor", the story cards read "FLOOR n - ...", and the finale says one lock for every lesson. Readability: the engineer on Floor 2 speaks under himself so his bubble never covers the answer pads; Final floor plates grow to fit a long answer such as ZeroDivisionError (the stand-on area grows with them, and a check over 400 seeds shows no plates overlap); the Floor 5 job ticket uses larger code when it has few lines; posters keep their slogan inside the card. The audio start-up no longer prints debug lines to the console. Six tests added.
 68. **Fairness: a lost floor is not a lost run.** Three changes so one bad floor does not end the game. (1) Security cools by 25 in the lift each time a floor is cleared (`SecurityMeter.cool`, `FLOOR_COOLDOWN`), so early mistakes do not carry a whole run into lockdown. (2) Each floor's question clock now has its own difficulty scale, `question_time_multiplier` (Easy x2.0, Medium x1.3, Hard x0.7), separate from the whole-run clock; Floors 2-5 use it, so on Medium Floor 3's room question gives 26 s instead of 20 and Floor 4's slip 58 s instead of 45. (3) When a floor after the first is lost, the lose screen offers "F: retry floor": it reloads that floor's save (the score and time the crew arrived with, security back to zero) and drops straight into the floor with no story card; R still starts a new run, and Floor 1 offers only R. Seven tests added.
+69. **Presentation hygiene.** Sections 11-23 of this report described the planned levels (and a lives system that was never built); they now describe the finished floors, features, controls, look, stack and structure, with a note that sections 1-10 and 24-33 are the original proposal. Section 24 gains an "As built" table crediting each floor to the member who first built it and to who rebuilt it. The README was brought up to date the same way (floors, controls, credits, nothing left "being reworked"). The old levels the game no longer plays (the question-screen Level 1, the memory vault, the first server hall and both earlier Final Vaults, with their decor) moved to `levels/legacy/`; the escape hatches and their tests import them from there. Level 2 and Level 5's control centre stay in `levels/` because Floors 2 and 5 extend them. The menu's last controls row now names F (retry floor) and R (new run).
 35. **Floor 2 lighting (step 3).** The tunnel now uses the same lighting pipeline as Floor 1 with a dimmer, warmer ambient. Light sources: the three relay screens (the active one brightest, an accepted one teal), three amber work bulbs along each corridor (the middle bulb of each flickers), a lamp on every gate that turns from coral to teal as it opens, a teal glow on the breaker cabinets, the engineer's bench lamp and the shaft lights. Blob shadows sit under the engineer, cabinets, bench and transformers, and the title is redrawn above the lighting so it stays readable. Rules unchanged; the quiet-wall test now checks the baked background.
 34. **Floor 2 becomes a snaking utility tunnel (step 2: layout).** The three chambers in a row are replaced by three corridors that snake: corridor 1 runs east to power gate 1, a shaft drops to corridor 2 which runs west to gate 2, a shaft drops to corridor 3 which runs east to the exit shutter. Each corridor holds its own breaker plates and a RELAY BAY stencil; animated power pulses flow east, west, east along the corridors, arrows mark the shafts, valve wheels sit in the separator walls, breaker cabinets and the engineer's workbench line corridor 1 and two transformer blocks stand in corridor 3. The new geometry lives in `levels/snake_decor.py`; `levels/grid_decor.py` is untouched so Floor 5 and the Final Vault keep their straight hall. Rules, questions, scoring and security are unchanged; the geometry tests were rewritten for the snake (corridor reachability, gates hold in order, pads inside corridors, props off lanes and pads).
 33. **Floor 2 becomes power routing (step 1: concept layer).** The maintenance grid is now a job: NovaCorp's power to the lower floors runs through three relay bays. Wall screens are relays ("RELAY 1  ARITHMETIC") showing an expression, the floor pads are breaker plates (two screws and a lever slot), the bays are stencilled "RELAY BAY n", and the gates are power gates. The wandering technician is now the gruff Engineer (his own sprite and voice, previously unused) with lines about operator order and what trips a relay. All messages, the level card and the radio line were rewritten to match. Questions, timers, scoring, security and pad logic are untouched. Next steps for Floor 2: the zig-zag tunnel layout, lighting, live floor panels and sounds.

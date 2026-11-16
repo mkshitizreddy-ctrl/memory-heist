@@ -1,5 +1,5 @@
 """
-levels/level1.py
+levels/legacy/level1.py
 Owner: Member 2 - Paranthama Selvan
 
 Level 1 - Security Gate
@@ -81,7 +81,7 @@ class Level1:
         """Load this level's questions from data/puzzles.json, grouped by room."""
         pools = {1: [], 2: [], 3: []}
         try:
-            base_path = Path(__file__).resolve().parent.parent
+            base_path = Path(__file__).resolve().parent.parent.parent
             puzzle_path = base_path / "data" / "puzzles.json"
             with open(puzzle_path, "r", encoding="utf-8") as f:
                 puzzles = json.load(f)
