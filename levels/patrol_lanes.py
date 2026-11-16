@@ -56,13 +56,17 @@ def layout_rects(layout):
 class LaneLoop:
     """Timing and drawing of a lane loop."""
 
-    def __init__(self, difficulty="medium", layout="columns"):
+    def __init__(self, difficulty="medium", layout="columns", order=None):
         self.layout = layout
         self.rects = layout_rects(layout)
         self.count = len(self.rects)
+        # The lanes the board's loop zaps, in the order it zaps them (default: every lane, in turn).
+        # A lane the loop never reaches never fires.
+        self.order = [lane for lane in (order if order is not None else range(self.count))
+                      if 0 <= lane < self.count] or [0]
         self.step = STEP.get(difficulty, STEP["medium"])
         self.live = self.step * LIVE_STEPS.get(difficulty, LIVE_STEPS["medium"])
-        self.cycle = self.count * self.step + self.live - self.step + REST
+        self.cycle = len(self.order) * self.step + self.live - self.step + REST
         self.clock = 0.0
         self._glow = {}
 
@@ -79,19 +83,23 @@ class LaneLoop:
         """'off' (safe), 'warning' (safe, about to fire) or 'active'."""
         if self.clock < GRACE - WARN:
             return "off"
+        first = self.order[0]
         if self.clock < GRACE:
-            return "warning" if lane == 0 else "off"
+            return "warning" if lane == first else "off"
 
         position = (self.clock - GRACE) % self.cycle
-        start = lane * self.step
-
-        if start <= position < start + self.live:
-            return "active"
-        if start - WARN <= position < start:
-            return "warning"
-        if lane == 0 and position >= self.cycle - WARN:
-            return "warning"
-        return "off"
+        warning = False
+        for slot, fired in enumerate(self.order):
+            if fired != lane:
+                continue
+            start = slot * self.step
+            if start <= position < start + self.live:
+                return "active"
+            if start - WARN <= position < start:
+                warning = True
+        if lane == first and position >= self.cycle - WARN:
+            warning = True
+        return "warning" if warning else "off"
 
     def phases(self):
         return [self.phase(lane) for lane in range(self.count)]
@@ -101,9 +109,9 @@ class LaneLoop:
         if self.clock < GRACE:
             return None
         position = (self.clock - GRACE) % self.cycle
-        if position >= (self.count - 1) * self.step + self.live:
+        if position >= (len(self.order) - 1) * self.step + self.live:
             return None
-        return min(self.count - 1, int(position // self.step))
+        return self.order[min(len(self.order) - 1, int(position // self.step))]
 
     def resting(self):
         return self.clock >= GRACE and self.current_lane() is None

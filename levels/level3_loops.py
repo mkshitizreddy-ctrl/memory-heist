@@ -12,6 +12,7 @@ The global Easy/Medium/Hard difficulty is used to select questions.
 
 import json
 import math
+import os
 import random
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from core.map_manager import Room, RoomMap
 from core.npc import NPC
 from entities.gate import Gate
 from levels import badge_door, depth_fx, lighting, patrol_cameras, patrol_decor, patrol_lanes
+from levels.patrol_requests import make_request
 from ui.fonts import code_font, ui_font
 from ui.kit import draw_panel
 
@@ -211,6 +213,13 @@ class Level3LaserLoop:
         self._droid_reply = None                      # the droid answers the guard a beat later
         self._guard_wait = patrol_decor.GUARD_IDLE_EVERY
         self._guard_idles = 0
+
+        # Each room's door question is about the loop that room really runs (levels/patrol_requests.py).
+        # MEMORY_HEIST_OLD_LEVEL3=1 brings back the fixed question bank in data/puzzles.json.
+        self.room_requests = {}
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL3") != "1":
+            difficulty = self.get_selected_difficulty()
+            self.room_requests = {room: make_request(room, difficulty) for room in (1, 2, 3)}
 
         self.setup_room_hazards()
 
@@ -497,8 +506,10 @@ class Level3LaserLoop:
 
         difficulty = self.get_selected_difficulty()
         layout = {1: "columns", 3: "rows"}.get(room)
-        self.lane_loop = patrol_lanes.LaneLoop(difficulty, layout) if layout else None
-        self.camera_bank = patrol_cameras.CameraBank(difficulty) if room == 2 else None
+        request = getattr(self, "room_requests", {}).get(room)
+        fires = request["fires"] if request else None          # the room does what its board's code says
+        self.lane_loop = patrol_lanes.LaneLoop(difficulty, layout, order=fires) if layout else None
+        self.camera_bank = patrol_cameras.CameraBank(difficulty, active=fires) if room == 2 else None
 
         self.robot_speed = 120 + ((room - 1) * 30)
 
@@ -761,6 +772,10 @@ class Level3LaserLoop:
         self.selected_questions = []
 
         for room_number in (1, 2, 3):
+
+            if room_number in self.room_requests:
+                self.selected_questions.append(self.room_requests[room_number])
+                continue
 
             room_pool = self.room_question_pools.get(
                 room_number,
@@ -1962,13 +1977,19 @@ class Level3LaserLoop:
             banner.blit(text, text.get_rect(center=banner.get_rect().center))
             surface.blit(banner, lane.topleft)
 
-        else:
+        elif not self.room_requests:               # the generated loop's board takes the notice's place
 
             patrol_decor.draw_notice(
                 surface, ("Answer the loop", "question to open", "the door.")
             )
 
-        if self.camera_bank is not None:
+        request = self.room_requests.get(room_number)
+        if request is not None:
+            patrol_decor.draw_code_board(
+                surface, request["code"], self.lane_loop, self.camera_bank,
+                gate.is_open(), self._seconds(),
+            )
+        elif self.camera_bank is not None:
             patrol_decor.draw_camera_board(surface, self.camera_bank, self._seconds())
         elif self.lane_loop is not None:
             patrol_decor.draw_lane_board(

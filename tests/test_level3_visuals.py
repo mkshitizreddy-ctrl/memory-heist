@@ -276,8 +276,10 @@ def test_header_notice_and_patrol_board_text_stay_inside_their_areas(room, diffi
 
     texts = rendered_text_rects(level)
     header_texts = [t for t in texts if P.HEADER.top <= t.top < P.HEADER.bottom]
-    board_texts = [t for t in texts if P.BOARD.collidepoint(t.topleft)]
-    notice_texts = [t for t in texts if P.NOTICE.collidepoint(t.topleft)]
+    # The room's own loop sits on the wide code board, which also takes the notice's place.
+    board = P.CODE_BOARD if level.room_requests else P.BOARD
+    board_texts = [t for t in texts if board.collidepoint(t.topleft)]
+    notice_texts = [] if level.room_requests else [t for t in texts if P.NOTICE.collidepoint(t.topleft)]
 
     assert len(header_texts) >= 3 and len(board_texts) >= 4
 
@@ -291,10 +293,10 @@ def test_header_notice_and_patrol_board_text_stay_inside_their_areas(room, diffi
                 font = level._font(24)
 
             assert font.size(banner)[0] <= lane.width - 16
-    else:
+    elif not level.room_requests:
         assert notice_texts
 
-    for area, items in ((P.HEADER, header_texts), (P.BOARD, board_texts), (P.NOTICE, notice_texts)):
+    for area, items in ((P.HEADER, header_texts), (board, board_texts), (P.NOTICE, notice_texts)):
         for ink in items:
             assert area.contains(ink), (area, ink)
 
