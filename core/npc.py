@@ -157,4 +157,5 @@ class NPC:
         image, lift = pose_for(self.frames, self.moving, self.anim_time, self.idle_time)
         draw_character(surface, self.rect, image, lift, self.facing_left)
         if self.speech and font is not None:
-            draw_speech_bubble(surface, font, self.speech, self.rect)
+            draw_speech_bubble(surface, font, self.speech, self.rect,
+                               below=getattr(self, "bubble_below", False))

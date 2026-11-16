@@ -93,6 +93,7 @@ class GridRoom(RoomMixin, Level2):
         self.spawn_points = G.SPAWNS
 
         self.engineer = NPC("engineer", ENGINEER_ROUTE[0], patrol=ENGINEER_ROUTE)
+        self.engineer.bubble_below = True       # he walks just under the answer pads: never talk over them
         self.npcs = [self.engineer]
         self._engineer_lines = 0
         self._praised = 0

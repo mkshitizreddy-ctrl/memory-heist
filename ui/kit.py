@@ -190,18 +190,26 @@ def shadowed(font, text, colour, shadow=(4, 7, 16), offset=(1, 2)):
 
 
 def draw_speech_bubble(surface, font, text, anchor, gap=6, fill=theme.INK, border=theme.MIST,
-                       colour=theme.PAPER):
+                       colour=theme.PAPER, below=False):
     """A small speech bubble above `anchor` (a Rect), kept inside the surface.
 
-    Returns the bubble's rect. The little tail points down at the speaker.
+    below=True hangs it under the speaker instead (for someone standing just
+    beneath something the player must read). Returns the bubble's rect.
+    The little tail points at the speaker.
     """
     image = font.render(str(text), True, colour)
     box = image.get_rect().inflate(16, 10)
-    box.midbottom = (anchor.centerx, anchor.top - gap - 5)
+    if below:
+        box.midtop = (anchor.centerx, anchor.bottom + gap + 5)
+    else:
+        box.midbottom = (anchor.centerx, anchor.top - gap - 5)
     box.clamp_ip(surface.get_rect())
     draw_panel(surface, box, fill=fill, border=border, radius=7)
     tip_x = max(box.left + 10, min(box.right - 10, anchor.centerx))
-    tail = [(tip_x - 5, box.bottom - 1), (tip_x + 5, box.bottom - 1), (tip_x, box.bottom + 5)]
+    if below:
+        tail = [(tip_x - 5, box.top + 1), (tip_x + 5, box.top + 1), (tip_x, box.top - 5)]
+    else:
+        tail = [(tip_x - 5, box.bottom - 1), (tip_x + 5, box.bottom - 1), (tip_x, box.bottom + 5)]
     pygame.draw.polygon(surface, fill, tail)
     pygame.draw.lines(surface, border, False,
                       [tail[0], tail[2], tail[1]], theme.BORDER)

@@ -197,7 +197,7 @@ class WinScreen:
 
 LOSE_TIPS = {
     "level1": "TIP: read the value, then pick the chute. int, str, float or bool.",
-    "level2": "TIP: step onto the breaker, read the relay, then throw it. Panels marked False zap.",
+    "level2": "TIP: read the relay, then throw the breaker. Panels that read True zap.",
     "level3": "TIP: lanes warn before they fire. Read the loop, then cross.",
     "level4": "TIP: a dictionary looks things up by key, not by position.",
     "level5": "TIP: check which arguments the function gets and what it returns.",

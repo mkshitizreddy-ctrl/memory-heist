@@ -1782,7 +1782,7 @@ class Level3LaserLoop:
 
         if self.feedback:
 
-            if self.complete or "CORRECT" in self.feedback:
+            if self.complete or self.feedback.startswith("CORRECT"):
                 colour = (60, 230, 110)
             elif "ALERT" in self.feedback:
                 colour = (255, 180, 60)

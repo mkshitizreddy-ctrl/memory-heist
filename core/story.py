@@ -24,7 +24,7 @@ STORY = {
     },
     "level1": {
         "warden": True,
-        "title": "LEVEL 1 - THE RECEPTION LOBBY",
+        "title": "FLOOR 1 - THE RECEPTION LOBBY",
         "concept": "Data types",
         "lines": [
             "The intake belt is jammed and parcels are piled on the floor.",
@@ -33,7 +33,7 @@ STORY = {
     },
     "level2": {
         "warden": True,
-        "title": "LEVEL 2 - THE MAINTENANCE GRID",
+        "title": "FLOOR 2 - THE MAINTENANCE GRID",
         "concept": "Operators",
         "lines": [
             "Power to the lower floors runs through three relay bays and wall screens.",
@@ -42,7 +42,7 @@ STORY = {
     },
     "level3": {
         "warden": True,
-        "title": "LEVEL 3 - THE NIGHT PATROL",
+        "title": "FLOOR 3 - THE NIGHT PATROL",
         "concept": "Loops",
         "lines": [
             "NovaCorp's night patrol is a loop: lanes fire, cameras sweep, a robot walks.",
@@ -51,7 +51,7 @@ STORY = {
     },
     "level4": {
         "warden": True,
-        "title": "LEVEL 4 - THE RECORDS ARCHIVE",
+        "title": "FLOOR 4 - THE RECORDS ARCHIVE",
         "concept": "Lists and dictionaries",
         "lines": [
             "NovaCorp keeps a file on every citizen. Yours is down here.",
@@ -60,7 +60,7 @@ STORY = {
     },
     "level5": {
         "warden": True,
-        "title": "LEVEL 5 - THE SERVER HALL",
+        "title": "FLOOR 5 - THE SERVER HALL",
         "concept": "Functions and exceptions",
         "lines": [
             "WARDEN's functions run the whole building.",
@@ -72,7 +72,7 @@ STORY = {
         "title": "FINAL VAULT - WARDEN'S CORE",
         "concept": "Everything combined",
         "lines": [
-            "Six locks ring WARDEN's core, one for every floor you crossed.",
+            "Six locks ring WARDEN's core, one for every lesson you learned.",
             "Open them all, take the Master Memory chip, and get out.",
         ],
     },

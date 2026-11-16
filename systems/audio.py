@@ -29,8 +29,7 @@ class Audio:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
             self.enabled = True
             self.mixer_ready = True
-        except pygame.error as e:
-            print("Audio init failed:", e)
+        except pygame.error:
             self.enabled = False
             self.mixer_ready = False
             self.sounds = {}
@@ -44,28 +43,16 @@ class Audio:
         self.sounds = {}
         base = SOUNDS_DIR
 
-        print("Looking for sounds in:", os.path.abspath(base))
-
-        if not os.path.isdir(base):
-            print("  → folder does not exist")
-        else:
-            files = os.listdir(base)
-            print("  → files found:", files)
-
+        if os.path.isdir(base):
             for name in ("correct", "wrong", "unlock", "click"):
-                loaded = False
                 for ext in (".wav", ".ogg", ".mp3"):
                     path = os.path.join(base, name + ext)
                     if os.path.exists(path):
                         try:
                             self.sounds[name] = pygame.mixer.Sound(path)
-                            print(f"  ✓ loaded {name}{ext}")
-                            loaded = True
                             break
-                        except pygame.error as e:
-                            print(f"  ✗ failed to load {name}{ext}: {e}")
-                if not loaded:
-                    print(f"  ✗ could not load {name}")
+                        except pygame.error:
+                            pass          # a bad file falls back to the generated sound
 
         self._load_generated_sfx()
         self.music_volume = 1.0

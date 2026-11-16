@@ -850,11 +850,11 @@ class Game:
         self.security.reset()
         self.timer = Timer()
         self.timer.start(run_time_seconds(self.difficulty))
-        self._reset_player_position()
 
         # Fresh levels — undoes prior completion.
         self._register_levels()
         self.level_manager.start("level1")
+        self._reset_player_position()        # after start: Floor 1's own spawn points, not the default corner
 
         self.change_state("playing")
         self._last_level_name = self.level_manager.current_name

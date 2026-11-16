@@ -370,12 +370,14 @@ def draw_ticket(surface, request, step, total, done, t):
     title = head.render(f"JOB {step}/{total} - {request['topic']}  ({['ROUTER', 'PRESS', 'REACTOR'][request['stage']]})",
                         True, theme.GOLD)
     surface.blit(title, (r.x + 10, r.y + 5))
-    font = code_font(13)
-    for k, line in enumerate(request["lines"][:5]):
+    lines = request["lines"][:5]
+    step_y = min(20, (r.h - 26) // max(1, len(lines)))   # few lines: larger type
+    font = code_font(max(13, step_y - 3))
+    for k, line in enumerate(lines):
         img = font.render(line, True, CODE_INK)
         if img.get_width() > r.w - 20:
             img = pygame.transform.smoothscale(img, (r.w - 20, img.get_height()))
-        surface.blit(img, (r.x + 10, r.y + 22 + k * 14))
+        surface.blit(img, (r.x + 10, r.y + 24 + k * step_y))
 
 
 def draw_vents(surface, t):

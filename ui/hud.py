@@ -12,12 +12,12 @@ from ui import theme
 from ui.fonts import ui_font
 
 LEVEL_LABELS = {
-    "level1": "Level 1 of 5",
-    "level2": "Level 2 of 5",
-    "level3": "Level 3 of 5",
-    "level4": "Level 4 of 5",
-    "level5": "Level 5 of 5",
-    "final_vault": "Final Vault",
+    "level1": "Floor 1 of 6",
+    "level2": "Floor 2 of 6",
+    "level3": "Floor 3 of 6",
+    "level4": "Floor 4 of 6",
+    "level5": "Floor 5 of 6",
+    "final_vault": "Final floor",
 }
 
 

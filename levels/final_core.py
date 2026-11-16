@@ -124,7 +124,7 @@ class CoreVault(RoomMixin):
             if k in self.solved:
                 continue
             for j in range(3):
-                if C.plate_rect(k, j).inflate(6, 6).collidepoint(player.rect.center):
+                if C.plate_rect(k, j, self.locks[k]["labels"][j]).inflate(6, 6).collidepoint(player.rect.center):
                     return k, j
         return None
 
