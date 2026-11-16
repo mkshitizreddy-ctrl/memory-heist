@@ -61,18 +61,18 @@ _LEGS = {
 }
 _ECHO_LEGS = {k: [row.replace("C", "J") for row in v] for k, v in _LEGS.items()}
 
-# --- the main characters: taller and more detailed than any NPC (16 x 22) ------------
-# Ghost: a hood with a cyan visor slit, a scarf, a long coat with a belt and buckle,
-# a satchel strap across the chest, gloves and split coat tails.
-# Echo: orange hair with a ponytail, goggles pushed up on the forehead, a headset
-# mic, a jacket with teal trim and a tool belt.
+# --- the main characters: a head taller than an NPC, no more (16 x 16 + outline) ------
+# They used to be 22 rows (46 px) and towered over everyone; now they stand 34 px to
+# an NPC's 32, with more detail packed into the same space.
+# Ghost: a hood with a cyan visor slit, a scarf, a coat with a belt and buckle, a satchel
+# strap across the chest, gloves and split coat tails.
+# Echo: orange hair, goggles pushed up on the forehead, a headset mic, a jacket with
+# teal trim and a tool belt.
 # Legend adds: S scarf, A satchel strap, L belt, b buckle, e eyes, M headset, N trousers.
 _GHOST_TALL_HEAD = [
     "................",
     ".....HHHHH......",
     "....HhhhhhH.....",
-    "...HhhhhhhhH....",
-    "...HhhhDDDDH....",
     "...HhhDVVVVH....",
     "...HhhDDDDDH....",
     "...HHHhhhhHH....",
@@ -81,44 +81,35 @@ _GHOST_TALL_HEAD = [
 _GHOST_TALL_BODY = [
     "...cCCSSCCCc....",
     "..CCCCASCCCCC...",
-    "..CCCCCACCCCC...",
     ".GCCCCCCACCCCG..",
     ".GCLLLLbLLLLCG..",
     "..CCCCCCCCCCC...",
-    "..CCCCC.CCCCC...",
     "..cCCC...CCCc...",
 ]
 _ECHO_TALL_HEAD = [
     "................",
     "....OOOOOO......",
-    "...OOOOOOOOO....",
-    "..OOYYYYYYOOO...",
+    "...OOYYYYYOOO...",
     "..OOKKKKKKOOO...",
     "..OKKeKKeKKMO...",
     "..OKKKKKKKMOOO..",
     "...KKKKKKM.OO...",
-    "....KKKK....O...",
 ]
 _ECHO_TALL_BODY = [
     "...TJJJJJJT.....",
     "..JJTJJJJTJJ....",
-    "..JJJTJJTJJJ....",
-    ".GJJJJTTJJJJG...",
+    ".GJJJTTJJJJG....",
     ".GJLLLLbLLLJG...",
-    "..JJJJJJJJJJ....",
     "..JJJJJJJJJJ....",
     "...JJJJJJJJ.....",
 ]
 _HERO_LEGS = {
-    "idle":   ["...CCC...CCC....", "...CCC...CCC....", "...CCC...CCC....", "...BBB...BBB....",
-               "..BBBB...BBBB..."],
-    "step_a": ["..CCC.....CCC...", "..CCC.....CCC...", ".CCC.......CCC..", ".BBB.......BBB..",
-               ".BBBB......BBBB."],
-    "step_b": ["....CCC.CCC.....", ".....CCCCC......", ".....CCCCC......", ".....BBBBB......",
-               "....BBBBBB......"],
+    "idle":   ["...CCC...CCC....", "...BBB...BBB....", "..BBBB...BBBB..."],
+    "step_a": ["..CCC.....CCC...", ".BBB.......BBB..", ".BBBB......BBBB."],
+    "step_b": ["....CCC.CCC.....", ".....BBBBB......", "....BBBBBB......"],
 }
 _ECHO_HERO_LEGS = {k: [row.replace("C", "N") for row in v] for k, v in _HERO_LEGS.items()}
-HERO_ROWS = len(_GHOST_TALL_HEAD) + len(_GHOST_TALL_BODY) + len(_HERO_LEGS["idle"])     # 22
+HERO_ROWS = len(_GHOST_TALL_HEAD) + len(_GHOST_TALL_BODY) + len(_HERO_LEGS["idle"])     # 16
 
 PALETTES = {
     "ghost": {
@@ -154,12 +145,10 @@ COURIER_COLOURS = {
 _COURIER_CAP = ["....PPPPPP......", "...PPPPPPPPpp..."]
 _COURIER_VEST = [
     "...CRRSSRRC.....",
-    "..CCRRRRRRRCC...",
     "..CCrrrrrrrCC...",
     ".GCCRRRRRRRCCG..",
     ".GCLLLLbLLLLCG..",
     "..CCRRRRRRRCC...",
-    "..CCCCC.CCCCC...",
     "..CCCC...CCCC...",
 ]
 
