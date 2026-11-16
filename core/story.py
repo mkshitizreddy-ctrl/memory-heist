@@ -37,7 +37,7 @@ STORY = {
         "concept": "Operators",
         "lines": [
             "Power to the lower floors runs through three relay bays and wall screens.",
-            "Stand on the breaker whose value makes it true and press E to throw it.",
+            "Each relay asks a question; stand on the breaker that answers it and press E.",
         ],
     },
     "level3": {
