@@ -230,7 +230,7 @@ class LoseScreen:
         tip.midtop = (cx, score.bottom + 22)
         return {"eye": eye, "score": score, "tip": tip}
 
-    def render(self, surface, score=0, level=None):
+    def render(self, surface, score=0, level=None, retry_floor=False):
         self.tick += 1
         width = surface.get_width()
         height = surface.get_height()
@@ -263,8 +263,10 @@ class LoseScreen:
             lose_tip(level), True, theme.MIST), tip.center)
 
         pulse = 140 + int(60 * abs((self.tick % 60) - 30) / 30)
+        keys = ("F: retry floor   |   R: new run   |   M: menu   |   ESC: quit" if retry_floor
+                else "R: retry   |   M: menu   |   ESC: quit")
         prompt = self.prompt_font.render(
-            "R: retry   |   M: menu   |   ESC: quit",
+            keys,
             True, (pulse, 155, 165)
         )
         blit_centered(surface, prompt, (width // 2, height - 50))

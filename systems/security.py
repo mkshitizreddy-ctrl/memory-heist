@@ -11,3 +11,7 @@ class SecurityMeter:
 
     def reset(self):
         self.level = 0
+
+    def cool(self, amount: int):
+        """Lower the meter (never below zero), e.g. while the crew rides the lift."""
+        self.level = max(0, self.level - amount)

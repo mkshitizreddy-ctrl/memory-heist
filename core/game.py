@@ -17,6 +17,8 @@ from core.difficulty import (
     get_difficulty,
     DEFAULT_DIFFICULTY,
     run_time_seconds,
+    question_time_multiplier,
+    FLOOR_COOLDOWN,
 )
 from levels.level1 import Level1
 from levels.level2 import Level2
@@ -168,6 +170,7 @@ class Game:
         self.stats_screen = StatsScreen()
         self._continued = False     # this run was resumed from a save
         self.saved_run = None       # the run the menu can continue, see _refresh_saved_run
+        self._lose_can_retry = False   # the lose screen offers F: retry floor when a save for that floor exists
         self._refresh_saved_run()
 
     def _refresh_saved_run(self):
@@ -181,8 +184,18 @@ class Game:
                       self.timer.get_remaining() if self.timer.active else 0,
                       self.difficulty["label"].lower(), self.coop)
 
-    def _continue_run(self):
-        """Resume the saved run: same floor, score, time left, difficulty and co-op."""
+    def _floor_retry(self):
+        """The save for the floor just lost, or None (Floor 1 has none: R starts over)."""
+        saved = load_progress()
+        if saved and saved["level"] == self.level_manager.current_name:
+            return saved
+        return None
+
+    def _continue_run(self, briefing=True):
+        """Resume the saved run: same floor, score, time left, difficulty and co-op.
+
+        briefing=False (a retry from the lose screen) skips the floor's story card.
+        """
         saved = self.saved_run
         if not saved:
             return
@@ -204,7 +217,8 @@ class Game:
         self._last_level_name = saved["level"]
         self._floor_snap = self._take_snapshot()
         self.change_state("playing")
-        self._open_briefing(saved["level"])
+        if briefing:
+            self._open_briefing(saved["level"])
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -248,7 +262,7 @@ class Game:
         if base_time is None:
             return
 
-        multiplier = self.difficulty["timer_multiplier"]
+        multiplier = question_time_multiplier(self.difficulty)
         level.base_time_limit = max(1, round(base_time * multiplier))
 
         room_number = 1
@@ -279,6 +293,8 @@ class Game:
             cleared = None
             if self._is_next_floor(previous, current_name):
                 cleared = self._floor_summary(previous)
+            if cleared is not None and self.state == "playing":
+                self.security.cool(FLOOR_COOLDOWN)     # WARDEN loses the trail in the lift
             self._floor_snap = self._take_snapshot()
             if cleared is not None and self.state == "playing":
                 self._save_run(current_name)
@@ -499,6 +515,11 @@ class Game:
                         self._start_new_run()
                         # Same for retry: consume the key.
                         continue
+
+                elif event.key == pygame.K_f and self.state == "lose" and self._floor_retry():
+                    self.saved_run = self._floor_retry()
+                    self._continue_run(briefing=False)  # straight back to the start of this floor
+                    continue
 
                 elif event.key == pygame.K_m:
                     if self.state == "playing" and self.paused:
@@ -764,6 +785,7 @@ class Game:
                 self.screen,
                 score=self.score.get_score(),
                 level=self.level_manager.current_name,
+                retry_floor=self._lose_can_retry,
             )
 
         if self.state != "playing":
@@ -804,6 +826,7 @@ class Game:
 
         if new_state == "lose" and previous != "lose":
             self.stats.record_loss()
+            self._lose_can_retry = self._floor_retry() is not None
 
         if new_state == "menu":
             self._refresh_saved_run()

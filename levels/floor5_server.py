@@ -114,8 +114,8 @@ class ServerFloor(RoomMixin, Level5ControlCenter):
 
     # --- difficulty -------------------------------------------------------------
     def _timer_multiplier(self):
-        from core.difficulty import DIFFICULTIES
-        return DIFFICULTIES.get(self.difficulty, {}).get("timer_multiplier", 1.0)
+        from core.difficulty import question_time_multiplier
+        return question_time_multiplier(self.difficulty)
 
     # --- state the game reads -----------------------------------------------------
     @property

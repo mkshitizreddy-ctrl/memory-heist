@@ -118,8 +118,8 @@ class Level2:
     def _get_timer_multiplier(self):
         """Read the global timer multiplier for the current difficulty, if available."""
         try:
-            from core.difficulty import DIFFICULTIES
-            return DIFFICULTIES.get(self.current_difficulty, {}).get("timer_multiplier", 1.0)
+            from core.difficulty import question_time_multiplier
+            return question_time_multiplier(self.current_difficulty)
         except ImportError:
             return 1.0
 
