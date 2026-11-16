@@ -81,13 +81,13 @@ def _number(rng, value, near, low, high):
     return answer, _options(rng, answer, [str(v) for v in near], pool)
 
 
-def _pack(room, difficulty, key, code, question, answer, options, hint, explain, fires):
+def _pack(room, difficulty, key, code, question, answer, options, hint, explain, fires, trace=None):
     tag = zlib.crc32("\n".join(code + [question]).encode()) & 0xFFFF
     return {
         "id": f"patrol_r{room}_{difficulty}_{key}_{tag:04x}", "room": room, "difficulty": difficulty,
         "code": code, "question": question, "options": options, "answer": answer,
         "hint": hint, "explanation": explain, "points": POINTS[difficulty],
-        "fires": list(fires),
+        "fires": list(fires), "trace": list(trace) if trace else None,
     }
 
 
@@ -160,6 +160,7 @@ def _room2(rng, difficulty):
         step_text = "-2"
     fired, names = run(code)
     after = names["cam"]
+    trace = fired + [after]               # the values cam takes at each check of the condition
     ask_after = difficulty != "easy" and rng.random() < 0.5
     if ask_after:
         answer, options = _number(rng, after, [after - 1, after + 1, fired[-1]], -2, 5)
@@ -167,13 +168,13 @@ def _room2(rng, difficulty):
                      "The board's loop: what is cam when it stops?", answer, options,
                      "The loop checks its condition before each pass; it stops the first time it is False.",
                      f"cam goes {_fmt([start] + [v for v in fired[1:]] + [after])}; at {after} the condition is False.",
-                     fired)
+                     fired, trace)
     near = [range(count), [start], [v for v in range(count) if v not in fired], range(start, count)]
     answer, options = _which(rng, fired, count, [[v for v in r if 0 <= v < count] for r in near])
     return _pack(2, difficulty, f"which_{start}_{step_text}", code,
                  "The board's loop: which cameras sweep?", answer, options,
                  "Follow cam: check the while condition, sweep, then change cam.",
-                 f"cam takes {_fmt(fired)} before the condition turns False, so those cameras sweep.", fired)
+                 f"cam takes {_fmt(fired)} before the condition turns False, so those cameras sweep.", fired, trace)
 
 
 # --- Room 3: a for loop nested in the robot's while -------------------------------------

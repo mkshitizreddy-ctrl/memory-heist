@@ -130,3 +130,35 @@ def test_old_question_bank_returns_with_the_switch(monkeypatch):
     assert old.room_requests == {}
     assert old.selected_questions[0]["id"].startswith("level3_loop_")
     assert old.lane_loop.order == [0, 1, 2, 3]
+
+
+def test_camera_trace_is_the_counter_at_each_check():
+    rng = random.Random(8)
+    for _ in range(100):
+        r = make_request(2, rng.choice(DIFFS), rng)
+        calls, scope = replay(r["code"])
+        assert r["trace"] == calls + [scope["cam"]]
+
+
+def _game_level():
+    from core.game import Game
+
+    game = Game()
+    game._start_new_run()
+    game.level_manager.start("level3")
+    return game, game.level_manager.current
+
+
+def test_answers_only_count_at_the_door():
+    game, level = _game_level()
+    level.room_map.current_name = "level3_room1"
+    level.current_question_number = 0
+    level.load_current_question()
+    game.player.rect.topleft = (100, 446)                       # at the spawn, far from the door
+    right = pygame.K_1 + level.correct_option_index
+    level.handle_event(pygame.event.Event(pygame.KEYDOWN, key=right))
+    assert level.gate1.state == "locked" and "door" in level.feedback.lower()
+    game.player.rect.center = level.gate1.rect.center
+    level.handle_event(pygame.event.Event(pygame.KEYDOWN, key=right))
+    assert level.gate1.state != "locked"
+    assert level.doors_opened() == 1                            # the counter moves with the door

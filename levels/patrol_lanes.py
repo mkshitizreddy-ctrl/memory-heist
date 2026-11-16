@@ -187,6 +187,23 @@ class LaneLoop:
                         pygame.draw.rect(surface, dash, (inner.x, y, inner.width, min(7, rect.bottom - y)))
 
             self._caps(surface, rect, phase, horizontal)
+            self._number(surface, lane, rect, phase, horizontal)
+
+    _tag_font = None
+
+    @classmethod
+    def _number(cls, surface, lane, rect, phase, horizontal):
+        """The lane's number on a plate that stays readable over a live beam: it is what the board's `lane` means."""
+        if cls._tag_font is None:
+            from ui.fonts import ui_font
+            cls._tag_font = ui_font(16, bold=True)
+        ink = {"active": CORE, "warning": AMBER}.get(phase, (214, 222, 236))
+        text = cls._tag_font.render(str(lane), True, ink)
+        plate = text.get_rect().inflate(12, 4)
+        plate.center = (rect.left + 18, rect.centery) if horizontal else (rect.centerx, rect.top + 16)
+        pygame.draw.rect(surface, (12, 14, 26), plate, border_radius=4)
+        pygame.draw.rect(surface, ink, plate, 1, border_radius=4)
+        surface.blit(text, text.get_rect(center=plate.center))
 
     @staticmethod
     def _edge_strips(surface, rect, horizontal):

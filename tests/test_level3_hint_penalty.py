@@ -174,6 +174,7 @@ def test_penalty_through_real_game_selection(key):
     level.current_question_number = 0
     level.load_current_question()
 
+    game.player.rect.center = level._current_gate().rect.center   # answers are taken at the door
     level.handle_event(key_event(pygame.K_h))
     answer_correctly(level)
 

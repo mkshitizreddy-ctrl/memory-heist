@@ -486,7 +486,7 @@ def _board_font(lines):
     return code_font(12), 11
 
 
-def draw_code_board(surface, code, lane_loop, camera_bank, gate_open, t):
+def draw_code_board(surface, code, lane_loop, camera_bank, gate_open, t, trace=None):
     """The room's own loop, exactly as the room runs it.  Loop headers light while the loop
     runs, the zap/sweep line turns coral while something is live, and the chip shows the
     loop's variable (or that the open door ended it)."""
@@ -511,7 +511,13 @@ def draw_code_board(surface, code, lane_loop, camera_bank, gate_open, t):
         running = camera_bank is not None and camera_bank.on and not gate_open
         live = running and camera_bank.seen_by is not None
         warning = False
-        chip = "camera.on = False" if not running else "on = True"
+        if not running:
+            chip = "camera.on = False"
+        elif trace:                                   # step through the counter: cam = 1, cam = 3 stop
+            step = int(t / 1.2) % len(trace)
+            chip = f"cam = {trace[step]}" + ("  stop" if step == len(trace) - 1 else "")
+        else:
+            chip = "on = True"
     header = theme.SLATE if gate_open else (theme.GOLD if warning else theme.SKY)
 
     font, step = _board_font(code)
