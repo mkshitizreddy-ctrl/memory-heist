@@ -1,7 +1,7 @@
 import pygame
 import pytest
 
-from levels.level1 import Level1
+from levels.legacy.level1 import Level1
 @pytest.fixture(autouse=True)
 def initialize_pygame_font():
     pygame.font.init()

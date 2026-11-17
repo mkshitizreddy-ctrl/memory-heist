@@ -15,7 +15,7 @@ it can never disagree with the language.
 
 Built on the shared kit: ui.theme, core.tilemap, core.animation, core.easing.
 Wrong bin: crate returns, security +20, score -10 (same amounts as Level 1).
-This is Level 1. The original question-screen Level 1 stays in levels/level1.py
+This is Level 1. The original question-screen Level 1 stays in levels/legacy/level1.py
 and returns with MEMORY_HEIST_OLD_LEVEL1=1.
 """
 
@@ -225,6 +225,8 @@ class FloorOneLobby:
         self.cleaner = NPC("cleaner", (0, 0), patrol=[(c * TILE, r * TILE) for c, r in CLEANER_ROUTE],
                            speed=34.0, pause=1.6)
         self.npcs = [self.receptionist, self.guard, self.cleaner]
+        # The crew steps out of the elevator, clear of the instructions on the wall above.
+        self.spawn_points = ((2 * TILE + 8, 3 * TILE + 24), (2 * TILE + 8, 4 * TILE + 28))
         self._lines_said = {"receptionist": 0, "guard": 0, "cleaner": 0, "praise": 0}
         self.led_pos = (20 * TILE + 16, 2 * TILE + 10)      # WARDEN camera light
         self.door = pygame.Rect(28 * TILE, EXIT_ROWS[0] * TILE, TILE * 2, TILE * len(EXIT_ROWS))

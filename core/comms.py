@@ -34,7 +34,7 @@ COMMS = {
             "Arithmetic is not optional.",
             "You are wasting power, and my patience.",
         ]),
-        "progress": ("Echo", ["Panel lit. Check the operator order before the next one.", "Good sum."]),
+        "progress": ("Echo", ["Relay live. Comparisons next: mind where the edge is.", "Two down. The last relay is pure logic."]),
         "danger": ("WARDEN", ["Lockdown procedures are warming up. Stop now."]),
     },
     "level3": {

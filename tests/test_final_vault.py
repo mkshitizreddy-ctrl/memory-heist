@@ -8,7 +8,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from levels.final_vault import FinalVault
+from levels.legacy.final_vault import FinalVault
 
 ANSWER_KEYS = {1: pygame.K_1, 2: pygame.K_2, 3: pygame.K_3}
 CORRECT_SEQUENCE = [1, 2, 3, 1, 3, 2]

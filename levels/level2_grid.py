@@ -30,6 +30,7 @@ from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
 from levels import badge_door, lighting, lobby_juice
 from levels import snake_decor as G
+from levels.grid_requests import make_question
 from levels.level2 import GATES_PER_LEVEL, POINTS_FALLBACK, Level2
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
@@ -93,6 +94,7 @@ class GridRoom(RoomMixin, Level2):
         self.spawn_points = G.SPAWNS
 
         self.engineer = NPC("engineer", ENGINEER_ROUTE[0], patrol=ENGINEER_ROUTE)
+        self.engineer.bubble_below = True       # he walks just under the answer pads: never talk over them
         self.npcs = [self.engineer]
         self._engineer_lines = 0
         self._praised = 0
@@ -115,6 +117,15 @@ class GridRoom(RoomMixin, Level2):
         self._poster_reads = 0
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
         self._power = 0.0                         # 0 dim .. 1 fully powered; eases toward the relays done
+
+    use_bank = False        # True: draw from room_question_pools like the original Level 2 (tests, fixed content)
+
+    def _load_question_for_gate(self, gate_number):
+        """Each relay's question is written fresh (levels/grid_requests.py), not drawn from a fixed bank."""
+        if self.use_bank:
+            Level2._load_question_for_gate(self, gate_number)
+            return
+        self.current_question = make_question(gate_number, self.current_difficulty)
 
     # --- state ------------------------------------------------------------
     @property

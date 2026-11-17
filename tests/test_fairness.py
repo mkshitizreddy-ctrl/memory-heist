@@ -1,0 +1,89 @@
+"""Fairness: security cools between floors, kinder question clocks, and F retries the lost floor."""
+
+import os
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
+import pygame
+import pytest
+
+from core.difficulty import DIFFICULTIES, FLOOR_COOLDOWN, question_time_multiplier
+from core.game import Game
+from systems import progress as P
+from systems.security import SecurityMeter
+from tests.test_continue import clear_floor_one, press
+
+
+@pytest.fixture
+def game():
+    g = Game()
+    g.running = True
+    return g
+
+
+def test_cool_never_goes_below_zero():
+    s = SecurityMeter()
+    s.increase(30)
+    s.cool(20)
+    assert s.level == 10
+    s.cool(50)
+    assert s.level == 0
+
+
+def test_question_clocks_are_kinder_on_easy_and_medium():
+    assert question_time_multiplier("easy") > question_time_multiplier("medium") > 1.0
+    assert question_time_multiplier("hard") < 1.0
+    assert question_time_multiplier(DIFFICULTIES["easy"]) == question_time_multiplier("easy")
+    assert question_time_multiplier("nonsense") == question_time_multiplier("medium")
+
+
+def test_floor4_clock_uses_the_question_multiplier():
+    from levels.floor4_archive import BASE_SECONDS, ArchiveFloor
+    floor = ArchiveFloor()
+    floor.difficulty = "easy"
+    assert round(BASE_SECONDS * floor._timer_multiplier()) == round(BASE_SECONDS * 2.0)
+
+
+def test_security_cools_when_a_floor_is_cleared(game):
+    press(game, pygame.K_RETURN)
+    game.story_screen.done = True
+    game._leave_story()
+    game._end_briefing()
+    game.security.level = 60
+    game.level_manager.current.is_complete = lambda: True
+    game.update(1 / 60)
+    assert game.level_manager.current_name == "level2"
+    assert game.security.level == 60 - FLOOR_COOLDOWN
+
+
+def test_f_retries_the_floor_that_was_lost(game):
+    clear_floor_one(game)
+    assert game.level_manager.current_name == "level2"
+    if game.state != "playing":
+        game._end_briefing()
+    game.score.add(300)
+    game.change_state("lose")
+    assert game._lose_can_retry
+    press(game, pygame.K_f)
+    assert game.state == "playing"
+    assert game.level_manager.current_name == "level2"
+    assert game.score.get_score() == P.load_progress()["score"]      # the floor's points start over
+    assert game.security.level == 0
+
+
+def test_floor1_loss_offers_only_a_new_run(game):
+    press(game, pygame.K_RETURN)
+    game.story_screen.done = True
+    game._leave_story()
+    game._end_briefing()
+    game.change_state("lose")
+    assert not game._lose_can_retry
+    press(game, pygame.K_f)
+    assert game.state == "lose"
+
+
+def test_lose_prompt_fits():
+    from ui.screens import LoseScreen
+    surf = pygame.Surface((960, 640))
+    LoseScreen().render(surf, 10, "level3", retry_floor=True)

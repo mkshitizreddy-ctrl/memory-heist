@@ -1,5 +1,5 @@
 """
-levels/hall_decor.py
+levels/legacy/hall_decor.py
 Owner: Member 4 - Apporov Sahu's Level 5, rebuilt on the shared kit
 
 Geometry and art for Floor 5, the server hall.  The footprint is Floor 2's (three

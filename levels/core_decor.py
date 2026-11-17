@@ -31,7 +31,9 @@ FLOOR_RADIUS = 7.3                    # tiles
 CORRIDOR_ROWS = (10, 11, 12)
 PYLON_RADIUS = 132
 PLATE_RADIUS = 198
-PLATE_SPREAD = 17                     # degrees between a lock's plates
+PLATE_FONT = 14
+PLATE_MAX_W = 150                     # widest a plate may grow for a long answer
+PLATE_SPREAD = 19                     # degrees between a lock's plates
 BEAM_HALF = 13                        # degrees: half the searchlight's width
 BEAM_NEAR, BEAM_FAR = 56, 236         # the beam starts outside the iris and reaches the wall
 
@@ -75,9 +77,11 @@ def pylon_rect(k):
     return r
 
 
-def plate_rect(k, j):
+def plate_rect(k, j, label=None):
+    """Plate j of lock k; a long answer `label` widens it about the same centre."""
     a = lock_angle(k) + math.radians((j - 1) * PLATE_SPREAD)
-    r = pygame.Rect(0, 0, 50, 30)
+    w = 50 if not label else max(50, min(code_font(PLATE_FONT).size(label)[0] + 14, PLATE_MAX_W))
+    r = pygame.Rect(0, 0, w, 30)
     r.center = (CENTRE[0] + int(PLATE_RADIUS * math.cos(a)), CENTRE[1] + int(PLATE_RADIUS * math.sin(a)))
     return r
 
@@ -207,9 +211,9 @@ def draw_pylon(surface, k, state, t):
 
 
 def draw_plates(surface, k, labels, out, wrong, standing, solved_index, t):
-    font = code_font(13)
+    font = code_font(PLATE_FONT)
     for j in range(3):
-        r = plate_rect(k, j)
+        r = plate_rect(k, j, labels[j] if j < len(labels) else None)
         if solved_index is not None:
             tone = theme.TEAL if j == solved_index else (40, 36, 40)
         elif j in wrong:

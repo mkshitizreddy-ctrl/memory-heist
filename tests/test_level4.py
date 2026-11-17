@@ -1,6 +1,6 @@
 import pygame
 
-from levels.level4_memory import Level4MemoryVault
+from levels.legacy.level4_memory import Level4MemoryVault
 
 
 class FakeScore:

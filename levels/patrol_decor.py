@@ -30,6 +30,8 @@ HEADER = pygame.Rect(60, 52, 840, 28)
 BOARD = pygame.Rect(560, 82, 262, 70)
 NOTICE = pygame.Rect(400, 84, 148, 64)
 BANNER_LANE = pygame.Rect(150, 84, 405, 32)
+CODE_BOARD = pygame.Rect(400, 82, 422, 70)        # the room's own loop: takes the notice's place too
+CODE_LABELS = 118                                 # right-hand column for the title and the chip
 
 DIM_CODE = theme.mix(theme.SLATE, theme.MIST, 0.45)          # an unlit line is still readable
 
@@ -470,3 +472,68 @@ def room_lights(room, beams, emitters, robot_centre, robot_alert, gate_centre, g
                         1.0 if robot_alert else 0.55))
     lights.append(Light(gate_centre, 100, (64, 214, 190) if gate_open else (255, 70, 70), 0.8))
     return lights
+
+
+# --- the board for a generated room loop (levels/patrol_requests.py) ------------
+def _board_font(lines):
+    """The largest code font that fits every line and row on the board."""
+    for size in (17, 16, 15, 14, 13, 12):
+        font = code_font(size)
+        step = size - 2
+        if (max(font.size(line)[0] for line in lines) <= CODE_BOARD.w - CODE_LABELS - 14
+                and 6 + len(lines) * step <= CODE_BOARD.h - 2):
+            return font, step
+    return code_font(12), 11
+
+
+def draw_code_board(surface, code, lane_loop, camera_bank, gate_open, t, trace=None):
+    """The room's own loop, exactly as the room runs it.  Loop headers light while the loop
+    runs, the zap/sweep line turns coral while something is live, and the chip shows the
+    loop's variable (or that the open door ended it)."""
+    board = CODE_BOARD
+    panel = pygame.Surface(board.size, pygame.SRCALPHA)
+    pygame.draw.rect(panel, (*theme.INK, 225), panel.get_rect(), border_radius=6)
+    pygame.draw.rect(panel, (*ACCENT, 255), panel.get_rect(), 2, border_radius=6)
+    split = board.right - CODE_LABELS
+    pygame.draw.line(panel, (*theme.mix(theme.INK, ACCENT, 0.4), 255), (split - board.x, 8),
+                     (split - board.x, board.h - 9))
+    surface.blit(panel, board.topleft)
+    head = ui_font(13, bold=True).render("PATROL  LOOP", True, ACCENT)
+    surface.blit(head, head.get_rect(midtop=(split + CODE_LABELS // 2, board.y + 8)))
+
+    if lane_loop is not None:
+        phases = lane_loop.phases()
+        live = "active" in phases and not gate_open
+        warning = "warning" in phases and not live
+        lane = lane_loop.current_lane()
+        chip = "break" if gate_open else (f"lane = {lane}" if lane is not None else "lane = -")
+    else:
+        running = camera_bank is not None and camera_bank.on and not gate_open
+        live = running and camera_bank.seen_by is not None
+        warning = False
+        if not running:
+            chip = "camera.on = False"
+        elif trace:                                   # step through the counter: cam = 1, cam = 3 stop
+            step = int(t / 1.2) % len(trace)
+            chip = f"cam = {trace[step]}" + ("  stop" if step == len(trace) - 1 else "")
+        else:
+            chip = "on = True"
+    header = theme.SLATE if gate_open else (theme.GOLD if warning else theme.SKY)
+
+    font, step = _board_font(code)
+    for i, line in enumerate(code):
+        text = line.strip()
+        if text.startswith(("for ", "while ")):
+            colour = header
+        elif text.startswith(("zap(", "sweep(")):
+            colour = theme.CORAL if live else (theme.SLATE if gate_open else theme.MIST)
+        else:
+            colour = theme.MIST if not gate_open else theme.SLATE
+        surface.blit(font.render(line, True, colour), (board.x + 12, board.y + 5 + i * step))
+
+    chip_font = ui_font(15, bold=True)
+    if chip_font.size(chip)[0] > CODE_LABELS - 12:
+        chip_font = ui_font(12, bold=True)
+    img = chip_font.render(chip, True, theme.TEAL if gate_open else (theme.CORAL if live else theme.MIST))
+    surface.blit(img, img.get_rect(center=(split + CODE_LABELS // 2, board.y + 44)))
+    pygame.draw.circle(surface, theme.CORAL if live else theme.SLATE, (split + CODE_LABELS // 2, board.y + 60), 3)

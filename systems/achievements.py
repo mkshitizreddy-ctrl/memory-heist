@@ -27,6 +27,8 @@ BADGES = (
     ("veteran", "Veteran", f"Win {VETERAN_WINS} runs"),
 )
 BADGE_IDS = tuple(b[0] for b in BADGES)
+FLOOR_COUNT = 6
+FLOOR_SHORT_NAMES = ("LOBBY", "GRID", "PATROL", "ARCHIVE", "SERVERS", "CORE")
 BADGE_NAMES = {b[0]: b[1] for b in BADGES}
 
 
@@ -68,6 +70,7 @@ class Stats:
         self.wins = self.losses = self.best_score = 0
         self.best_time_left = 0
         self.badges = []
+        self.deepest = 0                 # floors ever cleared in one run, 0..6 (the badges screen's strip)
         self._load()
 
     def _load(self):
@@ -82,13 +85,14 @@ class Stats:
         self.losses = _count(data.get("losses"))
         self.best_score = _count(data.get("best_score"))
         self.best_time_left = _count(data.get("best_time_left"))
+        self.deepest = min(FLOOR_COUNT, _count(data.get("deepest")))
         saved = data.get("badges")
         if isinstance(saved, list):
             self.badges = [b for b in BADGE_IDS if b in saved]
 
     def _save(self):
         data = {"wins": self.wins, "losses": self.losses, "best_score": self.best_score,
-                "best_time_left": self.best_time_left, "badges": self.badges}
+                "best_time_left": self.best_time_left, "badges": self.badges, "deepest": self.deepest}
         try:
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
             with open(self.path, "w", encoding="utf-8") as f:
@@ -106,6 +110,13 @@ class Stats:
         self.badges = [b for b in BADGE_IDS if b in self.badges or b in earned]
         self._save()
         return earned, new
+
+    def record_floor(self, cleared):
+        """Remember the deepest floor cleared (1 = the lobby .. 6 = WARDEN's core). Never goes down."""
+        cleared = max(0, min(FLOOR_COUNT, int(cleared)))
+        if cleared > self.deepest:
+            self.deepest = cleared
+            self._save()
 
     def record_loss(self):
         self.losses += 1

@@ -1,5 +1,5 @@
 """
-levels/final_vault_hall.py
+levels/legacy/final_vault_hall.py
 Owner: Member 4 - Apporov Sahu's Final Vault, rebuilt as a walkable floor
 
 Final Floor - Master Vault  (everything combined)
@@ -19,7 +19,7 @@ answers are pads on the floor.  Stand on a pad and press the action key.
 The rules are exactly the old Final Vault's: +50 per stage (once each), +150 for
 unlocking the vault, a wrong pad costs security +20 and score -10, and the terminal
 adds security +5 for text or a wrong number.  The questions, code and the terminal
-check come from FinalVault, which this class extends; levels/final_vault.py is
+check come from FinalVault, which this class extends; levels/legacy/final_vault.py is
 untouched and returns with MEMORY_HEIST_OLD_FINAL_VAULT=1.
 
 Typing at the terminal no longer clashes with the answer keys (the old screen used
@@ -30,8 +30,8 @@ import pygame
 
 from core.tilemap import TILE, TileMap, make_tiles
 from levels import grid_decor as G
-from levels import vault_decor as V
-from levels.final_vault import FinalVault
+from levels.legacy import vault_decor as V
+from levels.legacy.final_vault import FinalVault
 from levels.room_base import TITLE_Y, RoomMap, RoomMixin
 from ui import theme
 from ui.fonts import code_font, ui_font

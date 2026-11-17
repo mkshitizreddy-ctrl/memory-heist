@@ -25,7 +25,16 @@ def test_frames_have_the_shape_player_expects(name):
     f = make_hero_frames(name)
     assert set(f) == {"idle", "walk", "blink"} and len(f["walk"]) == 4
     for img in [f["idle"]] + f["walk"]:
-        assert img.get_size() == (32, 32)
+        assert img.get_size() == (32, (hs.HERO_ROWS + 1) * hs.SCALE)      # a head taller than the NPCs
+
+
+@pytest.mark.parametrize("name", HEROES)
+def test_the_heroes_stand_a_little_taller_than_any_npc_but_never_tower(name):
+    from core.npc_sprites import KINDS, make_npc_frames
+    hero = make_hero_frames(name)["idle"].get_height()
+    for kind in KINDS:
+        npc = make_npc_frames(kind)["idle"].get_height()
+        assert npc < hero <= npc + 4          # a protagonist, not a giant
 
 
 @pytest.mark.parametrize("name", HEROES)
@@ -42,7 +51,7 @@ def test_source_art_leaves_room_for_the_outline(name):
     head, body, legs = hs._PARTS[name]
     for key, leg_rows in legs.items():
         rows = head + body + leg_rows
-        assert len(rows) <= hs.GRID - 1                 # a free row for the outline
+        assert len(rows) == hs.HERO_ROWS                # the builder adds a free row under it for the outline
         assert all(len(r) == hs.GRID for r in rows)
         assert set(rows[0]) == {"."}
         assert all(r[0] == "." and r[-1] == "." for r in rows)
@@ -101,7 +110,7 @@ def test_ghost_hood_and_coat_are_not_lost_against_a_navy_floor():
         assert (r + g + b) / 3 > 60, key
     img = make_hero_frames("ghost")["idle"]
     # the hood (top of the sprite) must differ clearly from the floor colour
-    hood = [p for p in _pixels(img.subsurface((0, 0, 32, 16)))
+    hood = [p for p in _pixels(img.subsurface((0, 0, 32, 12)))
             if p != hs.OUTLINE[:3] and p != hs.PALETTES["ghost"]["D"]
             and p != hs.PALETTES["ghost"]["V"]]
     assert hood and all(sum(abs(a - b) for a, b in zip(p, floor)) > 25 for p in hood)

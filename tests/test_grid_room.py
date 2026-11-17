@@ -59,6 +59,7 @@ def make_room(hints=True, coop=False, seed=1):
 def set_pool(room, questions):
     """Make every gate draw from `questions` (one per gate, in order)."""
     room.room_question_pools = {1: [questions[0]], 2: [questions[1]], 3: [questions[2]]}
+    room.use_bank = True                  # these tests pin the questions; play uses grid_requests
     room.current_difficulty = "medium"
     room._load_question_for_gate(1)
 

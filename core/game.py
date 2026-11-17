@@ -17,19 +17,19 @@ from core.difficulty import (
     get_difficulty,
     DEFAULT_DIFFICULTY,
     run_time_seconds,
+    question_time_multiplier,
+    FLOOR_COOLDOWN,
 )
-from levels.level1 import Level1
+from levels.legacy.level1 import Level1
 from levels.level2 import Level2
 from levels.level2_grid import GridRoom
 from levels.level3_loops import Level3LaserLoop
 from levels.floor4_archive import ArchiveFloor
 from levels.floor5_server import ServerFloor
-from levels.level4_memory import Level4MemoryVault
+from levels.legacy.level4_memory import Level4MemoryVault
 from levels.level5_control import Level5ControlCenter
-from levels.level5_hall import ServerHall
-from levels.final_vault import FinalVault
+from levels.legacy.final_vault import FinalVault
 from levels.final_core import CoreVault
-from levels.final_vault_hall import VaultHall
 from levels.common import draw_cyber_background
 from ui.menu import MainMenu
 from ui.screens import WinScreen, LoseScreen
@@ -57,6 +57,7 @@ from systems.timer import Timer
 from systems.security import SecurityMeter
 from systems.hints import HintSystem
 from ui.fonts import ui_font
+from ui import sidebars
 from ui.stats_screen import StatsScreen
 
 
@@ -100,7 +101,8 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        self.screen = self._create_window()
+        self.window = self._create_window()
+        self.screen = display.game_area(self.window)    # every screen draws here; the strips are the window's
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -166,6 +168,7 @@ class Game:
         self.stats_screen = StatsScreen()
         self._continued = False     # this run was resumed from a save
         self.saved_run = None       # the run the menu can continue, see _refresh_saved_run
+        self._lose_can_retry = False   # the lose screen offers F: retry floor when a save for that floor exists
         self._refresh_saved_run()
 
     def _refresh_saved_run(self):
@@ -179,8 +182,18 @@ class Game:
                       self.timer.get_remaining() if self.timer.active else 0,
                       self.difficulty["label"].lower(), self.coop)
 
-    def _continue_run(self):
-        """Resume the saved run: same floor, score, time left, difficulty and co-op."""
+    def _floor_retry(self):
+        """The save for the floor just lost, or None (Floor 1 has none: R starts over)."""
+        saved = load_progress()
+        if saved and saved["level"] == self.level_manager.current_name:
+            return saved
+        return None
+
+    def _continue_run(self, briefing=True):
+        """Resume the saved run: same floor, score, time left, difficulty and co-op.
+
+        briefing=False (a retry from the lose screen) skips the floor's story card.
+        """
         saved = self.saved_run
         if not saved:
             return
@@ -202,7 +215,8 @@ class Game:
         self._last_level_name = saved["level"]
         self._floor_snap = self._take_snapshot()
         self.change_state("playing")
-        self._open_briefing(saved["level"])
+        if briefing:
+            self._open_briefing(saved["level"])
 
     def _register_levels(self):
         """Create fresh level instances and register them."""
@@ -246,7 +260,7 @@ class Game:
         if base_time is None:
             return
 
-        multiplier = self.difficulty["timer_multiplier"]
+        multiplier = question_time_multiplier(self.difficulty)
         level.base_time_limit = max(1, round(base_time * multiplier))
 
         room_number = 1
@@ -277,6 +291,8 @@ class Game:
             cleared = None
             if self._is_next_floor(previous, current_name):
                 cleared = self._floor_summary(previous)
+            if cleared is not None and self.state == "playing":
+                self.security.cool(FLOOR_COOLDOWN)     # WARDEN loses the trail in the lift
             self._floor_snap = self._take_snapshot()
             if cleared is not None and self.state == "playing":
                 self._save_run(current_name)
@@ -385,14 +401,15 @@ class Game:
     def _create_window(fullscreen=None):
         """Open the game window: full-screen by default, as saved in the settings.
 
-        The drawing surface stays 960x640. SCALED stretches it to the screen
+        The window is 1136x640 (16:9); the game draws in its central 960x640 and
+        ui/sidebars.py fills the strips either side. SCALED stretches it to the screen
         (smoothed, see display.configure_scaling) and maps mouse positions
         back. Setups without a renderer (headless test runs) fall back to
         simpler windows instead of failing.
         """
         if fullscreen is None:
             fullscreen = Settings.load().fullscreen
-        size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        size = display.CANVAS_SIZE                   # 16:9: the game plus a wall strip each side
         display.configure_scaling()
         flags = display.window_flags(fullscreen, pygame.display.get_driver())
         for attempt in (flags, pygame.SCALED, 0):
@@ -408,6 +425,8 @@ class Game:
             pygame.display.toggle_fullscreen()
         except pygame.error:
             return
+        self.window = pygame.display.get_surface() or self.window      # the switch may hand back a new surface
+        self.screen = display.game_area(self.window)
         self.settings.fullscreen = display.is_fullscreen()
         self.settings.save()
 
@@ -494,6 +513,11 @@ class Game:
                         self._start_new_run()
                         # Same for retry: consume the key.
                         continue
+
+                elif event.key == pygame.K_f and self.state == "lose" and self._floor_retry():
+                    self.saved_run = self._floor_retry()
+                    self._continue_run(briefing=False)  # straight back to the start of this floor
+                    continue
 
                 elif event.key == pygame.K_m:
                     if self.state == "playing" and self.paused:
@@ -759,6 +783,7 @@ class Game:
                 self.screen,
                 score=self.score.get_score(),
                 level=self.level_manager.current_name,
+                retry_floor=self._lose_can_retry,
             )
 
         if self.state != "playing":
@@ -776,6 +801,7 @@ class Game:
                 self.level_manager.current_name,
             )
 
+        sidebars.draw_sidebars(self.window, self.state, self.level_manager.current_name, self._bg_tick / 60.0)
         pygame.display.flip()
 
     def _get_pause_assets(self):
@@ -798,6 +824,7 @@ class Game:
 
         if new_state == "lose" and previous != "lose":
             self.stats.record_loss()
+            self._lose_can_retry = self._floor_retry() is not None
 
         if new_state == "menu":
             self._refresh_saved_run()
@@ -844,11 +871,11 @@ class Game:
         self.security.reset()
         self.timer = Timer()
         self.timer.start(run_time_seconds(self.difficulty))
-        self._reset_player_position()
 
         # Fresh levels — undoes prior completion.
         self._register_levels()
         self.level_manager.start("level1")
+        self._reset_player_position()        # after start: Floor 1's own spawn points, not the default corner
 
         self.change_state("playing")
         self._last_level_name = self.level_manager.current_name

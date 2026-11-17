@@ -21,7 +21,7 @@ Rules (the old Final Vault's numbers):
     take the chip    +150
     the searchlight  score -10 when it catches you (score only), after a short grace
 
-levels/final_vault.py (the original) and levels/final_vault_hall.py (the previous
+levels/legacy/final_vault.py (the original) and levels/legacy/final_vault_hall.py (the previous
 floor) are untouched; MEMORY_HEIST_OLD_FINAL_VAULT=1 returns the original.
 """
 
@@ -124,7 +124,7 @@ class CoreVault(RoomMixin):
             if k in self.solved:
                 continue
             for j in range(3):
-                if C.plate_rect(k, j).inflate(6, 6).collidepoint(player.rect.center):
+                if C.plate_rect(k, j, self.locks[k]["labels"][j]).inflate(6, 6).collidepoint(player.rect.center):
                     return k, j
         return None
 

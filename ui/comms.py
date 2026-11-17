@@ -82,6 +82,7 @@ class CommsFeed:
             return
         _, _, old_security, old_gates = previous
         if gates > old_gates:
+            self.queue = []                  # older lines (a mistake) are stale once the crew moves on
             self._trigger(level, "progress", self._progress)
         if security > old_security:
             ratio = security / security_max if security_max > 0 else 0.0

@@ -27,14 +27,20 @@ def test_no_row_still_tells_the_player_to_use_the_mouse():
     assert "mouse" not in text and "click" not in text
 
 
-def test_the_two_walkable_first_levels_say_how_to_move_and_use_things():
-    action = rows()["Levels 1, 2"]
+def test_every_floor_says_how_to_move_and_act():
+    action = rows()["Every floor"]
     assert "WASD" in action and "E " in action + " "
     assert "pick up" in action and "answer" in action
 
 
-def test_the_answer_key_levels_still_say_1_to_4():
-    assert "1-4" in rows()["Levels 3, 5, Final Vault"]
+def test_floor_3_still_answers_with_1_to_4():
+    assert "1-4" in rows()["Floor 3"]
+
+
+def test_the_rebuilt_floors_name_their_own_keys():
+    action = rows()["Floors 4, 5, Final"]
+    assert "Q scan" in action and "X lure" in action and "H hint" in action
+    assert len(CONTROLS) == 5                       # a sixth row would push the start prompt off the screen
 
 
 def test_every_label_is_unique_and_the_co_op_and_pause_rows_remain():

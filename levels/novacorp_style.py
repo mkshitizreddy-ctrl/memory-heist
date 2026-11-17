@@ -132,15 +132,16 @@ def draw_poster(surface, rect, lines, font, accent=(168, 52, 44)):
     pygame.draw.rect(surface, (0, 0, 0), r.move(2, 2))
     pygame.draw.rect(surface, theme.mix((52, 50, 40), accent, 0.35), r)
     pygame.draw.rect(surface, (214, 200, 150), r, 2)
-    eye = (r.centerx, r.y + r.h // 3)
+    images = [font.render(line, True, (232, 220, 176)) for line in lines]
+    block = sum(img.get_height() for img in images)
+    y = min(r.y + r.h // 2 + 6, r.bottom - 4 - block)          # long slogans move up, never spill out
+    eye = (r.centerx, min(r.y + r.h // 3, y - 10))
     pygame.draw.ellipse(surface, (226, 214, 170), (eye[0] - 14, eye[1] - 8, 28, 16))
     pygame.draw.circle(surface, accent, eye, 6)
     pygame.draw.circle(surface, (16, 14, 10), eye, 3)
-    y = r.y + r.h // 2 + 6
-    for line in lines:
-        img = font.render(line, True, (232, 220, 176))
+    for img in images:
         surface.blit(img, img.get_rect(midtop=(r.centerx, y)))
-        y += img.get_height() + 1
+        y += img.get_height()
 
 
 def draw_speaker(surface, centre, t, active):

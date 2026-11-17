@@ -38,12 +38,16 @@ SEEN = (255, 60, 60)
 
 
 class CameraBank:
-    def __init__(self, difficulty="medium"):
+    def __init__(self, difficulty="medium", active=None):
         count, half, speed = SETTINGS.get(difficulty, SETTINGS["medium"])
         self.half = half
         self.speed = speed
         self.cameras = CAMERAS[:count] if count < 3 else CAMERAS
+        # The cameras the board's loop sweeps (default: all).  The others hang still and see nothing.
+        self.active = set(range(len(self.cameras)) if active is None else
+                          (i for i in active if 0 <= i < len(self.cameras)))
         self.clock = 0.0
+        self._label_font = None
         self.on = True
         self.dwell = 0.0
         self.seen_by = None
@@ -80,8 +84,8 @@ class CameraBank:
         return self.on and self.clock >= GRACE
 
     def camera_seeing(self, rects):
-        """Index of the first camera whose cone holds any of the rects, or None."""
-        for index in range(len(self.cameras)):
+        """Index of the first sweeping camera whose cone holds any of the rects, or None."""
+        for index in sorted(self.active):
             for rect in rects:
                 points = (rect.center, rect.topleft, rect.topright, rect.bottomleft, rect.bottomright)
                 if any(self.inside(index, p) for p in points):
@@ -124,7 +128,7 @@ class CameraBank:
         if not self.on:
             return []
         pieces = []
-        for index in range(len(self.cameras)):
+        for index in sorted(self.active):
             phase = "active" if self.seen_by == index else "warning"
             mx, my = self.mount(index)
             r = math.radians(self.angle(index))
@@ -137,7 +141,7 @@ class CameraBank:
 
     def draw(self, surface, t):
         for index in range(len(self.cameras)):
-            if self.on:
+            if self.on and index in self.active:
                 self._draw_cone(surface, index, t)
             self._draw_camera(surface, index, t)
 
@@ -178,13 +182,19 @@ class CameraBank:
 
     def _draw_camera(self, surface, index, t):
         mx, my = self.mount(index)
+        sweeping = self.on and index in self.active
         pygame.draw.rect(surface, (38, 34, 62), (mx - 12, my - 8, 24, 10), border_radius=3)
         pygame.draw.rect(surface, (80, 62, 135), (mx - 12, my - 8, 24, 10), 1, border_radius=3)
-        r = math.radians(self.angle(index) if self.on else 90)
+        r = math.radians(self.angle(index) if sweeping else 90)
         tip = (mx + 14 * math.cos(r), my + 14 * math.sin(r))
         pygame.draw.line(surface, (150, 150, 168), (mx, my), tip, 6)
-        seen = self.on and self.seen_by == index
-        lens = SEEN if seen else ((255, 190, 60) if self.on else (95, 95, 110))
+        seen = sweeping and self.seen_by == index
+        lens = SEEN if seen else ((255, 190, 60) if sweeping else (95, 95, 110))
         pygame.draw.circle(surface, lens, (int(tip[0]), int(tip[1])), 4)
-        if self.on and int(t * 2) % 2 == 0:
+        if sweeping and int(t * 2) % 2 == 0:
             pygame.draw.circle(surface, SEEN, (mx - 8, my - 3), 2)      # REC
+        if self._label_font is None:
+            from ui.fonts import ui_font
+            self._label_font = ui_font(13, bold=True)
+        tag = self._label_font.render(f"cam {index}", True, (255, 190, 60) if sweeping else (110, 110, 128))
+        surface.blit(tag, tag.get_rect(midleft=(mx + 16, my + 11)))   # below the wall's foot

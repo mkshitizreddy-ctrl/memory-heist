@@ -62,6 +62,10 @@ class LevelManager:
 
         index = LEVEL_ORDER.index(self.current_name)
 
+        stats = getattr(self.game, "stats", None)
+        if stats is not None and hasattr(stats, "record_floor"):
+            stats.record_floor(index + 1)                 # the badges screen's floor strip
+
         if index + 1 < len(LEVEL_ORDER):
             self.start(LEVEL_ORDER[index + 1])
         else:

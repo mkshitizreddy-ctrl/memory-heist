@@ -10,7 +10,7 @@ import pytest
 
 from core.game import Game
 from levels.floor1_lobby import FloorOneLobby
-from levels.level1 import Level1
+from levels.legacy.level1 import Level1
 
 
 @pytest.fixture(autouse=True)

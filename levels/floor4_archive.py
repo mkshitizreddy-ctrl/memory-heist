@@ -23,7 +23,7 @@ Rules (Floor 4's original numbers):
     security drone score -10 when it catches you in its light (score only)
     walk out       +100 bonus
 
-The original Level 4 stays in levels/level4_memory.py and returns with
+The original Level 4 stays in levels/legacy/level4_memory.py and returns with
 MEMORY_HEIST_OLD_LEVEL4=1.
 """
 
@@ -141,8 +141,8 @@ class ArchiveFloor(RoomMixin):
         return value if value in {"easy", "medium", "hard"} else "medium"
 
     def _timer_multiplier(self):
-        from core.difficulty import DIFFICULTIES
-        return DIFFICULTIES.get(self.difficulty, {}).get("timer_multiplier", 1.0)
+        from core.difficulty import question_time_multiplier
+        return question_time_multiplier(self.difficulty)
 
     def _hints_on(self):
         hints = getattr(self.game, "hints", None)

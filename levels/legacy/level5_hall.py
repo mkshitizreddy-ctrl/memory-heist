@@ -1,5 +1,5 @@
 """
-levels/level5_hall.py
+levels/legacy/level5_hall.py
 Owner: Member 4 - Apporov Sahu's Level 5, rebuilt as a walkable floor
 
 Floor 5 - Server Hall  (topic: functions and exceptions)
@@ -25,7 +25,7 @@ import pygame
 
 from core.npc import NPC
 from core.tilemap import TILE, TileMap, make_tiles
-from levels import hall_decor as H
+from levels.legacy import hall_decor as H
 from levels import grid_decor as G
 from levels.level5_control import Level5ControlCenter
 from levels.level5_questions import GATES

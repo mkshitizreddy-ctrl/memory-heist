@@ -3,7 +3,8 @@ core/hero_sprites.py
 Owner: Member 1 - Core Game System
 
 In-world sprites for Ghost and Echo: 16x16 pixel art drawn from text grids,
-scaled 2x nearest-neighbour to the 32x32 player size. They match the portraits
+scaled 2x nearest-neighbour: 32 wide and 46 tall, a head taller than any NPC
+(the player's collision box stays 32x32; the sprite stands on its feet). They match the portraits
 (Ghost: hooded, cyan visor. Echo: orange hair, gold goggles) so the hero reads
 as the same person on the HUD, in cutscenes and in the levels.
 
@@ -60,21 +61,73 @@ _LEGS = {
 }
 _ECHO_LEGS = {k: [row.replace("C", "J") for row in v] for k, v in _LEGS.items()}
 
+# --- the main characters: a head taller than an NPC, no more (16 x 16 + outline) ------
+# They used to be 22 rows (46 px) and towered over everyone; now they stand 34 px to
+# an NPC's 32, with more detail packed into the same space.
+# Ghost: a hood with a cyan visor slit, a scarf, a coat with a belt and buckle, a satchel
+# strap across the chest, gloves and split coat tails.
+# Echo: orange hair, goggles pushed up on the forehead, a headset mic, a jacket with
+# teal trim and a tool belt.
+# Legend adds: S scarf, A satchel strap, L belt, b buckle, e eyes, M headset, N trousers.
+_GHOST_TALL_HEAD = [
+    "................",
+    ".....HHHHH......",
+    "....HhhhhhH.....",
+    "...HhhDVVVVH....",
+    "...HhhDDDDDH....",
+    "...HHHhhhhHH....",
+    "....SSSSSSS.....",
+]
+_GHOST_TALL_BODY = [
+    "...cCCSSCCCc....",
+    "..CCCCASCCCCC...",
+    ".GCCCCCCACCCCG..",
+    ".GCLLLLbLLLLCG..",
+    "..CCCCCCCCCCC...",
+    "..cCCC...CCCc...",
+]
+_ECHO_TALL_HEAD = [
+    "................",
+    "....OOOOOO......",
+    "...OOYYYYYOOO...",
+    "..OOKKKKKKOOO...",
+    "..OKKeKKeKKMO...",
+    "..OKKKKKKKMOOO..",
+    "...KKKKKKM.OO...",
+]
+_ECHO_TALL_BODY = [
+    "...TJJJJJJT.....",
+    "..JJTJJJJTJJ....",
+    ".GJJJTTJJJJG....",
+    ".GJLLLLbLLLJG...",
+    "..JJJJJJJJJJ....",
+    "...JJJJJJJJ.....",
+]
+_HERO_LEGS = {
+    "idle":   ["...CCC...CCC....", "...BBB...BBB....", "..BBBB...BBBB..."],
+    "step_a": ["..CCC.....CCC...", ".BBB.......BBB..", ".BBBB......BBBB."],
+    "step_b": ["....CCC.CCC.....", ".....BBBBB......", "....BBBBBB......"],
+}
+_ECHO_HERO_LEGS = {k: [row.replace("C", "N") for row in v] for k, v in _HERO_LEGS.items()}
+HERO_ROWS = len(_GHOST_TALL_HEAD) + len(_GHOST_TALL_BODY) + len(_HERO_LEGS["idle"])     # 16
+
 PALETTES = {
     "ghost": {
         "H": (74, 84, 124), "h": (104, 116, 164), "D": (8, 12, 24),
         "V": (90, 240, 255), "C": (58, 70, 112), "c": (96, 156, 196),
         "G": (178, 186, 206), "B": (18, 22, 38),
+        "S": (70, 132, 160), "A": (122, 96, 70), "L": (36, 40, 58), "b": (222, 200, 120),
     },
     "echo": {
         "O": (178, 100, 48), "K": (226, 188, 152), "Y": (250, 190, 70),
         "J": (190, 122, 70), "T": (52, 168, 156), "G": (226, 188, 152),
         "B": (50, 34, 28),
+        "e": (34, 28, 34), "M": (62, 66, 76), "L": (74, 50, 32), "b": (240, 200, 90), "N": (58, 52, 66),
     },
 }
 _PARTS = {
-    "ghost": (_GHOST_HEAD, _GHOST_BODY, _LEGS),
-    "echo": (_ECHO_HEAD, _ECHO_BODY, _ECHO_LEGS),
+    "ghost": (_GHOST_TALL_HEAD, _GHOST_TALL_BODY, _HERO_LEGS),
+    "echo": (_ECHO_TALL_HEAD, _ECHO_TALL_BODY, _ECHO_HERO_LEGS),
 }
 
 HEROES = tuple(PALETTES)
@@ -91,23 +144,26 @@ COURIER_COLOURS = {
 }
 _COURIER_CAP = ["....PPPPPP......", "...PPPPPPPPpp..."]
 _COURIER_VEST = [
-    "...CRRCCCRRC....",
-    "..CCRRRRRRRRC...",
-    "..CCrrrrrrGGC...",
-    "..CCRRRRRRGG....",
-    "...CRRRRRRRC....",
+    "...CRRSSRRC.....",
+    "..CCrrrrrrrCC...",
+    ".GCCRRRRRRRCCG..",
+    ".GCLLLLbLLLLCG..",
+    "..CCRRRRRRRCC...",
+    "..CCCC...CCCC...",
 ]
 
 
 def _courier_parts(name):
     head, body, legs = _PARTS[name]
-    vest = [row.replace("C", "J") for row in _COURIER_VEST] if name == "echo" else list(_COURIER_VEST)
+    vest = list(_COURIER_VEST)
+    if name == "echo":                                   # Echo's jacket shows round the vest, no scarf
+        vest = [row.replace("C", "J").replace("S", "R") for row in vest]
     return head[:1] + _COURIER_CAP + head[3:], vest, legs
 
 # What the eyes become mid-blink: the visor / goggles dim to a thin dark band.
 BLINK_COLOURS = {
     "ghost": {"V": (24, 70, 86)},
-    "echo": {"Y": (120, 84, 40)},
+    "echo": {"e": (226, 188, 152)},                      # her goggles are up; her eyes close
 }
 
 
@@ -145,25 +201,26 @@ def _shaded(rows, x, y, ch, palette):
 
 
 def _build(rows, palette):
-    surf = pygame.Surface((GRID, GRID), pygame.SRCALPHA)
+    height = max(GRID, len(rows) + 1)                    # NPCs are 16 rows; the heroes are taller (+ an outline row)
+    surf = pygame.Surface((GRID, height), pygame.SRCALPHA)
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             if ch != ".":
                 surf.set_at((x, y), _shaded(rows, x, y, ch, palette) + (255,))
     # 1px dark outline so the hero reads on light and dark floors alike.
     edge = []
-    for y in range(GRID):
+    for y in range(height):
         for x in range(GRID):
             if surf.get_at((x, y))[3] == 0:
                 near = any(
-                    0 <= x + dx < GRID and 0 <= y + dy < GRID
+                    0 <= x + dx < GRID and 0 <= y + dy < height
                     and surf.get_at((x + dx, y + dy))[3] > 0
                     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
                 if near:
                     edge.append((x, y))
     for pos in edge:
         surf.set_at(pos, OUTLINE)
-    return pygame.transform.scale(surf, (GRID * SCALE, GRID * SCALE))
+    return pygame.transform.scale(surf, (GRID * SCALE, height * SCALE))
 
 
 def bob_rows(head, body):
