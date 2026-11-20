@@ -50,7 +50,7 @@ def make_level(difficulty_key):
     )
 
     level = Level3LaserLoop(game=game)
-    level.room_map.current_name = "level3_room1"
+    level.current_checkpoint = 1
     level.current_question_number = 0
     level.load_current_question()
 
@@ -170,7 +170,7 @@ def test_penalty_through_real_game_selection(key):
     points, penalty = EXPECTED[key]
 
     game.score.reset()
-    level.room_map.current_name = "level3_room1"
+    level.current_checkpoint = 1
     level.current_question_number = 0
     level.load_current_question()
 

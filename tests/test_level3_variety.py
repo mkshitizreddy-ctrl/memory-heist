@@ -56,7 +56,7 @@ def test_replaying_level3_draws_different_questions(key):
         )
 
         for room in (1, 2, 3):
-            level.room_map.current_name = f"level3_room{room}"
+            level.current_checkpoint = room
             level.current_question_number = room - 1
             level.load_current_question()
 

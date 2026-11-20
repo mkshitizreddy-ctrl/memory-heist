@@ -1414,5 +1414,54 @@
         "hint": "Work out each part, then combine with 'and'.",
         "explanation": "3 == 3 is True, and not (5 > 10) is also True, so True and True is True.",
         "points": 60
+    },
+    "level3_room2_override_easy_1": {
+        "id": "level3_room2_override_easy_1", "room": 2, "category": "override",
+        "difficulty": "easy", "question": "How many times does this loop body execute?",
+        "code": ["for step in range(4):", "    scan_sector(step)"],
+        "options": ["3 times", "4 times", "5 times", "Infinite times"],
+        "answer": "4 times", "hint": "range(4) produces four values, starting at 0.",
+        "explanation": "range(4) produces 0, 1, 2, 3 — exactly 4 iterations.", "points": 40
+    },
+    "level3_room2_override_easy_2": {
+        "id": "level3_room2_override_easy_2", "room": 2, "category": "override",
+        "difficulty": "easy", "question": "What is the final value of total after the loop finishes?",
+        "code": ["total = 0", "for n in [2, 4, 6]:", "    total += n"],
+        "options": ["6", "10", "12", "24"], "answer": "12",
+        "hint": "Add each value in the list to total.",
+        "explanation": "total adds 2, then 4, then 6 (2 + 4 + 6 = 12).", "points": 40
+    },
+    "level3_room2_override_medium_1": {
+        "id": "level3_room2_override_medium_1", "room": 2, "category": "override",
+        "difficulty": "medium", "question": "What sequence of numbers is produced by this range() loop?",
+        "code": ["out = []", "for k in range(2, 9, 3):", "    out.append(k)"],
+        "options": ["[2, 5, 8]", "[2, 5, 8, 11]", "[3, 6, 9]", "[2, 3, 9]"],
+        "answer": "[2, 5, 8]", "hint": "The stop value 9 is excluded; add 3 each time from 2.",
+        "explanation": "range(2, 9, 3) produces 2, 5, 8; 9 is the excluded stop value.", "points": 50
+    },
+    "level3_room2_override_medium_2": {
+        "id": "level3_room2_override_medium_2", "room": 2, "category": "override",
+        "difficulty": "medium", "question": "At what value of x does the loop terminate via break?",
+        "code": ["for x in range(1, 7):", "    if x * 2 > 7:", "        break"],
+        "options": ["x = 3", "x = 4", "x = 5", "x = 7"], "answer": "x = 4",
+        "hint": "Check values in order; break runs at the first value where the condition is true.",
+        "explanation": "At x = 4, 4 * 2 = 8 (> 7), so break runs immediately.", "points": 50
+    },
+    "level3_room2_override_hard_1": {
+        "id": "level3_room2_override_hard_1", "room": 2, "category": "override",
+        "difficulty": "hard", "question": "What is the value of count after this loop with continue?",
+        "code": ["count = 0", "for i in range(6):", "    if i % 2 == 0:", "        continue", "    count += i"],
+        "options": ["6", "9", "12", "15"], "answer": "9",
+        "hint": "continue skips the even values; add the remaining odd values.",
+        "explanation": "Even values are skipped; odd values 1 + 3 + 5 sum to 9.", "points": 60
+    },
+    "level3_room2_override_hard_2": {
+        "id": "level3_room2_override_hard_2", "room": 2, "category": "override",
+        "difficulty": "hard", "question": "Which fix prevents this while loop from running forever?",
+        "code": ["energy = 5", "while energy > 0:", "    pulse_shield()"],
+        "options": ["Add energy -= 1 inside the loop", "Change the condition to energy >= 0", "Set energy = 10 before the loop", "Replace while with if"],
+        "answer": "Add energy -= 1 inside the loop",
+        "hint": "The loop body must change energy so its condition eventually becomes false.",
+        "explanation": "Decrementing energy each iteration ensures energy > 0 eventually becomes False.", "points": 60
     }
 }
