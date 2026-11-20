@@ -1079,14 +1079,22 @@ def test_every_corridor_can_be_crossed_without_stepping_on_a_live_panel(seed):
         assert _safe_path_exists(room, start, goals), (seed, start)
 
 
-def test_each_crossing_has_a_true_equals_live_sign_on_the_wall_beneath_it():
+def test_each_crossing_has_a_true_equals_live_sign_on_the_wall_beside_it():
     room, _, _ = make_room()
     bg = static_background(room)
     for corridor, sign in enumerate(G.PANEL_SIGNS):
         crossing = next(t["rect"] for t in room.panels if t["corridor"] == corridor)
-        assert sign.top >= G.BANDS[corridor][1] * TILE + TILE and abs(sign.centerx - crossing.centerx) <= 70   # on the wall below it
+        below = sign.top >= G.BANDS[corridor][1] * TILE + TILE
+        above = sign.bottom <= G.BANDS[corridor][0] * TILE
+        assert (below or above) and abs(sign.centerx - crossing.centerx) <= 70     # on the wall just below or above it
         assert room.room_map.blocked(sign)                                                                     # a wall, not floor
         assert len(set(region_pixels(bg, sign))) > 3 and any(p[0] > 180 and p[1] < 120 for p in region_pixels(bg, sign))
+
+
+def test_no_true_equals_live_sign_hides_behind_echos_radio_bar():
+    from ui.comms import TOAST_HEIGHT, TOAST_WIDTH
+    radio_bar = pygame.Rect(16, 640 - TOAST_HEIGHT - 8, TOAST_WIDTH, TOAST_HEIGHT)
+    assert not any(sign.colliderect(radio_bar) for sign in G.PANEL_SIGNS)
 
 
 # --- environment polish: pipes, rivets, toolbox, the engineer's routine -------------
