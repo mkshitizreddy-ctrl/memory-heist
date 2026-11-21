@@ -371,15 +371,16 @@ def test_compact_hud_lane_and_code_monitor_stay_inside_their_areas(room, difficu
     level.time_left = 20.0
 
     header = pygame.Rect(60, 54, 840, 46)
-    lane = pygame.Rect(60, 102, 610, 44)
-    code_panel = pygame.Rect(690, 102, 210, 44)
+    board = level._loop_board()            # the board widens to fit the room's loop
+    lane, code_panel = board["lane"], board["panel"]
+    assert lane.right < code_panel.left and code_panel.right <= 900
 
     texts = rendered_text_rects(level)
     header_texts = [t for t in texts if 54 <= t.top < 100]
-    lane_texts = [t for t in texts if 60 <= t.left < 670 and 102 <= t.top < 146]
-    code_texts = [t for t in texts if 690 <= t.left < 900 and 102 <= t.top < 146]
+    lane_texts = [t for t in texts if lane.left <= t.left < lane.right and 102 <= t.top < 146]
+    code_texts = [t for t in texts if code_panel.left <= t.left < code_panel.right and 102 <= t.top < 146]
 
-    assert len(header_texts) >= 4 and len(code_texts) >= 4
+    assert len(header_texts) >= 4 and len(code_texts) >= 1 + len(board["code"])
 
     if alert:
         # Banner text is drawn inside its own surface: check it fits the lane

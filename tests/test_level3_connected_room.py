@@ -22,7 +22,10 @@ def make_level(coop=False):
     )
     if coop:
         game.player2 = SimpleNamespace(rect=pygame.Rect(140, 250, 32, 32))
-    return Level3LaserLoop(game=game)
+    level = Level3LaserLoop(game=game)
+    level.room_requests.pop(1, None)     # pad geometry: every pad lit (board choice: test_level3_board_loops.py)
+    level.setup_room_hazards()
+    return level
 
 
 def test_level_has_three_distinct_rooms_and_sequential_gate_exits():

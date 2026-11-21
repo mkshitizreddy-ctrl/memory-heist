@@ -54,7 +54,7 @@ python -m pytest -q
 | F11 | Fullscreen or window (works on every screen). The game starts full-screen and remembers your choice |
 | WASD | Move |
 | E | Act: carry a parcel, throw a breaker, pull a box, patch a port, stand on a plate and answer |
-| 1 / 2 / 3 / 4 | Answer at a Floor 3 door |
+| 1 / 2 / 3 / 4 | Answer a Floor 3 door question |
 | H | Hint, where hints are on (costs points) |
 | Arrow keys, Right Shift | Player 2 move and act (co-op) |
 | Q / X (Floor 4) | Ally drone scan / lure the security drone |
@@ -74,7 +74,8 @@ Close the window using its title bar (X) to quit at any time.
 - **Floors.** Six walkable floors, one Python idea each: the Reception Lobby
   (data types: carry parcels to the chute for their type), the Maintenance
   Grid (operators: throw the breaker that holds the relay's value), the Night
-  Patrol (loops: read the laser loop, cross, answer at the door), the Records
+  Patrol (loops: read the board's loop, then use it: lit pads, sweeping
+  cameras, a core that vents when its loop ends), the Records
   Archive (lists and dictionaries: pull the box at an index, open the drawer
   for a key), the Server Hall (functions and exceptions: arguments, return
   values, the except breaker, WARDEN's console) and WARDEN's Core (six locks,

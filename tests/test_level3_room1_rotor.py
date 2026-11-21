@@ -40,7 +40,10 @@ def make_level(difficulty="medium", coop=False):
         score=ScoreTracker(),
     )
 
-    return Level3LaserLoop(game=game), game, events
+    level = Level3LaserLoop(game=game)
+    level.room_requests.pop(1, None)     # pad geometry: every pad lit (board choice: test_level3_board_loops.py)
+    level.setup_room_hazards()
+    return level, game, events
 
 
 def rotor(level):

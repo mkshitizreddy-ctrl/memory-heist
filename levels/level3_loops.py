@@ -11,6 +11,7 @@ The global Easy/Medium/Hard difficulty is used to select questions.
 
 import json
 import math
+import os
 import random
 from pathlib import Path
 
@@ -19,7 +20,7 @@ import pygame
 from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from entities.gate import Gate
-from levels import patrol_cameras
+from levels import laser_requests, patrol_cameras
 
 
 class PatrolGate(Gate):
@@ -228,15 +229,23 @@ class Level3LaserLoop:
         self.laser_penalty_duration = 1.0
         self.laser_hit_feedback_timer = 0.0
 
-        # Team-architecture compatibility.  Only Room 2's camera bank is live:
-        # Room 1/3 patrol lanes, the patrol droid, the night guard and generated
-        # door requests are intentionally not used (see integration notes).
+        # Team-architecture compatibility: no patrol lanes, droid or night guard here.
         self.lane_loop = None
         self.camera_bank = None
         self.guard = None
         self.droid = None
         self.answer_at_door = False
+
+        # Each room's door question is about the loop that room really runs
+        # (levels/laser_requests.py): lit pads, sweeping cameras, core pulses.
+        # MEMORY_HEIST_OLD_LEVEL3=1 brings back the fixed question bank in data/puzzles.json.
         self.room_requests = {}
+        if os.environ.get("MEMORY_HEIST_OLD_LEVEL3") != "1":
+            difficulty = self.get_selected_difficulty()
+            self.room_requests = {room: laser_requests.make_request(room, difficulty)
+                                  for room in (1, 2, 3)}
+        self.lit_pads = None              # Room 1: pads the board lights (None = all)
+        self.core_vent_after = None       # Room 3: pulses before the core vents (None = never)
 
         self.lasers = []
         self.emitters = []
@@ -461,10 +470,11 @@ class Level3LaserLoop:
                      "pulse": 2.0, "recovery": 1.0, "offline": 0.0}
 
     ROOM_OBJECTIVES = {
-        1: "Study the warning cycle. Cross when the beam powers down.",
-        2: "Use cover to evade the sentry. Override terminal or time the corridor beams.",
-        3: "Cross the lasers. Dodge the core's overload ring. Reach Gate 3.",
+        1: "Read the board: only lit pads shield you. Cross when the beam powers down.",
+        2: "Read the board: it picks the cameras that sweep. Use cover, evade the sentry.",
+        3: "Read the board: the core vents after its loop. Cross while it is offline.",
     }
+    CORE_VENT_TIME = 6.0            # seconds the core stays offline once its board loop ends
 
     def laser_phase(self, index):
         """Return 'off' (safe), 'warning' (safe, about to fire) or 'active'."""
@@ -949,8 +959,12 @@ class Level3LaserLoop:
         }[difficulty_name]
         self.hazard_warning_scale = self.emitter_warning_scale
 
-        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name)
+        request = getattr(self, "room_requests", {}).get(room)
+        fires = request["fires"] if request else None      # the room does what its board says
+        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name, active=fires)
                             if room == 2 else None)
+        self.lit_pads = set(fires) if room == 1 and request else None
+        self.core_vent_after = len(fires) if room == 3 and request else None
 
         laser_patterns = {
             1: [
@@ -1114,6 +1128,8 @@ class Level3LaserLoop:
         self.robot_speed = (120 + ((room - 1) * 30)) * self.robot_speed_scale
 
         self.time_limit = self.base_time_limit - (room - 1)
+        if self.core_vent_after and self.core_vent_after > 1:
+            self.time_limit += 5          # waiting out a second board pulse costs ~9 s; the clock pays some back
         self.time_left = self.time_limit
 
         # Room 2 waypoints navigate cleanly around Cover 2 (275,295,86,52)
@@ -1849,8 +1865,17 @@ class Level3LaserLoop:
                 self.core_radius + span / self.CORE_PULSE[difficulty] * dt)
             self.core_timer -= dt
             if self.core_timer <= 0 or self.core_radius >= self.CORE_RING_MAX:
-                self.core_state = "recovery"
-                self.core_timer = self.CORE_RECOVERY_TIME
+                if (self.core_vent_after is not None
+                        and self.core_pulse_count >= self.core_vent_after):
+                    # The board's loop has ended: vent() takes the core offline.
+                    self.core_state = "offline"
+                    self.core_timer = self.CORE_VENT_TIME
+                    self.core_pulse_count = 0
+                    self.core_radius = self.CORE_HUB_RADIUS
+                    self.feedback = "LOOP ENDED - CORE VENTING. CROSS NOW!"
+                else:
+                    self.core_state = "recovery"
+                    self.core_timer = self.CORE_RECOVERY_TIME
         elif state == "recovery":
             self.core_timer -= dt
             if self.core_timer <= 0:
@@ -2613,7 +2638,13 @@ class Level3LaserLoop:
         return s
 
     def player_in_safe_pocket(self, rect):
-        return any(zone.contains(rect) for zone in self.safe_zones)
+        return any(zone.contains(rect) for zone in self.safe_zones_live())
+
+    def safe_zones_live(self):
+        """Safe zones that shield right now: in Room 1 only the pads the board lights."""
+        if self.current_room_number() == 1 and self.lit_pads is not None:
+            return [zone for index, zone in enumerate(self.safe_zones) if index in self.lit_pads]
+        return self.safe_zones
 
     # =========================================================
     # QUESTION SYSTEM
@@ -2746,6 +2777,10 @@ class Level3LaserLoop:
         self.selected_questions = []
 
         for room_number in (1, 2, 3):
+
+            if room_number in self.room_requests:
+                self.selected_questions.append(self.room_requests[room_number])
+                continue
 
             room_pool = self.room_question_pools.get(
                 room_number,
@@ -3628,16 +3663,27 @@ class Level3LaserLoop:
                                  (x, zone.top + 6), (x, zone.bottom - 7), 2)
 
     def _draw_room1_safe_space(self, surface, pocket, index):
-        """Mark one Room 1 tracking-laser refuge with a true-boundary outline."""
-        threatened = any(emitter["state"] in ("warning", "locking", "active")
-                         for emitter in self.emitters)
-        glow = (12, 43, 43) if not threatened else (16, 51, 45)
-        edge = (62, 206, 168) if not threatened else (91, 225, 175)
+        """One Room 1 pad.  All pads look alike until a beam warms up; then the
+        pads the board's loop lit glow as shields and the rest show OFF, so the
+        player who read the code is already standing in the right place."""
+        threatened = (any(emitter["state"] in ("warning", "locking", "active")
+                          for emitter in self.emitters)
+                      or any(self.laser_phase(i) in ("warning", "active")
+                             for i in range(len(self.lasers))))
+        lit = self.lit_pads is None or index in self.lit_pads
+        if not threatened:
+            glow, fill, edge, ink, text = ((12, 43, 43), (12, 47, 50), (62, 206, 168),
+                                           (151, 242, 210), f"PAD {index}")
+        elif lit:
+            glow, fill, edge, ink, text = ((24, 90, 70), (16, 70, 58), (120, 255, 190),
+                                           (205, 255, 230), f"PAD {index}  SHIELD")
+        else:
+            glow, fill, edge, ink, text = ((60, 16, 22), (40, 18, 26), (220, 70, 80),
+                                           (255, 170, 175), f"PAD {index}  OFF")
         pygame.draw.rect(surface, glow, pocket.inflate(6, 6), border_radius=9)
-        pygame.draw.rect(surface, (12, 47, 50), pocket, border_radius=8)
+        pygame.draw.rect(surface, fill, pocket, border_radius=8)
         pygame.draw.rect(surface, edge, pocket, 2, border_radius=8)
-        label = self._font(16).render(
-            f"SAFE {chr(ord('A') + index)}", True, (151, 242, 210))
+        label = self._font(16).render(text, True, ink)
         surface.blit(label, label.get_rect(center=pocket.center))
 
     def _draw_room2_covers_and_terminal(self, surface):
@@ -4940,7 +4986,10 @@ class Level3LaserLoop:
         # Objective / Alert Banner
         # -------------------------
 
-        lane = pygame.Rect(60, 102, 610, 44)
+        board = self._loop_board()
+        code_lines, code_font, code_step = board["code"], board["font"], board["step"]
+        code_panel, lane = board["panel"], board["lane"]
+        tall = len(code_lines) > 3
         banner_text = None
 
         if self.laser_hit_feedback_timer > 0:
@@ -4984,7 +5033,7 @@ class Level3LaserLoop:
                 objective_font,
                 self.ROOM_OBJECTIVES[room_number].replace(". ", "  ·  "),
                 lane.width - 12,
-                1,
+                2,
             )
 
             for row, line in enumerate(lines):
@@ -4993,17 +5042,14 @@ class Level3LaserLoop:
                     (lane.x + 4, lane.y + 10 + row * 16),
                 )
 
-        code_panel = pygame.Rect(690, 102, 210, 44)
-
         self._draw_panel(surface, code_panel)
         surface.blit(self._font(15).render("LOOP LOGIC", True, (166, 151, 220)),
                      (code_panel.x + 8, code_panel.y + 5))
-        code_font = self._font(16)
 
-        for row, line in enumerate(self.code_lines):
+        for row, line in enumerate(code_lines):
             surface.blit(
                 code_font.render(line, True, (90, 220, 255)),
-                (code_panel.x + 86, code_panel.y + 4 + row * 12),
+                (code_panel.x + 86, code_panel.y + (2 if tall else 4) + row * code_step),
             )
 
         # -------------------------
@@ -5041,6 +5087,19 @@ class Level3LaserLoop:
         if room_number == 3:
             self._draw_room3_terminal_modal(surface)
         self._draw_room_transition(surface)
+
+    def _loop_board(self):
+        """Header layout: the LOOP LOGIC board (the loop this room really runs,
+        levels/laser_requests.py) on the right, the objective lane in what is left."""
+        request = self.room_requests.get(self.current_room_number())
+        code = request["code"] if request else self.code_lines
+        tall = len(code) > 3                     # four lines still fit the 44 px header band
+        font = self._font(15 if tall else 16)
+        width = max(font.size(line)[0] for line in code)
+        panel = pygame.Rect(0, 102, max(210, width + 96), 44)
+        panel.right = 900
+        lane = pygame.Rect(60, 102, panel.left - 68, 44)
+        return {"code": code, "font": font, "step": 10 if tall else 12, "panel": panel, "lane": lane}
 
     def _build_room_transition_surface(self, title):
         """Create the cached title card used for a brief room reveal."""
