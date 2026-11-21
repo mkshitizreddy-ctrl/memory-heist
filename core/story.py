@@ -3,7 +3,9 @@ core/story.py
 Owner: Member 1 - Core Game System
 
 All story text in one place: the cast and one "beat" per part of the run
-(intro, each level, ending). Screens read from here, so changing the story
+(intro, each level, ending). A level's "memory" is the fragment of Ghost's past
+that floor gives back; it shows in gold on the next card, under its text.
+Screens read from here, so changing the story
 never means touching game code. Keep each line short enough for a card.
 """
 
@@ -24,6 +26,7 @@ STORY = {
     },
     "level1": {
         "warden": True,
+        "memory": "A lobby. Rain on the glass. Someone handing me coffee, saying my name.",
         "title": "FLOOR 1 - THE RECEPTION LOBBY",
         "concept": "Data types",
         "lines": [
@@ -34,6 +37,7 @@ STORY = {
     },
     "level2": {
         "warden": True,
+        "memory": "I wired this grid. My handwriting is on the breaker labels.",
         "title": "FLOOR 2 - THE MAINTENANCE GRID",
         "concept": "Operators",
         "lines": [
@@ -44,6 +48,7 @@ STORY = {
     },
     "level3": {
         "warden": True,
+        "memory": "I walked these beams once. Same cycle, every night, for a year.",
         "title": "FLOOR 3 - THE NIGHT PATROL",
         "concept": "Loops",
         "lines": [
@@ -54,6 +59,7 @@ STORY = {
     },
     "level4": {
         "warden": True,
+        "memory": "Name: REDACTED. Team: WARDEN logic. Status: erased. By: self.",
         "title": "FLOOR 4 - THE RECORDS ARCHIVE",
         "concept": "Lists and dictionaries",
         "lines": [
@@ -64,6 +70,7 @@ STORY = {
     },
     "level5": {
         "warden": True,
+        "memory": "I wrote the function that told WARDEN to erase. I wrote it for me.",
         "title": "FLOOR 5 - THE SERVER HALL",
         "concept": "Functions and exceptions",
         "lines": [
@@ -74,6 +81,7 @@ STORY = {
     },
     "final_vault": {
         "warden": True,
+        "memory": "I asked to forget. WARDEN couldn't. So it remembered for me.",
         "title": "FINAL VAULT - WARDEN'S CORE",
         "concept": "Everything combined",
         "lines": [
@@ -92,6 +100,11 @@ STORY = {
         ],
     },
 }
+
+
+def memory_for(level):
+    """The memory fragment a cleared level gives back, or None."""
+    return STORY.get(level, {}).get("memory")
 
 
 def beat_for(key):
