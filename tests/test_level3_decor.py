@@ -43,3 +43,19 @@ def test_rooms_render_in_the_floor_palette_not_violet():
         level, _ = B.at_room(room)
         surface = pygame.Surface((960, 640))
         level.render(surface)                       # bake, walls and jambs draw without error
+
+
+def test_cam1_label_sits_clear_of_the_room2_beam_rail():
+    level, _ = B.at_room(2)
+    assert 1 in level.camera_bank.label_left
+    rail = level.lasers[1]                          # the vertical beam rail by cam 1
+    mount_x = level.camera_bank.mount(1)[0]
+    assert rail["axis"] == "y" and mount_x - 16 < rail["x"]   # the tag ends left of the mount
+
+
+def test_robot_route_is_set_once_per_room():
+    import inspect
+    from levels.level3_loops import Level3LaserLoop
+    init = inspect.getsource(Level3LaserLoop.__init__)
+    assert init.count("self.robot_speed =") == 1
+    assert init.count("self.robot_right_boundary =") == 1

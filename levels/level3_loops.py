@@ -263,8 +263,8 @@ class Level3LaserLoop:
         self.robot_speed = 120
         self.robot_direction = 1
 
-        self.robot_left_boundary = 100
-        self.robot_right_boundary = 810
+        self.robot_left_boundary = 100       # setup_room_hazards() sets the real route per room
+        self.robot_right_boundary = 270
 
         # -------------------------
         # Robot detection system
@@ -276,9 +276,6 @@ class Level3LaserLoop:
         self.robot_detection_cooldown = 0
         self.robot_vision_half_angle = 38.0
         self.robot_hunt_speed_bonus = 45
-        self.robot_speed = 120
-        self.robot_left_boundary = 100
-        self.robot_right_boundary = 270
         self.robot_scan_surface = pygame.Surface((960, 640), pygame.SRCALPHA)
 
         # -------------------------
@@ -961,7 +958,8 @@ class Level3LaserLoop:
 
         request = getattr(self, "room_requests", {}).get(room)
         fires = request["fires"] if request else None      # the room does what its board says
-        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name, active=fires)
+        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name, active=fires,
+                                                      label_left=(1,))   # cam 1's tag clears the beam rail
                             if room == 2 else None)
         self.lit_pads = set(fires) if room == 1 and request else None
         self.core_vent_after = len(fires) if room == 3 and request else None

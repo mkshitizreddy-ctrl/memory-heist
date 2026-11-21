@@ -137,8 +137,8 @@ def _gallery(surface, geo):
             right = (mx + math.cos(ang - 2.5) * 7, my + math.sin(ang - 2.5) * 7)
             pygame.draw.polygon(surface, AMBER, (tip, left, right))
         _stencil(surface, "while patrol():", (loop[0][0] + 60, loop[0][1] + 52), 14, alpha=90, colour=AMBER)
-    _stencil(surface, "CAMERA GALLERY", (520, 372), 22, alpha=60)
-    _stencil(surface, "YOU ARE BEING RECORDED", (520, 394), 13, alpha=100, colour=AMBER)
+    _stencil(surface, "CAMERA GALLERY", (430, 372), 22, alpha=60)
+    _stencil(surface, "YOU ARE BEING RECORDED", (430, 394), 13, alpha=100, colour=AMBER)
 
 
 def _reactor(surface, geo):
