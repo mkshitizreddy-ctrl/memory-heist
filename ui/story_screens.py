@@ -13,6 +13,7 @@ import math
 import pygame
 
 from core.hero_portrait import make_portrait
+from core.story import memory_for
 from ui.cutscene_fx import (
     DataStreams,
     draw_glitch,
@@ -41,6 +42,7 @@ class StoryScreen:
         self.hint_font = ui_font(26)
         self.map_font = ui_font(24)
         self.label_font = ui_font(24)
+        self.memory_font = ui_font(24)
         self.stat_font = ui_font(22)
         self.tick = 0
         self.age = 0.0
@@ -57,6 +59,8 @@ class StoryScreen:
         self.serial += 1
         self.progress = progress
         self.cleared = cleared      # summary of the floor just finished, or None
+        # The fragment of Ghost's past that floor gave back, shown once the text is typed.
+        self.memory = memory_for(cleared["name"]) if cleared else None
         self.title = beat["title"]
         self.lines = list(beat["lines"])
         self.concept = beat.get("concept")
@@ -232,6 +236,10 @@ class StoryScreen:
             image = self.body_font.render(line, True, (205, 215, 230))
             surface.blit(image, (left, y))
             y += 36
+
+        if self.memory and self.typing_done:
+            text = self.memory_font.render(f"Memory: \u201c{self.memory}\u201d", True, theme.GOLD)
+            blit_centered(surface, text, (width // 2, y + 6 + text.get_height() // 2))
 
         if self.progress:
             self._draw_route_map(surface, 470)

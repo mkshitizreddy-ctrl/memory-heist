@@ -33,7 +33,7 @@ def make_level(difficulty_key):
 
 def enter_room(level, room_number):
     """Move to a room the way the room-transition code does."""
-    level.room_map.current_name = f"level3_room{room_number}"
+    level.current_checkpoint = room_number
     level.current_question_number = room_number - 1
     level.load_current_question()
 

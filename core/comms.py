@@ -38,14 +38,14 @@ COMMS = {
         "danger": ("WARDEN", ["Lockdown procedures are warming up. Stop now."]),
     },
     "level3": {
-        "enter": ("Echo", ["Night patrol. Everything here repeats. Read the pattern, then go."]),
+        "enter": ("Echo", ["Backup loop is live. Every beam repeats. Count the cycle, then go."]),
         "mistake": ("WARDEN", [
             "A loop does not end because you wish it to.",
             "I have seen this mistake forty times today.",
             "Again? The patrol does not forget.",
         ]),
-        "progress": ("Echo", ["You read the loop. Next gap is yours.", "Clean pass."]),
-        "danger": ("WARDEN", ["The patrol is speeding up. Watch the pattern."]),
+        "progress": ("Echo", ["You read the loop. Next gap is yours.", "Clean pass. Sentry never saw you."]),
+        "danger": ("WARDEN", ["My sentry has your pattern now. Watch yours."]),
     },
     "level4": {
         "enter": ("Echo", ["Records archive. Shelves count from zero; drawers go by key."]),

@@ -133,3 +133,36 @@ def test_route_map_is_drawn_only_when_there_is_progress(screen):
     screen.render(pygame.Surface((960, 640)))
 
     assert screen.map_font.texts == ["1", "2", "3", "4", "5", "F"]
+
+
+def _cleared(name):
+    return {"name": name, "points": 10, "seconds": 30, "mistakes": 0, "stars": 3}
+
+
+def test_the_cleared_floors_memory_shows_once_the_text_is_typed(screen):
+    from core.story import memory_for
+    screen.memory_font = RecordingFont(screen.memory_font)
+    screen.begin(STORY["level2"], progress=(1, 6), cleared=_cleared("level1"))
+    assert screen.memory == memory_for("level1")
+
+    screen.render(pygame.Surface((960, 640)))
+    assert screen.memory_font.texts == []          # still typing: no memory yet
+
+    screen.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
+    screen.render(pygame.Surface((960, 640)))
+    assert len(screen.memory_font.texts) == 1 and memory_for("level1") in screen.memory_font.texts[0]
+
+
+def test_a_card_with_no_cleared_floor_has_no_memory(screen):
+    screen.begin(STORY["intro"])
+    assert screen.memory is None
+
+
+def test_every_memory_line_fits_the_card_above_the_route_map(screen):
+    from core.story import memory_for
+    for level in ("level1", "level2", "level3", "level4", "level5", "final_vault"):
+        text = f"Memory: “{memory_for(level)}”"
+        assert screen.memory_font.size(text)[0] <= 920, level
+    longest = max(len(b["lines"]) for b in STORY.values())
+    bottom = 270 + 36 * longest + 6 + screen.memory_font.get_height()
+    assert bottom <= 470 - 17, "memory line would touch the route map"

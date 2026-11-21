@@ -33,3 +33,11 @@ def test_every_level_beat_names_the_concept_it_teaches(level):
 def test_beat_for_returns_the_beat_or_none():
     assert beat_for("level3") is STORY["level3"]
     assert beat_for("no_such_level") is None
+
+
+@pytest.mark.parametrize("level", LEVEL_ORDER)
+def test_every_floor_gives_back_one_short_memory(level):
+    from core.story import memory_for
+    memory = memory_for(level)
+    assert memory and memory.strip() and len(memory) <= 72, level
+    assert memory_for("intro") is None and memory_for("no_such_level") is None

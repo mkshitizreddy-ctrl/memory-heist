@@ -259,7 +259,8 @@ def draw_static(bg, accent):
 
 PANEL_SIGNS = (pygame.Rect(PANEL_COLS[0] * TILE + 8, SEPARATORS[0] * TILE + 5, 112, 22),       # under crossing 1
                pygame.Rect(PANEL_COLS[1] * TILE + 36, SEPARATORS[1] * TILE + 5, 92, 22),      # under crossing 2 (clear of the valve)
-               pygame.Rect(PANEL_COLS[2] * TILE + 8, (LAST_ROW + 1) * TILE + 5, 112, 22))     # under crossing 3
+               pygame.Rect(PANEL_COLS[2] * TILE + 8, SEPARATORS[1] * TILE + 5, 112, 22))      # over crossing 3: the wall under
+                                                                                               # corridor 3 sits behind Echo's radio bar
 
 
 def draw_panel_signs(surface):
