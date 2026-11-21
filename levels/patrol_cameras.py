@@ -38,7 +38,7 @@ SEEN = (255, 60, 60)
 
 
 class CameraBank:
-    def __init__(self, difficulty="medium", active=None):
+    def __init__(self, difficulty="medium", active=None, label_left=()):
         count, half, speed = SETTINGS.get(difficulty, SETTINGS["medium"])
         self.half = half
         self.speed = speed
@@ -48,6 +48,7 @@ class CameraBank:
                           (i for i in active if 0 <= i < len(self.cameras)))
         self.clock = 0.0
         self._label_font = None
+        self.label_left = set(label_left)       # cameras whose "cam n" tag sits left of the mount
         self.on = True
         self.dwell = 0.0
         self.seen_by = None
@@ -197,4 +198,7 @@ class CameraBank:
             from ui.fonts import ui_font
             self._label_font = ui_font(13, bold=True)
         tag = self._label_font.render(f"cam {index}", True, (255, 190, 60) if sweeping else (110, 110, 128))
-        surface.blit(tag, tag.get_rect(midleft=(mx + 16, my + 11)))   # below the wall's foot
+        if index in self.label_left:
+            surface.blit(tag, tag.get_rect(midright=(mx - 16, my + 11)))
+        else:
+            surface.blit(tag, tag.get_rect(midleft=(mx + 16, my + 11)))   # below the wall's foot

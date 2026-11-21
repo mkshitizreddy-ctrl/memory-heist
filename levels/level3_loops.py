@@ -20,7 +20,7 @@ import pygame
 from core.difficulty import DIFFICULTIES
 from core.map_manager import Room, RoomMap
 from entities.gate import Gate
-from levels import laser_requests, patrol_cameras
+from levels import laser_decor, laser_requests, patrol_cameras
 
 
 class PatrolGate(Gate):
@@ -263,8 +263,8 @@ class Level3LaserLoop:
         self.robot_speed = 120
         self.robot_direction = 1
 
-        self.robot_left_boundary = 100
-        self.robot_right_boundary = 810
+        self.robot_left_boundary = 100       # setup_room_hazards() sets the real route per room
+        self.robot_right_boundary = 270
 
         # -------------------------
         # Robot detection system
@@ -276,9 +276,6 @@ class Level3LaserLoop:
         self.robot_detection_cooldown = 0
         self.robot_vision_half_angle = 38.0
         self.robot_hunt_speed_bonus = 45
-        self.robot_speed = 120
-        self.robot_left_boundary = 100
-        self.robot_right_boundary = 270
         self.robot_scan_surface = pygame.Surface((960, 640), pygame.SRCALPHA)
 
         # -------------------------
@@ -961,7 +958,8 @@ class Level3LaserLoop:
 
         request = getattr(self, "room_requests", {}).get(room)
         fires = request["fires"] if request else None      # the room does what its board says
-        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name, active=fires)
+        self.camera_bank = (patrol_cameras.CameraBank(difficulty_name, active=fires,
+                                                      label_left=(1,))   # cam 1's tag clears the beam rail
                             if room == 2 else None)
         self.lit_pads = set(fires) if room == 1 and request else None
         self.core_vent_after = len(fires) if room == 3 and request else None
@@ -3374,7 +3372,7 @@ class Level3LaserLoop:
     # PHASE 1 VISUALS (presentation only)
     # =========================================================
 
-    LAYOUT_ACCENT = (150, 110, 255)
+    LAYOUT_ACCENT = laser_decor.TRIM          # NovaCorp: the floor's teal, muted
     PANEL_FILL = (10, 12, 22, 238)
     BODY_SIZE = 27
     RAIL_TOP_PAD = 3
@@ -3472,6 +3470,16 @@ class Level3LaserLoop:
             lines[-1] = last.rstrip() + "..."
 
         return lines
+
+    def _decor_geometry(self, room):
+        """Positions the baked room dressing follows (levels/laser_decor.py)."""
+        rotor = next((laser for laser in self.lasers if laser.get("axis") == "r"), None)
+        return {
+            "rotor": (rotor["cx"], rotor["cy"]) if rotor and room == 1 else (475, 310),
+            "waypoints": list(self.robot_waypoints) if room == 2 else [],
+            "core": (rotor["cx"], rotor["cy"]) if rotor and room == 3 else (520, 285),
+            "ring_max": self.CORE_RING_MAX,
+        }
 
     def _build_floor(self):
         """Futuristic tiled floor with shaded edges and violet wall trim."""
@@ -4796,7 +4804,7 @@ class Level3LaserLoop:
 
         for index, rect in enumerate(layout["buttons"]):
 
-            fill, border, cap = (30, 26, 58), (110, 85, 190), self.LAYOUT_ACCENT
+            fill, border, cap = laser_decor.OPTION_FILL, laser_decor.OPTION_BORDER, self.LAYOUT_ACCENT
 
             if self.selected_option == index + 1:
 
@@ -4882,12 +4890,14 @@ class Level3LaserLoop:
 
         self.room_map.draw(surface)
 
+        room_number = self.current_room_number()
+
         surface.blit(
-            self._cached("floor", self._build_floor),
+            self._cached(("room", room_number), lambda: laser_decor.build_room(
+                room_number, (self.room_width, self.room_height), self._decor_geometry(room_number),
+                self.play_top, self.play_bottom)),
             (self.room_x, self.room_y),
         )
-
-        room_number = self.current_room_number()
 
         if room_number >= 2:
             self.draw_robot_scan(surface)
@@ -4896,27 +4906,15 @@ class Level3LaserLoop:
         for wall in self.barrier_walls:
             if room_number == 2 and wall in self.room2_cover_rects:
                 continue
-            pygame.draw.rect(surface, (21, 24, 40), wall)
-            pygame.draw.line(surface, (82, 70, 128), wall.midleft, wall.midright, 1)
+            laser_decor.wall_face(surface, wall)
 
         if room_number == 2:
             self._draw_room2_covers_and_terminal(surface)
 
-        pygame.draw.line(surface, (82, 70, 128),
-                         (self.room_x + 2, self.play_top),
-                         (self.room_x + self.room_width - 2, self.play_top), 1)
-        pygame.draw.line(surface, (82, 70, 128),
-                         (self.room_x + 2, self.play_bottom),
-                         (self.room_x + self.room_width - 2, self.play_bottom), 1)
-
         entrance_x = self.room_x + 6
         for top in (190, 378):
             jamb = pygame.Rect(entrance_x, top, 14, 52)
-            pygame.draw.rect(surface, (12, 14, 26), jamb, border_radius=4)
-            pygame.draw.rect(surface, (116, 89, 180), jamb, 1, border_radius=4)
-            pygame.draw.line(surface, (150, 110, 255),
-                             (jamb.right, jamb.top + 6),
-                             (jamb.right, jamb.bottom - 6), 2)
+            laser_decor.wall_face(surface, jamb)
 
         for index, pocket in enumerate(self.safe_zones):
             if room_number == 1:
