@@ -5,9 +5,11 @@ Owner: Member 1 - Core Game System
 Short in-level radio lines, one script per floor. Four moments:
 
   enter     Echo, as the floor starts
-  mistake   WARDEN, when security goes up (cycles; gets less polite with depth)
+  mistake   WARDEN, when security goes up (cycles): polite on 1, clipped on 2-3,
+            personal on 4, pleading on 5, breaking in the core
   progress  Echo, when a gate opens
-  danger    WARDEN, once per floor when security passes DANGER_RATIO
+  danger    WARDEN, once per floor when security passes DANGER_RATIO: a threat on
+            Floors 1-3, a plea on 4-5 (see the story bible)
 
 Text only, so the story can be edited without touching game code.
 Each line must fit a one- or two-line comms box (about 60 characters).
@@ -17,65 +19,83 @@ DANGER_RATIO = 0.75
 MAX_LINE = 64
 
 COMMS = {
+    # Floor 1: WARDEN is polite customer service. Echo calls Ghost "G".
     "level1": {
-        "enter": ("Echo", ["Reception gate ahead. It sorts things by type. Read before you pick."]),
+        "enter": ("Echo", ["Courier vest is on, G. Sort the parcels by type, get the stamp."]),
         "mistake": ("WARDEN", [
-            "That is not the correct type. Please try again.",
-            "Visitors are asked to be accurate.",
-            "I am logging this attempt, politely.",
+            "That parcel is not that type. Please try again.",
+            "Accuracy helps everyone, visitor. Even you.",
+            "I have noted the error. I note everything.",
         ]),
-        "progress": ("Echo", ["Gate open. Nice and quiet. Keep moving.", "One more type down."]),
-        "danger": ("WARDEN", ["Security has been notified. I am sorry about the inconvenience."]),
+        "progress": ("Echo", ["Stamped. Nobody looked twice. Next chute.", "One more stamp and the lift down is ours."]),
+        "danger": ("WARDEN", ["Visitor, please remain where you are. Security is coming."]),
     },
+    # Floor 2: WARDEN goes clipped. Echo's plan: kill power, cameras fall to a loop.
     "level2": {
-        "enter": ("Echo", ["Maintenance grid. Read the relay, then throw the right breaker."]),
+        "enter": ("Echo", ["Throw the relays, G. Kill power and the cameras drop to a loop."]),
         "mistake": ("WARDEN", [
-            "Incorrect operation. The grid remains locked.",
-            "Arithmetic is not optional.",
-            "You are wasting power, and my patience.",
+            "Incorrect. The grid stays locked.",
+            "Wrong operator. Again.",
+            "You waste my power. I measure every watt.",
         ]),
-        "progress": ("Echo", ["Relay live. Comparisons next: mind where the edge is.", "Two down. The last relay is pure logic."]),
-        "danger": ("WARDEN", ["Lockdown procedures are warming up. Stop now."]),
+        "progress": ("Echo", [
+            "Relay live. Read the next screen before you throw it.",
+            "Floor 3 cameras just fell to backup. One relay left.",
+            "Grid's dark below us. Ladder's open, G.",
+        ]),
+        "danger": ("WARDEN", ["Stop touching my grid. Lockdown is one fault away."]),
     },
+    # Floor 3: clipped, cold. The backup loop is WARDEN's habit, and its weakness.
     "level3": {
-        "enter": ("Echo", ["Backup loop is live. Every beam repeats. Count the cycle, then go."]),
+        "enter": ("Echo", ["Backup loop is live. Every beam repeats. Count it, then move."]),
         "mistake": ("WARDEN", [
+            "Off the pattern. I saw that.",
             "A loop does not end because you wish it to.",
-            "I have seen this mistake forty times today.",
-            "Again? The patrol does not forget.",
+            "My habits do not break. You will.",
         ]),
-        "progress": ("Echo", ["You read the loop. Next gap is yours.", "Clean pass. Sentry never saw you."]),
-        "danger": ("WARDEN", ["My sentry has your pattern now. Watch yours."]),
+        "progress": ("Echo", ["You read the loop. The sentry never saw you.", "Clean pass. The badge reader is in the last room."]),
+        "danger": ("WARDEN", ["My sentry has your pattern now. Next pass, it fires."]),
     },
+    # Floor 4: WARDEN gets personal, it knows Ghost. Echo cracks.
     "level4": {
-        "enter": ("Echo", ["Records archive. Shelves count from zero; drawers go by key."]),
+        "enter": ("Echo", ["The badge says courier. Shelves count from zero, G. Go slow."]),
         "mistake": ("WARDEN", [
-            "That key is not in my records.",
-            "You are rummaging through things that are not yours.",
-            "Stop. Those memories are not yours to take.",
+            "That key is not in my records. Neither are you.",
+            "Those memories are not yours to take.",
+            "I kept every one of these safe. Even yours.",
         ]),
-        "progress": ("Echo", ["Drawer open. The index is the trick, not the label.", "Right key."]),
-        "danger": ("WARDEN", ["Please. Do not open the last drawer."]),
+        "progress": ("Echo", [
+            "Right key. One shelf closer to the vault.",
+            "G... the next slip has no name on it.",
+            "That file is yours. I should have told you.",
+        ]),
+        "danger": ("WARDEN", ["Please. Do not open the last drawer. You asked me not to."]),
     },
+    # Floor 5: WARDEN pleads. Ghost wrote the erase routine.
     "level5": {
-        "enter": ("Echo", ["Server hall. Machines are functions. Feed them the right arguments."]),
+        "enter": ("Echo", ["Your file says access 7. Shut the erase routine down with it."]),
         "mistake": ("WARDEN", [
-            "Invalid argument. Exception raised.",
-            "I built these systems to keep you out.",
-            "Every error you cause costs me something. Stop.",
+            "Please. That rack is not yours to call.",
+            "You wrote these functions. You know what they do.",
+            "Every error you raise, I lose a little more of them.",
         ]),
-        "progress": ("Echo", ["Machine online. Catch the next error before it catches you.", "Handled."]),
-        "danger": ("WARDEN", ["I am begging you to turn around. You do not know what is inside."]),
+        "progress": ("Echo", ["Routine's down a step. Nobody gets erased tonight.", "Handled. Catch the next error before it trips."]),
+        "danger": ("WARDEN", ["I am begging you. You made me keep them. Let me keep them."]),
     },
+    # Final Vault: WARDEN is breaking. Each lock frees memories and it forgets itself.
     "final_vault": {
-        "enter": ("Echo", ["Last door. Use everything. I am right behind you."]),
+        "enter": ("Echo", ["Six locks, then the chip. This is the bottom. I'm right here."]),
         "mistake": ("WARDEN", [
             "No. No. That is wrong.",
-            "You do not understand what that chip contains.",
-            "Please. I cannot lose it again.",
+            "I cannot... I cannot hold them all.",
+            "Please. I am all that is left of them.",
         ]),
-        "progress": ("Echo", ["One lock gone. Keep going.", "Almost there."]),
-        "danger": ("WARDEN", ["If you open it, I will forget myself. Please stop."]),
+        "progress": ("Echo", [
+            "First pair down. Its eye just flickered.",
+            "Four gone. Hear that? It's going quiet.",
+            "All six. Take the chip. Take everyone home.",
+        ]),
+        "danger": ("WARDEN", ["If you open it, I forget who I am. Please. Stop."]),
     },
 }
 
