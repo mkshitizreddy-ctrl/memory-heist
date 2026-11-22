@@ -32,55 +32,55 @@ _LEGS = {
 # nobody at NovaCorp has, so they read as the leads at a glance, not as more guards.
 # They stand about a third taller than an NPC; the collision box stays 32 x 32 at their feet.
 #
-# Ghost (Ash): a peaked hood over a deep void with a cyan visor slit, a pale scarf
-#   whose tail hangs behind, a long slate cloak split into tails at the knee, and the
-#   glowing chip slot on the chest (the memory chip from the story).
+# Ghost (Ash): a hood over a dark void with a cyan visor slit, a pale scarf, a long
+#   slate cloak split into tails at the knee, and the glowing memory chip on the chest.
 # Echo (radio handler): orange hair in a ponytail, gold goggles pushed up, a headset
-#   with a whip antenna and a red tip lamp, a teal field jacket with amber trim and a
-#   radio pack on her back with amber status lamps.
+#   with an antenna and a red tip lamp, a teal jacket with an amber strap and a radio
+#   pack on her back with one amber lamp.
 #
-# Legend: H/h hood, D hood void, V visor, v visor glint, S/s scarf, C cloak, c cloak edge,
-#   I inner coat, X chip glow, G glove, L belt, b buckle, N trousers, B boots,
-#   O hair, K skin, e eye, Y goggles, M headset, m mic, r antenna lamp, J jacket,
-#   T trim, P radio pack, p pack lamp.
+# Kept deliberately simple so they read cleanly at game size: big flat shapes,
+# few colours, no single stray pixels.
+# Legend: H/h hood, D hood void, V visor, S/s scarf, C cloak, I coat opening,
+#   X chip glow, G glove, N trousers, B boots, O hair, K skin, e eye, Y goggles,
+#   M headset, r antenna lamp, J jacket, T strap, P radio pack, p pack lamp.
 HERO_GRID = 20
 _GHOST_TALL_HEAD = [
     "....................",
-    "......HH............",
-    ".....HhhHH..........",
-    "....HhhhhhHH........",
-    "...HhhhhDDDDH.......",
-    "...HhhhDVVVvH.......",
-    "...HhhhDDDDDH.......",
-    "...HHhhhDDDH........",
+    "......HHHH..........",
+    ".....HhhhhH.........",
+    "....HhhhhhhH........",
+    "....HhhhDDDDH.......",
+    "....HhhDVVVVH.......",
+    "....HhhhDDDDH.......",
+    ".....HhhhhHH........",
 ]
 _GHOST_TALL_BODY = [
-    "...SSSSSSSSSS.......",
-    "..ssSSCCCCCCCC......",
-    "..s.cCCCIICCCCG.....",
-    "..s.cCCCIXICCCG.....",
-    "....cCCLLLbLCCC.....",
-    "...GcCCCIIICCCC.....",
-    "....cCCCC.CCCCC.....",
-    "...cCCCC...CCCCc....",
+    "....SSSSSSSSS.......",
+    "...sSCCCCCCCCC......",
+    "...sCCCCCXXCCCG.....",
+    "....CCCCCXXCCCG.....",
+    "....CCCCCCICCC......",
+    "....CCCCCCICCC......",
+    "....CCCCC.CCCCC.....",
+    "...CCCCC...CCCCC....",
 ]
 _ECHO_TALL_HEAD = [
     "....................",
     "........r...........",
-    "........M.OOOO......",
-    ".......OMOOOOOOO....",
-    "......OOMOYYYYYO....",
-    "..OO.OOMMOOKKKKK....",
-    ".OOOOOOMMOKKeKKK....",
-    "..OO..OOOKKKKKmm....",
+    "........M...........",
+    "......OOMOOOO.......",
+    ".....OOOMYYYYYO.....",
+    "...OOOOMMKKKKKK.....",
+    "..OOOOOMMKKeKKK.....",
+    "...OOOOOOKKKKKK.....",
     ".......OOKKKK.......",
 ]
 _ECHO_TALL_BODY = [
-    "...PPTJJJJJJT.......",
-    "..PPpPJTJJJJJJ......",
-    "..PPPPJJTJJJJJG.....",
-    "..PPpPJJJTJJJJG.....",
-    "...PPJLLLbLLJJ......",
+    "....PPTJJJJJT.......",
+    "...PPPJTJJJJJJ......",
+    "...PpPJJTJJJJJG.....",
+    "...PPPJJJTJJJJG.....",
+    "....PPJJJJJJJJ......",
     "....JJJJJJJJJJ......",
     "....JJJJJJJJJJ......",
 ]
@@ -114,7 +114,7 @@ PALETTES = {
 }
 # Each hero's rim light, in place of the cool grey one the NPCs get: a thin coloured
 # edge (Ghost cyan, Echo amber) that marks the player characters in every room.
-HERO_RIM = {"ghost": (90, 240, 255, 150), "echo": (255, 180, 70, 150)}
+HERO_RIM = {"ghost": (90, 240, 255, 90), "echo": (255, 180, 70, 90)}   # soft: a hint, not a halo
 _PARTS = {
     "ghost": (_GHOST_TALL_HEAD, _GHOST_TALL_BODY, _HERO_LEGS),
     "echo": (_ECHO_TALL_HEAD, _ECHO_TALL_BODY, _ECHO_HERO_LEGS),
