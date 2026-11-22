@@ -25,24 +25,26 @@ def test_frames_have_the_shape_player_expects(name):
     f = make_hero_frames(name)
     assert set(f) == {"idle", "walk", "blink"} and len(f["walk"]) == 4
     for img in [f["idle"]] + f["walk"]:
-        assert img.get_size() == (32, (hs.HERO_ROWS + 1) * hs.SCALE)      # a head taller than the NPCs
+        assert img.get_size() == (hs.HERO_GRID * hs.SCALE, (hs.HERO_ROWS + 1) * hs.SCALE)
 
 
 @pytest.mark.parametrize("name", HEROES)
-def test_the_heroes_stand_a_little_taller_than_any_npc_but_never_tower(name):
+def test_the_heroes_stand_clearly_taller_than_any_npc_but_never_tower(name):
     from core.npc_sprites import KINDS, make_npc_frames
     hero = make_hero_frames(name)["idle"].get_height()
     for kind in KINDS:
         npc = make_npc_frames(kind)["idle"].get_height()
-        assert npc < hero <= npc + 4          # a protagonist, not a giant
+        assert npc + 8 <= hero <= npc * 1.4   # reads as the lead, not as one more guard; not a giant
 
 
 @pytest.mark.parametrize("name", HEROES)
 def test_transparent_background_and_outlined_silhouette(name):
     img = make_hero_frames(name)["idle"]
-    assert img.get_at((0, 0))[3] == 0 and img.get_at((31, 31))[3] == 0
-    opaque = [(x, y) for x in range(32) for y in range(32) if img.get_at((x, y))[3] == 255]
-    assert len(opaque) > 250
+    w, h = img.get_size()
+    assert img.get_at((0, 0))[3] == 0 and img.get_at((w - 1, 0))[3] == 0
+    assert img.get_at((w - 1, h - 1))[3] == 0
+    opaque = [(x, y) for x in range(w) for y in range(h) if img.get_at((x, y))[3] == 255]
+    assert len(opaque) > 400
     assert hs.OUTLINE[:3] in [tuple(img.get_at(p))[:3] for p in opaque]
 
 
@@ -52,7 +54,7 @@ def test_source_art_leaves_room_for_the_outline(name):
     for key, leg_rows in legs.items():
         rows = head + body + leg_rows
         assert len(rows) == hs.HERO_ROWS                # the builder adds a free row under it for the outline
-        assert all(len(r) == hs.GRID for r in rows)
+        assert all(len(r) == hs.HERO_GRID for r in rows)
         assert set(rows[0]) == {"."}
         assert all(r[0] == "." and r[-1] == "." for r in rows)
 
@@ -69,8 +71,9 @@ def test_heroes_are_distinct_and_carry_their_signature_colours():
     g, e = make_hero_frames("ghost")["idle"], make_hero_frames("echo")["idle"]
     assert raw(g) != raw(e)
     def has(img, colour):
+        w, h = img.get_size()
         return any(tuple(img.get_at((x, y)))[:3] == colour
-                   for x in range(32) for y in range(32))
+                   for x in range(w) for y in range(h))
     assert has(g, hs.PALETTES["ghost"]["V"])          # cyan visor
     assert has(e, hs.PALETTES["echo"]["Y"])           # gold goggles
     assert not has(e, hs.PALETTES["ghost"]["V"])
@@ -83,7 +86,7 @@ def test_unknown_hero_rejected():
 
 def test_ghost_is_bright_enough_to_read_on_the_navy_floor():
     img = make_hero_frames("ghost")["idle"]
-    body = [img.get_at((x, y))[:3] for x in range(32) for y in range(32)
+    body = [img.get_at((x, y))[:3] for x in range(img.get_width()) for y in range(img.get_height())
             if img.get_at((x, y))[3] == 255 and img.get_at((x, y))[:3] != hs.OUTLINE[:3]]
     avg = sum(sum(c) / 3 for c in body) / len(body)
     assert avg > 60
@@ -180,7 +183,7 @@ def test_npc_strides_differ_from_idle_above_the_waist():
 
 
 def test_bob_rows_keeps_the_sprite_the_same_height():
-    for head, body in ((hs._GHOST_HEAD, hs._GHOST_BODY), (hs._ECHO_HEAD, hs._ECHO_BODY)):
+    for head, body, _legs in hs._PARTS.values():
         assert len(hs.bob_rows(head, body)) == len(head + body)
 
 
@@ -237,3 +240,46 @@ def test_unknown_outfit_is_rejected():
 
 def test_courier_disguise_is_different_for_each_hero():
     assert _px(make_hero_frames("ghost", "courier")["idle"]) != _px(make_hero_frames("echo", "courier")["idle"])
+
+
+# --- reading as the heroes ----------------------------------------------------
+def _silhouette(img):
+    return pygame.mask.from_surface(img)
+
+
+@pytest.mark.parametrize("name", HEROES)
+def test_heroes_have_a_silhouette_no_npc_shares(name):
+    """Guards and staff are 32 wide; the heroes are wider and taller, so no NPC outline matches."""
+    from core.npc_sprites import KINDS, make_npc_frames
+    hero = make_hero_frames(name)["idle"]
+    for kind in KINDS:
+        npc = make_npc_frames(kind)["idle"]
+        assert hero.get_width() > npc.get_width() and hero.get_height() > npc.get_height(), kind
+
+
+def test_ghost_carries_the_glowing_memory_chip_and_echo_the_antenna_lamp():
+    ghost = _pixels(make_hero_frames("ghost")["idle"])
+    echo = _pixels(make_hero_frames("echo")["idle"])
+    assert ghost.count(hs.PALETTES["ghost"]["X"]) >= 4          # chip slot on the chest
+    assert hs.PALETTES["echo"]["r"] in echo                      # red lamp on the headset antenna
+    assert hs.PALETTES["echo"]["p"] in echo                      # radio pack lamps
+
+
+def test_each_hero_has_its_own_rim_light_in_its_signature_colour():
+    from core.character import RIM_LIGHT
+    assert set(hs.HERO_RIM) == set(HEROES)
+    assert hs.HERO_RIM["ghost"] != RIM_LIGHT and hs.HERO_RIM["echo"] != RIM_LIGHT
+    assert hs.HERO_RIM["ghost"][:3] != hs.HERO_RIM["echo"][:3]
+    assert all(c[3] < 255 for c in hs.HERO_RIM.values())
+
+
+def test_wide_hero_sprite_is_centred_on_its_collision_box():
+    from core.character import draw_character
+    img = make_hero_frames("ghost")["idle"]
+    surface = pygame.Surface((120, 120), pygame.SRCALPHA)
+    rect = pygame.Rect(40, 60, 32, 32)
+    draw_character(surface, rect, img, 0, False)
+    drawn_left = min(x for x in range(120) for y in range(92) if surface.get_at((x, y))[3] == 255)
+    art_left = min(x for x in range(img.get_width()) for y in range(img.get_height())
+                   if img.get_at((x, y))[3] == 255)
+    assert drawn_left - art_left == rect.centerx - img.get_width() // 2

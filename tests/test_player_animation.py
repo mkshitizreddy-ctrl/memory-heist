@@ -137,11 +137,12 @@ def test_facing_left_draws_the_mirrored_frame():
     shadow_only.rect.topleft = (32, 32)
     shadow_only.draw(expected)
     mirrored = pygame.transform.flip(image, True, False)
-    from core.character import RIM_LIGHT
-    rim = pygame.mask.from_surface(mirrored).to_surface(setcolor=RIM_LIGHT, unsetcolor=(0, 0, 0, 0))
+    from core.hero_sprites import HERO_RIM
+    rim = pygame.mask.from_surface(mirrored).to_surface(setcolor=HERO_RIM["ghost"], unsetcolor=(0, 0, 0, 0))
     top = 64 - mirrored.get_height()                         # the sprite stands on the box's feet
-    expected.blit(rim, (31, top - lift - 1))                 # the rim light sits one pixel up and left
-    expected.blit(mirrored, (32, top - lift))
+    left = 48 - mirrored.get_width() // 2                    # and is centred on it (box centre x = 48)
+    expected.blit(rim, (left - 1, top - lift - 1))           # the rim light sits one pixel up and left
+    expected.blit(mirrored, (left, top - lift))
     assert same_pixels(drawn, expected)
 
 
@@ -197,10 +198,11 @@ def test_resting_character_is_drawn_exactly_as_its_frame():
     image, lift = p.current_pose()
     drawn = render(p)
     top = 64 - image.get_height()                            # the sprite stands on the box's feet
+    left = 48 - image.get_width() // 2                       # centred on the box
     for y in range(96):
         for x in range(96):
-            fx, fy = x - 32, y - (top - lift)
-            if 0 <= fx < 32 and 0 <= fy < image.get_height() and image.get_at((fx, fy))[3] == 255:
+            fx, fy = x - left, y - (top - lift)
+            if 0 <= fx < image.get_width() and 0 <= fy < image.get_height() and image.get_at((fx, fy))[3] == 255:
                 assert drawn.get_at((x, y)) == image.get_at((fx, fy))
 
 
