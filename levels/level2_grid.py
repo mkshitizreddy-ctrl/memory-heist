@@ -198,10 +198,14 @@ class GridRoom(RoomMixin, Level2):
             if self.game:
                 self.game.score.add(question.get("points", POINTS_FALLBACK))
             self.burst(spot, theme.TEAL, 18)
+            why = question.get("hint")              # the rule behind the answer, said every time
             if self.gates_passed >= GATES_PER_LEVEL:
-                self.say("All relays live - the exit is open.", theme.GOLD)
+                self.say_answer(f"All relays live. {why}" if why else "All relays live - the exit is open.",
+                                theme.GOLD)
             else:
-                self.say(f"Relay {self.gates_passed} live. Power gate {self.gates_passed} open.", theme.TEAL)
+                self.say_answer(f"Relay {self.gates_passed} live. {why}" if why
+                                else f"Relay {self.gates_passed} live. Power gate {self.gates_passed} open.",
+                                theme.TEAL)
                 self.time_left = self.time_limit
                 self._load_question_for_gate(self.gates_passed + 1)
             self.pad_flash = {}
@@ -211,9 +215,11 @@ class GridRoom(RoomMixin, Level2):
             self._praise()
         else:
             if self.game and not self.game.hints.enabled:
-                self.say("Wrong. Hints are off on this difficulty.", theme.CORAL)
+                reason = question.get("why_wrong", {}).get(choice)   # why this breaker, not the answer
+                self.say_answer(f"Wrong: {reason}" if reason else "Wrong. Hints are off on this difficulty.",
+                                theme.CORAL)
             else:
-                self.say("Wrong. Hint: " + question.get("hint", "Try again."), theme.CORAL)
+                self.say_answer("Wrong. Hint: " + question.get("hint", "Try again."), theme.CORAL)
             self.pad_flash[index] = FLASH_SECONDS
             self.shake.add(0.55)
             self.burst(spot, theme.CORAL, 12)
@@ -231,6 +237,7 @@ class GridRoom(RoomMixin, Level2):
     def _tick_timer(self, dt):
         if self.gates_passed >= GATES_PER_LEVEL:
             return
+        dt = self.clock_dt(dt)                  # held while the last answer's feedback is read
         self.time_left -= dt
         if self.time_left <= 0:
             self.time_left = self.time_limit

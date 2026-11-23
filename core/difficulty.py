@@ -36,6 +36,16 @@ DIFFICULTIES = {
 
 DEFAULT_DIFFICULTY = "medium"
 
+# Practice is not a preset of its own: it plays Easy's floors and questions, with
+# no clocks, no security and no save. It stays out of DIFFICULTIES on purpose, so a
+# practice run can never be written to (or loaded from) the story save.
+PRACTICE = "practice"
+PRACTICE_BASE = "easy"
+
+
+def is_practice(name):
+    return name == PRACTICE
+
 # Length of the whole-run countdown on MEDIUM, in seconds. EASY and HARD
 # scale it with the preset's timer_multiplier.
 BASE_RUN_SECONDS = 900

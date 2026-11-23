@@ -4842,7 +4842,9 @@ class Level3LaserLoop:
 
         if self.feedback:
 
-            if self.complete or "CORRECT" in self.feedback or "SUCCESSFUL" in self.feedback:
+            if "INCORRECT" in self.feedback:              # checked first: "INCORRECT" contains "CORRECT"
+                colour = (255, 100, 100)
+            elif self.complete or "CORRECT" in self.feedback or "SUCCESSFUL" in self.feedback:
                 colour = (60, 230, 110)
             elif "SECURITY ALERT" in self.feedback or "OVERLOAD" in self.feedback:
                 colour = (255, 180, 60)

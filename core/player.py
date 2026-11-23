@@ -11,7 +11,8 @@ from core.animation import SquashStretch
 from core.character import (  # noqa: F401  (timing names are re-exported)
     BLINK_LENGTH, BLINK_PERIOD, BOUNCE_PX, BREATH_PERIOD, WALK_FPS,
     blink_closed, breath_offset, draw_character, pose_for, walk_bounce)
-from core.hero_sprites import HEROES, make_hero_frames
+from core.character import RIM_LIGHT
+from core.hero_sprites import HERO_RIM, HEROES, make_hero_frames
 from entities.sprites import make_player_frames
 
 WASD = {
@@ -136,4 +137,5 @@ class Player:
 
     def draw(self, surface):
         image, lift = self.current_pose()
-        draw_character(surface, self.rect, image, lift, self.facing_left, self.squash)
+        rim = HERO_RIM.get(self.hero, RIM_LIGHT)
+        draw_character(surface, self.rect, image, lift, self.facing_left, self.squash, rim)

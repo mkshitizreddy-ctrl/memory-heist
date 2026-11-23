@@ -120,6 +120,20 @@ def test_pause_layout_fits_and_stats_sit_inside_the_panel():
     chip = o.resume_chip()
     assert o.panel.contains(chip)
     assert all(not chip.colliderect(s) for s in slots)
+    rows = o.control_rows()
+    assert rows[0].top > max(s.bottom for s in slots) + 10          # below the stats and their divider
+    assert rows[-1].bottom <= chip.top                              # above the resume chip
+    assert all(o.panel.contains(r) for r in rows)
+
+
+def test_pause_shows_every_control_and_each_line_fits():
+    from ui.menu import CONTROLS
+    from ui.overlays import CONTROL_ACTION_X
+    o = PauseOverlay(SIZE)
+    assert len(o.control_rows()) == len(CONTROLS)
+    for label, action in CONTROLS:
+        assert o.control_font.size(label)[0] < CONTROL_ACTION_X - 24 - 8      # label clears the action column
+        assert CONTROL_ACTION_X + o.control_font.size(action)[0] <= o.panel.width - 24
 
 
 def test_pause_dims_the_game_behind_it(surf):

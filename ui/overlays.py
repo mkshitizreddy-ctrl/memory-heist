@@ -1,4 +1,4 @@
-"""Pause overlay: dimmed game, a stats panel and the way back in.
+"""Pause overlay: dimmed game, a stats panel, the controls and the way back in.
 
 Everything that costs time (dim layer, fonts) is built once in __init__, so a
 paused frame only blits and renders a few short strings.
@@ -10,8 +10,12 @@ from ui import theme
 from ui.hud import LEVEL_LABELS, format_time
 from ui.kit import blit_centered, draw_chip, draw_panel
 from ui.fonts import ui_font
+from ui.menu import CONTROLS     # the same rows as the menu's How to Play panel
 
-PANEL_SIZE = (440, 270)
+PANEL_SIZE = (740, 410)
+CONTROLS_TOP = 196               # first controls row, from the panel top
+CONTROL_ROW = 26
+CONTROL_ACTION_X = 210           # action column, from the panel left
 
 
 PAUSE_PROMPT = "ESC resume  |  S settings  |  M menu"
@@ -26,6 +30,7 @@ class PauseOverlay:
         self.label_font = ui_font(20)
         self.value_font = ui_font(34)
         self.chip_font = ui_font(26)
+        self.control_font = ui_font(18)
         self.panel = pygame.Rect((0, 0), PANEL_SIZE)
         self.panel.center = (size[0] // 2, size[1] // 2)
 
@@ -34,6 +39,12 @@ class PauseOverlay:
         slot_w = (self.panel.width - 40) // 3
         return [pygame.Rect(self.panel.x + 20 + i * slot_w, self.panel.y + 100, slot_w, 70)
                 for i in range(3)]
+
+    def control_rows(self):
+        """One row per control line, between the stats and the resume chip."""
+        return [pygame.Rect(self.panel.x + 24, self.panel.y + CONTROLS_TOP + i * CONTROL_ROW,
+                            self.panel.width - 48, CONTROL_ROW)
+                for i in range(len(CONTROLS))]
 
     def resume_chip(self):
         chip = pygame.Rect(0, 0, 380, 44)
@@ -62,6 +73,16 @@ class PauseOverlay:
                           (slot.centerx, slot.y + 10))
             blit_centered(surface, self.value_font.render(value, True, colour),
                           (slot.centerx, slot.y + 42))
+
+        # Controls: a reminder of every key, the same rows as the menu.
+        rows = self.control_rows()
+        pygame.draw.line(surface, theme.mix(accent, theme.INK, 0.5),
+                         (rows[0].x, rows[0].y - 10), (rows[0].right, rows[0].y - 10), 1)
+        for row, (label, action) in zip(rows, CONTROLS):
+            tag = self.control_font.render(label, True, theme.GOLD)
+            surface.blit(tag, (row.x, row.centery - tag.get_height() // 2))
+            line = self.control_font.render(action, True, theme.PAPER)
+            surface.blit(line, (self.panel.x + CONTROL_ACTION_X, row.centery - line.get_height() // 2))
 
         pulse = 0.5 + 0.5 * abs((tick % 60) - 30) / 30
         draw_chip(surface, self.resume_chip(), PAUSE_PROMPT, self.chip_font,

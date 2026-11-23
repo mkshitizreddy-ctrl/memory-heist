@@ -311,3 +311,13 @@ def test_the_last_seconds_tick_once_each():
     for _ in range(100):                                  # 5.5 s down to about 3.8 s
         level.update(1 / 60)
     assert played.count("click") == 2                     # 5 and 4, once each
+
+
+def test_the_slip_clock_holds_while_an_answer_is_read():
+    level, _, player = make_level()
+    stand_and_press(level, player, level.request["answer"])
+    assert level.read_hold > 0
+    level.update(level.read_hold - 0.1)
+    assert level.time_left == level.time_limit                   # the next slip waits for the reader
+    level.update(1.1)
+    assert level.time_left == pytest.approx(level.time_limit - 1.0)

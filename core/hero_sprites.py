@@ -2,11 +2,12 @@
 core/hero_sprites.py
 Owner: Member 1 - Core Game System
 
-In-world sprites for Ghost and Echo: 16x16 pixel art drawn from text grids,
-scaled 2x nearest-neighbour: 32 wide and 46 tall, a head taller than any NPC
-(the player's collision box stays 32x32; the sprite stands on its feet). They match the portraits
-(Ghost: hooded, cyan visor. Echo: orange hair, gold goggles) so the hero reads
-as the same person on the HUD, in cutscenes and in the levels.
+In-world sprites for Ghost and Echo: 20x20 pixel art drawn from text grids,
+scaled 2x nearest-neighbour to 40 x 42, about a third taller than any NPC
+(the player's collision box stays 32x32; the sprite stands on its feet, centred).
+They match the portraits (Ghost: hood, cyan visor, chip slot. Echo: orange
+ponytail, gold goggles, headset) so the hero reads as the same person on the
+HUD, in cutscenes and in the levels.
 
 Same shape as entities.sprites.make_player_frames, plus a blink frame:
     {"idle": surface, "walk": [4 surfaces], "blink": surface}
@@ -18,113 +19,102 @@ import pygame
 SCALE = 2
 GRID = 16
 
-# Legend: . clear, H/h hood, D hood void, V visor, C coat, c coat trim,
-#         G glove, B boots, O hair, K skin, Y goggles, J jacket, T trim.
-_GHOST_HEAD = [
-    "................",
-    "....HHHHHH......",
-    "...HHhhhhHH.....",
-    "..HHhhhhhhHH....",
-    "..HHhhhhDDDH....",
-    "..HHhhhDVVVH....",
-    "..HHHhhDDDDH....",
-    "...HHHHHHHH.....",
-]
-_ECHO_HEAD = [
-    "................",
-    "....OOOOOO......",
-    "...OOOOOOOO.....",
-    "..OOOOOOOOOO....",
-    "..OOOOKKKKO.....",
-    "..OOOKYYYKK.....",
-    "..OOOKKKKKK.....",
-    "...OOOKKKK......",
-]
-_GHOST_BODY = [
-    "..cCCCCCCCCCC...",
-    ".CCCccCCCCCCCC..",
-    ".CCCccCCCCCGGC..",
-    "..CCCCccccCGG...",
-    "..CCCCCCCCCCC...",
-]
-_ECHO_BODY = [
-    "..OJJJJJJJJJ....",
-    ".OOJTJJJJJJJJ...",
-    ".OJJJTJJJJGGJ...",
-    "..JJJJTJJJGG....",
-    "...JJJJJJJJJ....",
-]
+# The NPCs' 16-wide leg rows (core/npc_sprites.py builds on them).
 _LEGS = {
     "idle":   ["....CCC.CCC.....", "....BBB.BBB....."],
     "step_a": ["...CCC....CCC...", "...BBB....BBB..."],
     "step_b": ["......CCCC......", "......BBBB......"],
 }
-_ECHO_LEGS = {k: [row.replace("C", "J") for row in v] for k, v in _LEGS.items()}
 
-# --- the main characters: a head taller than an NPC, no more (16 x 16 + outline) ------
-# They used to be 22 rows (46 px) and towered over everyone; now they stand 34 px to
-# an NPC's 32, with more detail packed into the same space.
-# Ghost: a hood with a cyan visor slit, a scarf, a coat with a belt and buckle, a satchel
-# strap across the chest, gloves and split coat tails.
-# Echo: orange hair, goggles pushed up on the forehead, a headset mic, a jacket with
-# teal trim and a tool belt.
-# Legend adds: S scarf, A satchel strap, L belt, b buckle, e eyes, M headset, N trousers.
+# --- the main characters: 20 x 20 source pixels, drawn at 40 x 42 -----------------
+# NPCs are 16 x 16 chibi office staff (32 px). The heroes are built differently on
+# purpose: a wider grid, adult proportions (small head, long body) and silhouettes
+# nobody at NovaCorp has, so they read as the leads at a glance, not as more guards.
+# They stand about a third taller than an NPC; the collision box stays 32 x 32 at their feet.
+#
+# Ghost (Ash): a hood over a dark void with a cyan visor slit, a pale scarf, a long
+#   slate cloak split into tails at the knee, and the glowing memory chip on the chest.
+# Echo (radio handler): orange hair in a ponytail, gold goggles pushed up, a headset
+#   with an antenna and a red tip lamp, a teal jacket with an amber strap and a radio
+#   pack on her back with one amber lamp.
+#
+# Kept deliberately simple so they read cleanly at game size: big flat shapes,
+# few colours, no single stray pixels.
+# Legend: H/h hood, D hood void, V visor, S/s scarf, C cloak, I coat opening,
+#   X chip glow, G glove, N trousers, B boots, O hair, K skin, e eye, Y goggles,
+#   M headset, r antenna lamp, J jacket, T strap, P radio pack, p pack lamp.
+HERO_GRID = 20
 _GHOST_TALL_HEAD = [
-    "................",
-    ".....HHHHH......",
-    "....HhhhhhH.....",
-    "...HhhDVVVVH....",
-    "...HhhDDDDDH....",
-    "...HHHhhhhHH....",
-    "....SSSSSSS.....",
+    "....................",
+    "......HHHH..........",
+    ".....HhhhhH.........",
+    "....HhhhhhhH........",
+    "....HhhhDDDDH.......",
+    "....HhhDVVVVH.......",
+    "....HhhhDDDDH.......",
+    ".....HhhhhHH........",
 ]
 _GHOST_TALL_BODY = [
-    "...cCCSSCCCc....",
-    "..CCCCASCCCCC...",
-    ".GCCCCCCACCCCG..",
-    ".GCLLLLbLLLLCG..",
-    "..CCCCCCCCCCC...",
-    "..cCCC...CCCc...",
+    "....SSSSSSSSS.......",
+    "...sSCCCCCCCCC......",
+    "...sCCCCCXXCCCG.....",
+    "....CCCCCXXCCCG.....",
+    "....CCCCCCICCC......",
+    "....CCCCCCICCC......",
+    "....CCCCC.CCCCC.....",
+    "...CCCCC...CCCCC....",
 ]
 _ECHO_TALL_HEAD = [
-    "................",
-    "....OOOOOO......",
-    "...OOYYYYYOOO...",
-    "..OOKKKKKKOOO...",
-    "..OKKeKKeKKMO...",
-    "..OKKKKKKKMOOO..",
-    "...KKKKKKM.OO...",
+    "....................",
+    "........r...........",
+    "........M...........",
+    "......OOMOOOO.......",
+    ".....OOOMYYYYYO.....",
+    "...OOOOMMKKKKKK.....",
+    "..OOOOOMMKKeKKK.....",
+    "...OOOOOOKKKKKK.....",
+    ".......OOKKKK.......",
 ]
 _ECHO_TALL_BODY = [
-    "...TJJJJJJT.....",
-    "..JJTJJJJTJJ....",
-    ".GJJJTTJJJJG....",
-    ".GJLLLLbLLLJG...",
-    "..JJJJJJJJJJ....",
-    "...JJJJJJJJ.....",
+    "....PPTJJJJJT.......",
+    "...PPPJTJJJJJJ......",
+    "...PpPJJTJJJJJG.....",
+    "...PPPJJJTJJJJG.....",
+    "....PPJJJJJJJJ......",
+    "....JJJJJJJJJJ......",
+    "....JJJJJJJJJJ......",
 ]
 _HERO_LEGS = {
-    "idle":   ["...CCC...CCC....", "...BBB...BBB....", "..BBBB...BBBB..."],
-    "step_a": ["..CCC.....CCC...", ".BBB.......BBB..", ".BBBB......BBBB."],
-    "step_b": ["....CCC.CCC.....", ".....BBBBB......", "....BBBBBB......"],
+    "idle":   [".....NNN..NNN.......", ".....NNN..NNN.......",
+               ".....BBB..BBBB......", "....BBBB..BBBBB....."],
+    "step_a": ["....NNN....NNN......", "...NNN......NNN.....",
+               "...BBB......BBBB....", "..BBBB.......BBBB..."],
+    "step_b": ["......NNNN..........", "......NNNN..........",
+               "......BBBBB.........", ".....BBBBBB........."],
 }
-_ECHO_HERO_LEGS = {k: [row.replace("C", "N") for row in v] for k, v in _HERO_LEGS.items()}
-HERO_ROWS = len(_GHOST_TALL_HEAD) + len(_GHOST_TALL_BODY) + len(_HERO_LEGS["idle"])     # 16
+_ECHO_HERO_LEGS = _HERO_LEGS
+HERO_ROWS = len(_GHOST_TALL_HEAD) + len(_GHOST_TALL_BODY) + len(_HERO_LEGS["idle"])     # 20
 
 PALETTES = {
     "ghost": {
-        "H": (74, 84, 124), "h": (104, 116, 164), "D": (8, 12, 24),
-        "V": (90, 240, 255), "C": (58, 70, 112), "c": (96, 156, 196),
-        "G": (178, 186, 206), "B": (18, 22, 38),
-        "S": (70, 132, 160), "A": (122, 96, 70), "L": (36, 40, 58), "b": (222, 200, 120),
+        "H": (70, 80, 104), "h": (104, 116, 146), "D": (6, 10, 20),
+        "V": (90, 240, 255), "v": (210, 252, 255),
+        "S": (184, 204, 210), "s": (150, 172, 182),
+        "C": (76, 86, 110), "c": (140, 164, 190), "I": (34, 38, 54),
+        "X": (90, 240, 255), "G": (178, 186, 206),
+        "L": (34, 36, 50), "b": (90, 240, 255), "N": (46, 50, 66), "B": (20, 22, 32),
     },
     "echo": {
-        "O": (178, 100, 48), "K": (226, 188, 152), "Y": (250, 190, 70),
-        "J": (190, 122, 70), "T": (52, 168, 156), "G": (226, 188, 152),
-        "B": (50, 34, 28),
-        "e": (34, 28, 34), "M": (62, 66, 76), "L": (74, 50, 32), "b": (240, 200, 90), "N": (58, 52, 66),
+        "O": (214, 110, 44), "K": (232, 192, 156), "e": (34, 28, 34),
+        "Y": (250, 190, 70), "M": (58, 62, 74), "m": (120, 126, 140), "r": (255, 70, 60),
+        "J": (44, 128, 126), "T": (240, 170, 60), "G": (232, 192, 156),
+        "P": (70, 74, 84), "p": (255, 190, 70),
+        "L": (74, 50, 32), "b": (240, 200, 90), "N": (52, 48, 62), "B": (50, 34, 28),
     },
 }
+# Each hero's rim light, in place of the cool grey one the NPCs get: a thin coloured
+# edge (Ghost cyan, Echo amber) that marks the player characters in every room.
+HERO_RIM = {"ghost": (90, 240, 255, 90), "echo": (255, 180, 70, 90)}   # soft: a hint, not a halo
 _PARTS = {
     "ghost": (_GHOST_TALL_HEAD, _GHOST_TALL_BODY, _HERO_LEGS),
     "echo": (_ECHO_TALL_HEAD, _ECHO_TALL_BODY, _ECHO_HERO_LEGS),
@@ -142,27 +132,28 @@ COURIER_COLOURS = {
     "P": (196, 62, 52), "p": (112, 30, 28),
     "R": (255, 150, 34), "r": (226, 232, 238),
 }
-_COURIER_CAP = ["....PPPPPP......", "...PPPPPPPPpp..."]
-_COURIER_VEST = [
-    "...CRRSSRRC.....",
-    "..CCrrrrrrrCC...",
-    ".GCCRRRRRRRCCG..",
-    ".GCLLLLbLLLLCG..",
-    "..CCRRRRRRRCC...",
-    "..CCCC...CCCC...",
-]
+_COURIER_CAP = [".....PPPPPP.........", "....PPPPPPPPpp......"]
+_VEST_CLOTH = {"ghost": "CcI", "echo": "JT"}
 
 
 def _courier_parts(name):
+    """Red cap over the hood or hair; the torso cloth becomes a hi-vis vest with one
+    reflective stripe. Cloak tails, scarf, visor, goggles and radio pack stay."""
     head, body, legs = _PARTS[name]
-    vest = list(_COURIER_VEST)
-    if name == "echo":                                   # Echo's jacket shows round the vest, no scarf
-        vest = [row.replace("C", "J").replace("S", "R") for row in vest]
-    return head[:1] + _COURIER_CAP + head[3:], vest, legs
+    head = head[:1] + _COURIER_CAP + head[3:]
+    cloth = _VEST_CLOTH[name]
+    vest = []
+    for i, row in enumerate(body):
+        if i >= len(body) - 2:                          # the tails / hem keep the hero's own colour
+            vest.append(row)
+            continue
+        fill = "r" if i == 2 else "R"
+        vest.append("".join(fill if ch in cloth else ch for ch in row))
+    return head, vest, legs
 
 # What the eyes become mid-blink: the visor / goggles dim to a thin dark band.
 BLINK_COLOURS = {
-    "ghost": {"V": (24, 70, 86)},
+    "ghost": {"V": (24, 70, 86), "v": (24, 70, 86)},
     "echo": {"e": (226, 188, 152)},                      # her goggles are up; her eyes close
 }
 
@@ -172,7 +163,7 @@ OUTLINE = (6, 10, 20, 255)
 
 # Pixels that keep their exact colour when the shading pass runs: eyes, visor,
 # goggles, the dark hood void, and the guard's badge.
-UNSHADED = frozenset("VYDegb")
+UNSHADED = frozenset("VvYDegbXrp")
 LIGHT_AMOUNT = 0.22      # top edges catch light
 SHADE_AMOUNT = 0.26      # undersides fall into shadow
 SIDE_SHADE = 0.12        # the right edge turns away from the light
@@ -201,8 +192,9 @@ def _shaded(rows, x, y, ch, palette):
 
 
 def _build(rows, palette):
+    width = len(rows[0])                                 # NPCs are 16 wide, the heroes 20
     height = max(GRID, len(rows) + 1)                    # NPCs are 16 rows; the heroes are taller (+ an outline row)
-    surf = pygame.Surface((GRID, height), pygame.SRCALPHA)
+    surf = pygame.Surface((width, height), pygame.SRCALPHA)
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             if ch != ".":
@@ -210,17 +202,17 @@ def _build(rows, palette):
     # 1px dark outline so the hero reads on light and dark floors alike.
     edge = []
     for y in range(height):
-        for x in range(GRID):
+        for x in range(width):
             if surf.get_at((x, y))[3] == 0:
                 near = any(
-                    0 <= x + dx < GRID and 0 <= y + dy < height
+                    0 <= x + dx < width and 0 <= y + dy < height
                     and surf.get_at((x + dx, y + dy))[3] > 0
                     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
                 if near:
                     edge.append((x, y))
     for pos in edge:
         surf.set_at(pos, OUTLINE)
-    return pygame.transform.scale(surf, (GRID * SCALE, height * SCALE))
+    return pygame.transform.scale(surf, (width * SCALE, height * SCALE))
 
 
 def bob_rows(head, body):

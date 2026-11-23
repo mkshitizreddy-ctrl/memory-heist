@@ -114,12 +114,13 @@ def test_menu_keys_still_work():
 
 def test_selected_difficulty_chip_is_the_solid_one(surf):
     m = MainMenu()
-    tint = {"easy": theme.TEAL, "medium": theme.GOLD, "hard": theme.CORAL}
-    for idx, name in enumerate(("easy", "medium", "hard")):
+    order = ("easy", "medium", "hard", "practice")
+    tint = {"easy": theme.TEAL, "medium": theme.GOLD, "hard": theme.CORAL, "practice": theme.SKY}
+    for idx, name in enumerate(order):
         m.selected_difficulty = name
         m.render(surf)
         for i, chip in enumerate(m.layout()["chips"]):
-            solid = surf.get_at((chip.x + 14, chip.centery))[:3] == tint[("easy", "medium", "hard")[i]]
+            solid = surf.get_at((chip.x + 14, chip.centery))[:3] == tint[order[i]]
             assert solid == (i == idx)
 
 

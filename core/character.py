@@ -53,11 +53,13 @@ def pose_for(frames, moving, anim_time, idle_time):
 RIM_LIGHT = (150, 190, 255, 120)                       # the cool rim that lifts characters off a dark floor
 
 
-def draw_character(surface, rect, image, lift, facing_left, squash=None):
+def draw_character(surface, rect, image, lift, facing_left, squash=None, rim_colour=RIM_LIGHT):
     """Draw a character at `rect`: shadow first, then the sprite.
 
     The shadow narrows as the body rises. `squash` is an optional
     core.animation.SquashStretch applied around the character's feet.
+    A sprite wider than the box (the heroes) is centred on it. `rim_colour`
+    lets the heroes carry their own coloured rim light.
     """
     if facing_left:
         image = pygame.transform.flip(image, True, False)
@@ -68,10 +70,11 @@ def draw_character(surface, rect, image, lift, facing_left, squash=None):
     pygame.draw.ellipse(shade, (0, 0, 0, 90), shade.get_rect())
     surface.blit(shade, shadow)
 
-    x, y = rect.x, rect.bottom - image.get_height()      # stand on the feet: tall heroes rise above their box
+    x = rect.centerx - image.get_width() // 2           # centred: wide heroes overhang both sides equally
+    y = rect.bottom - image.get_height()                 # stand on the feet: tall heroes rise above their box
     if squash is not None and not squash.at_rest:
         image, (ox, oy) = scaled(image, *squash.scale)
         x, y = x + ox, y + oy
-    rim = pygame.mask.from_surface(image).to_surface(setcolor=RIM_LIGHT, unsetcolor=(0, 0, 0, 0))
+    rim = pygame.mask.from_surface(image).to_surface(setcolor=rim_colour, unsetcolor=(0, 0, 0, 0))
     surface.blit(rim, (x - 1, y - lift - 1))            # a thin lit edge, as if the ceiling lamp were up and left
     surface.blit(image, (x, y - lift))

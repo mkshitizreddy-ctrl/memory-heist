@@ -202,11 +202,11 @@ class ServerFloor(RoomMixin, Level5ControlCenter):
             self.hint_used, self.hint_text = False, ""
             if self.stage < JOBS:
                 self.request = make_request(self.stage, self.rng, self.difficulty)
-                self.say(f"+{earned}. {request['explain']} Next job is up.", theme.TEAL)
+                self.say_answer(f"+{earned}. {request['explain']} Next job is up.", theme.TEAL)
             else:
                 self.phase = "terminal"
                 self.terminal_unlocked = True
-                self.say(f"+{earned}. {request['explain']} WARDEN's console is unlocked.", theme.GOLD)
+                self.say_answer(f"+{earned}. {request['explain']} WARDEN's console is unlocked.", theme.GOLD)
         else:
             self.out.add(index)
             self.wrong[(stage, index)] = WRONG_SECONDS
@@ -214,12 +214,13 @@ class ServerFloor(RoomMixin, Level5ControlCenter):
             self.burst(spot, theme.CORAL, 10)
             self.sysadmin.alert(pygame.Rect(spot, (1, 1)), 1.2)
             self.sysadmin.say(SCOLD[stage])
-            self.say("Wrong - that choice is ruled out. H for a hint.", theme.CORAL)
+            self.say_answer("Wrong - that choice is ruled out. H for a hint.", theme.CORAL)
             if self.game:
                 self.game.security.increase(WRONG_SECURITY)
                 self.game.score.penalize(WRONG_SCORE_PENALTY)
 
     def _update_heat(self, dt):
+        dt = self.clock_dt(dt)                  # the reactor waits while the last answer's feedback is read
         if self.stage != 2 or self.phase != "questions":
             return
         before = self.heat

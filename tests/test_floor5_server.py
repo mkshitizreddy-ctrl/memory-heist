@@ -304,3 +304,14 @@ def test_the_wall_screens_sit_below_the_message_line():
     from levels.room_base import MESSAGE_Y
     for rect in (S.TICKET, S.EYE_SCREEN, S.GAUGES):
         assert rect.y >= MESSAGE_Y + 22 and rect.bottom <= 6 * 32
+
+
+def test_the_reactor_waits_while_the_last_answer_is_read():
+    floor, _, player = make_floor()
+    do_job(floor, player)
+    do_job(floor, player)
+    assert floor.stage == 2 and floor.read_hold > 0
+    floor.update(floor.read_hold - 0.1)
+    assert floor.heat == 0.0
+    floor.update(1.1)
+    assert floor.heat == pytest.approx(1.0 / floor.heat_seconds)

@@ -25,6 +25,13 @@ def test_a_saved_run_loads_back_the_same(path):
                                      "difficulty": "medium", "coop": True}
 
 
+@pytest.mark.parametrize("left, kept", [(0.04, 0.1), (0.05, 0.1), (0.14, 0.1), (0.16, 0.2), (12.34, 12.3)])
+def test_a_floor_cleared_with_a_sliver_of_time_is_still_saved(path, left, kept):
+    """0.04 s rounds to 0.0, which load would refuse: keep at least a tenth of a second."""
+    assert P.save_progress(**good(remaining=left), path=path)
+    assert P.load_progress(path)["remaining"] == kept
+
+
 def test_no_file_means_no_saved_run(path):
     assert P.load_progress(path) is None
 

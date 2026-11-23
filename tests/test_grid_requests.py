@@ -68,3 +68,55 @@ def test_the_grid_room_plays_generated_questions():
                            coop=False, player2=None, difficulty={"name": "hard"}, audio=None)
     room = GridRoom(game=game, seed=2)
     assert room.current_question["id"].startswith("grid_r1_hard")
+
+
+@pytest.mark.parametrize("relay", (1, 2, 3))
+@pytest.mark.parametrize("difficulty", DIFFS)
+def test_every_wrong_breaker_has_a_true_reason(relay, difficulty):
+    """Hard mode shows why_wrong instead of a hint, so every reason must be what Python says."""
+    rng = random.Random(relay * 11 + len(difficulty))
+    for _ in range(300):
+        q = make_question(relay, difficulty, rng)
+        wrong = [o for o in q["options"] if o != q["answer"]]
+        assert set(q["why_wrong"]) == set(wrong), q
+        for option, reason in q["why_wrong"].items():
+            if relay == 1:
+                expr = re.match(r"What does (.+) evaluate to\?", q["prompt"]).group(1)
+                m = re.fullmatch(r"(\S+) is what (.+) gives\.", reason)
+                if m:
+                    value = eval(m.group(2))
+                    if isinstance(value, float) and not value.is_integer():
+                        value = round(value, 2)
+                    assert m.group(1) == option and repr(value) == option, reason
+                elif reason.endswith("but / always gives a float."):
+                    assert q["answer"] == option + ".0", reason
+                else:
+                    assert reason == f"{expr} does not give {option}." and _value(expr) != option
+            else:
+                cond, word = re.match(r"Which x makes (.+) (True|False)\?", q["prompt"]).groups()
+                actual = bool(eval(cond, {"x": int(option)}))
+                assert reason == f"x = {option} makes {cond} {actual}.", reason
+                assert str(actual) != word
+
+
+def test_floor2_wall_lines_fit_the_wall():
+    """Right-answer and Hard wrong-answer lines must fit on one line of the wall band."""
+    import os
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    import pygame
+    pygame.init()
+    from core.game import SCREEN_WIDTH
+    from core.tilemap import TILE
+    from ui.fonts import ui_font
+    font = ui_font(22)
+    room_for_text = SCREEN_WIDTH - 4 * TILE
+    rng = random.Random(5)
+    longest = ""
+    for relay in (1, 2, 3):
+        for difficulty in DIFFS:
+            for _ in range(200):
+                q = make_question(relay, difficulty, rng)
+                lines = [f"Relay {relay} live. {q['hint']}", f"All relays live. {q['hint']}"]
+                lines += [f"Wrong: {r}" for r in q["why_wrong"].values()]
+                longest = max(lines + [longest], key=lambda t: font.size(t)[0])
+    assert font.size(longest)[0] <= room_for_text, longest
