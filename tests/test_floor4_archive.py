@@ -65,6 +65,20 @@ def stand_and_press(level, player, index):
     level.handle_event(key(pygame.K_e))
 
 
+class _SpyDict(dict):
+    """A dict that remembers the last key it was asked for."""
+
+    last = None
+
+    def __getitem__(self, key):
+        self.last = key
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        self.last = key
+        return super().get(key, default)
+
+
 # --- the slips are real Python ---------------------------------------------------------
 @pytest.mark.parametrize("difficulty", ["easy", "medium", "hard"])
 def test_shelf_answer_is_what_python_returns(difficulty):
@@ -73,7 +87,9 @@ def test_shelf_answer_is_what_python_returns(difficulty):
         r = R.shelf_request(rng, difficulty)
         shelf = r["names"]
         expr = r["lines"][-1][len("pull("):-1]
-        assert eval(expr, {"shelf": shelf, "len": len}) == "ghost"
+        result = eval(expr, {"shelf": shelf, "len": len})
+        # most slips name the box's item; shelf.index('ghost') names its position
+        assert (shelf[result] if isinstance(result, int) else result) == "ghost"
         assert shelf[r["answer"]] == "ghost"
         assert r["labels"][r["answer"]] == f"[{r['answer']}]"
 
@@ -90,11 +106,11 @@ def test_catalogue_answer_is_the_key_python_looks_up(difficulty):
             key_used = next(k for k, v in codes.items() if v == wanted)
         else:
             looked = []
-            scope = {"codes": codes, "open": looked.append}
-            for line in r["lines"][2:]:
-                exec(line, scope)
-            value = looked[0]
-            key_used = next(k for k, v in codes.items() if v == value)
+            spy = _SpyDict(codes)
+            scope = {"codes": spy, "open": looked.append, "list": list}
+            exec("\n".join(r["lines"][2:]), scope)
+            # the key Python really looked up; open(list(codes)[i]) names the drawer directly
+            key_used = spy.last if spy.last is not None else looked[0]
         assert r["labels"][r["answer"]] == repr(key_used)
         assert r["take"] == codes[key_used]
         assert len(set(r["labels"])) == 4

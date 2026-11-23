@@ -36,7 +36,7 @@ from core.tilemap import TILE, TileMap, make_tiles
 from entities.sprites import draw_drone
 from levels import archive_decor as A
 from levels import badge_door, depth_fx, lighting
-from levels.archive_requests import START_SATCHEL, make_request
+from levels.archive_requests import START_SATCHEL, make_request, why_wrong
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
 from ui.fonts import ui_font
@@ -48,6 +48,8 @@ POINTS = 40
 FINISH_BONUS = 100
 WRONG_SECURITY, WRONG_PENALTY = 15, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
+MESSAGE_CHARS = 108                 # what fits on the one message line under the title
+EASY_TIMEOUT_SECURITY = 20           # easy is a little gentler on a slip that runs out
 BASE_SECONDS = 45
 DOOR_SECONDS = 1.2
 WARN_SECONDS = 5                 # the last seconds tick and the slip pulses red
@@ -90,6 +92,7 @@ class ArchiveFloor(RoomMixin):
         self.satchel = list(START_SATCHEL)
         self.request = make_request(0, self.rng, self.satchel, self.difficulty)
         self.scanned = False
+        self.misses = 0                   # wrong answers on the current slip
         self.slip_drop = 0.0              # 0 -> 1 as a new slip drops out of the tube
         self._last_tick = None
         self.say("Read the request slip, then do what it asks. E to act.", theme.PAPER)
@@ -252,6 +255,7 @@ class ArchiveFloor(RoomMixin):
                 self.satchel.pop(index)
             self.stage += 1
             self.scanned = False
+            self.misses = 0
             self.time_left = self.time_limit
             if self.stage < REQUESTS:
                 self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
@@ -265,8 +269,16 @@ class ArchiveFloor(RoomMixin):
             self.shake.add(0.5)
             self.burst(spot, theme.CORAL, 10)
             self.archivist.say(SCOLD[stage])
+            self.misses += 1
             if self._hints_on():
-                self.say_answer("Wrong. " + request["hint"], theme.CORAL)
+                if self.misses == 1:
+                    # the reason, plus the hint when both fit on the one message line
+                    text = f"Wrong. {why_wrong(request, index)}"
+                    if len(text) + len(request["hint"]) + 2 <= MESSAGE_CHARS:
+                        text += f"  {request['hint']}"
+                else:
+                    text = f"Wrong again. {request['walk']}"
+                self.say_answer(text, theme.CORAL)
             else:
                 self.say_answer("Wrong. Read the slip again.", theme.CORAL)
             if self.game:
@@ -290,11 +302,13 @@ class ArchiveFloor(RoomMixin):
             self.time_left = self.time_limit
             self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
             self.scanned = False
+            self.misses = 0
             self.slip_drop = 0.0
             self.say("TIME'S UP! Security increased. A new slip came down the tube.", theme.CORAL)
             self.shake.add(0.5)
             if self.game:
-                self.game.security.increase(TIMEOUT_SECURITY)
+                self.game.security.increase(
+                    EASY_TIMEOUT_SECURITY if self.difficulty == "easy" else TIMEOUT_SECURITY)
                 self.game.score.penalize(TIMEOUT_PENALTY)
 
     def _update_drone(self, dt):
