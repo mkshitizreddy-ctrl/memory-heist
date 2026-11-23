@@ -55,6 +55,13 @@ LIFT = pygame.Rect(0, 14 * TILE, 2 * TILE, 3 * TILE)
 
 DRONE_Y = 13 * TILE + 24
 DRONE_X = (3 * TILE, 26 * TILE)
+UPPER_Y = 9 * TILE + 16             # the upper hall, between the shelf and the stacks
+# The drone's loop on medium and hard.  Every leg runs over open floor: along the aisle,
+# up the gap between the two stacks, along the upper hall past the shelf and catalogue,
+# and back down the open floor on the right.  It never crosses a stack or a wall.
+DRONE_ROUTE = ((7 * TILE, DRONE_Y), (12 * TILE, DRONE_Y), (12 * TILE, UPPER_Y),
+               (24 * TILE, UPPER_Y), (24 * TILE, DRONE_Y))
+ROUTE_CORNERS = (2, 3)              # where the medium drone stops to scan
 ARCHIVIST_ROUTE = [(3 * TILE, 9 * TILE + 4), (12 * TILE, 9 * TILE + 4), (20 * TILE, 9 * TILE + 4)]
 MOTE_AREA = pygame.Rect(2 * TILE, 6 * TILE, 26 * TILE, 12 * TILE)
 LAMPS = ((5 * TILE, 7 * TILE), (11 * TILE, 16 * TILE + 10), (17 * TILE, 16 * TILE + 10))   # green banker's lamps
@@ -374,16 +381,108 @@ def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn
 
 
 class Drone:
-    """The archive's security drone: drifts along the aisle, sweeps a pale searchlight."""
+    """The archive's security drone: drifts along the aisle, sweeps a pale searchlight.
 
-    def __init__(self, speed=88.0):
-        self.x = float(DRONE_X[1])
-        self.y = float(DRONE_Y)
-        self.direction = -1
+    With no route (easy) it patrols its aisle back and forth.  With a route it follows the
+    waypoints in order (medium) or picks its way around them at random (hard, `roam`),
+    stopping to scan at corners."""
+
+    def __init__(self, speed=88.0, route=None, rng=None, roam=False, pauses=None):
+        self.route = list(route) if route else None
+        self.rng = rng or random.Random(0)
+        self.roam = roam
+        self.pauses = dict(pauses or {})          # waypoint index -> seconds spent scanning there
         self.speed = speed
         self.lure = None             # (x, y) Echo's drone is pulling it toward, or None
+        self.lure_index = None
+        self.pause_left = 0.0
+        self.bias = None             # where someone was last logged: roam towards it
+        if self.route:
+            self.last = len(self.route) - 1       # it starts at the east end of the aisle
+            self.x, self.y = map(float, self.route[self.last])
+            self.target = 0
+            self.step_dir = 1
+        else:
+            self.x = float(DRONE_X[1])
+            self.y = float(DRONE_Y)
+            self.direction = -1
 
+    # --- the route --------------------------------------------------------------------
+    def _cycle(self, index, step=1):
+        return (index + step) % len(self.route)
+
+    def _move_to(self, point, speed, dt):
+        dx, dy = point[0] - self.x, point[1] - self.y
+        dist = math.hypot(dx, dy)
+        if dist <= 1e-6:
+            return True
+        step = min(dist, speed * dt)
+        self.x += dx / dist * step
+        self.y += dy / dist * step
+        return step >= dist - 1e-6
+
+    def lure_toward(self, point):
+        """Send the drone to the waypoint farthest from `point`, the long way round the route."""
+        if not self.route:
+            return None
+        far = max(range(len(self.route)), key=lambda i: math.dist(self.route[i], point))
+        n = len(self.route)
+        forward = (far - self.last) % n
+        self.step_dir = 1 if forward <= n - forward else -1
+        self.lure_index = far
+        ahead = self._cycle(self.last, self.step_dir)
+        if math.dist((self.x, self.y), self.route[self.last]) < 2:
+            self.target = far if self.last == far else ahead
+        else:                                                  # mid-leg: never cut across, go via a waypoint
+            self.target = self.target if self.target == ahead else self.last
+        self.pause_left = 0.0
+        return self.route[far]
+
+    def noticed(self, point):
+        """Someone was just logged at `point`: a roaming drone heads back that way."""
+        self.bias = point
+
+    def _choose_next(self):
+        if not self.roam:
+            return self._cycle(self.last, self.step_dir)
+        ahead, behind = self._cycle(self.last, 1), self._cycle(self.last, -1)
+        if self.bias is not None:
+            pick = ahead if math.dist(self.route[ahead], self.bias) <= math.dist(self.route[behind], self.bias) else behind
+            self.bias = None
+        else:
+            pick = self.rng.choice((ahead, behind))
+        self.step_dir = 1 if pick == ahead else -1
+        return pick
+
+    def _arrived(self):
+        self.last = self.target
+        if self.roam:
+            self.pause_left = self.rng.uniform(0.6, 1.0)
+        else:
+            self.pause_left = self.pauses.get(self.last, 0.0)
+        self.target = self._choose_next()
+
+    def _update_route(self, dt):
+        if self.lure is not None:
+            if self.last == self.lure_index and self.target == self.lure_index:
+                return                                        # parked where Echo sent it
+            if self._move_to(self.route[self.target], self.speed * 1.4, dt):
+                self.last = self.target
+                self.target = self.last if self.last == self.lure_index else self._cycle(self.last, self.step_dir)
+            return
+        if self.pause_left > 0:
+            self.pause_left = max(0.0, self.pause_left - dt)
+            return
+        if self.target == self.last and math.dist((self.x, self.y), self.route[self.last]) < 2:
+            self.target = self._choose_next()                 # a lure just ended at a waypoint: set off again
+        if self._move_to(self.route[self.target], self.speed, dt):
+            self._arrived()
+
+    # --- movement ---------------------------------------------------------------------
     def update(self, dt):
+        if self.route:
+            self._update_route(dt)
+            return
         if self.lure is not None:
             dx, dy = self.lure[0] - self.x, self.lure[1] - self.y
             dist = math.hypot(dx, dy)

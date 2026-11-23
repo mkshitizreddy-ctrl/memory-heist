@@ -303,15 +303,17 @@ def test_the_game_builds_the_archive_unless_the_old_level_is_asked_for(monkeypat
     assert isinstance(game.level_manager.levels["level4"], Level4MemoryVault)
 
 
-def test_the_lure_keeps_the_drone_in_its_aisle_not_over_the_stacks():
-    level, _, _ = make_level()
+@pytest.mark.parametrize("difficulty", ["easy", "medium", "hard"])
+def test_the_lure_never_takes_the_drone_over_the_stacks(difficulty):
+    level, _, _ = make_level(difficulty=difficulty)
     level.handle_event(key(pygame.K_x))
-    for _ in range(120):
+    for _ in range(240):
         level.update(1 / 60)
         r = pygame.Rect(0, 0, 16, 12)
         r.center = level.drone.centre
         assert not any(r.colliderect(s) for s in A.STACKS)
-    assert abs(level.drone.y - A.DRONE_Y) < 2
+    if difficulty == "easy":                      # easy keeps to its own aisle
+        assert abs(level.drone.y - A.DRONE_Y) < 2
 
 
 def test_a_new_slip_drops_out_of_the_tube():

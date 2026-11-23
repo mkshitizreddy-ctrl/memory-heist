@@ -21,7 +21,9 @@ Rules (Floor 4's original numbers):
     right answer   +40, the next request comes up, the clock resets
     wrong answer   security +15, score -10, the same request stays
     out of time    security +25, score -15, a new slip
-    security drone score -10 when it catches you in its light (score only)
+    security drone score -10 (hard -15) when it catches you in its light (score only);
+                   easy patrols its aisle, medium runs a loop past the shelf and catalogue,
+                   hard roams that loop and scans at corners.  A red warning comes first.
     walk out       +100 bonus
 
 The original Level 4 stays in levels/legacy/level4_memory.py and returns with
@@ -55,12 +57,22 @@ BASE_SECONDS = 45
 DOOR_SECONDS = 1.2
 WARN_SECONDS = 5                 # the last seconds tick and the slip pulses red
 SLIP_DROP_SECONDS = 0.45
-DRONE_PENALTY = 10
+DRONE_PENALTY = 10               # the medium (default) numbers; DRONE_SETTINGS has all three
 DRONE_RANGE = 78                 # its searchlight's reach
 DRONE_COOLDOWN = 3.0
-DRONE_GRACE = 2.5                # it cannot log you in the first moments
-LURE_SECONDS = 4.0
-LURE_COOLDOWN = 12.0
+DRONE_GRACE = 2.0                # it cannot log you in the first moments
+LURE_SECONDS = 3.0
+LURE_COOLDOWN = 15.0
+DRONE_SETTINGS = {
+    # route: "aisle" patrols back and forth, "loop" follows the route, "roam" picks its way round it
+    "easy": {"speed": 88.0, "reach": 70, "grace": 2.5, "penalty": 10, "lure_seconds": 4.0,
+             "lure_cooldown": 12.0, "lock": 0.0, "route": "aisle"},
+    "medium": {"speed": 105.0, "reach": DRONE_RANGE, "grace": DRONE_GRACE, "penalty": DRONE_PENALTY,
+               "lure_seconds": LURE_SECONDS, "lure_cooldown": LURE_COOLDOWN, "lock": 0.4, "route": "loop"},
+    "hard": {"speed": 125.0, "reach": 90, "grace": 1.5, "penalty": 15, "lure_seconds": 2.5,
+             "lure_cooldown": 20.0, "lock": 0.4, "route": "roam"},
+}
+LOCK_DECAY = 2.0                 # the red warning fades twice as fast as it builds
 WRONG_SECONDS = 0.5
 AMBIENT = (128, 126, 140)        # a dim, dusty hall; the lamps do the work
 LAMP = (210, 230, 150)           # banker's lamps: green glass, warm bulb
@@ -114,8 +126,11 @@ class ArchiveFloor(RoomMixin):
         self._notices = 0
         self._praised = 0
 
-        self.drone = A.Drone()
-        self.drone_grace = DRONE_GRACE
+        self.drone_cfg = DRONE_SETTINGS[self.difficulty]
+        self.drone_reach = self.drone_cfg["reach"]
+        self.drone = self._make_drone()
+        self.drone_grace = self.drone_cfg["grace"]
+        self.drone_lock = {}             # player id -> seconds inside the light (the red warning)
         self.drone_wait = {}             # player id -> seconds until the drone can log them again
         self.drone_hits = 0
         self.lure_left = 0.0
@@ -138,6 +153,14 @@ class ArchiveFloor(RoomMixin):
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
 
     # --- difficulty -------------------------------------------------------------
+    def _make_drone(self):
+        cfg = self.drone_cfg
+        if cfg["route"] == "aisle":
+            return A.Drone(speed=cfg["speed"])
+        pauses = {i: 0.8 for i in A.ROUTE_CORNERS} if cfg["route"] == "loop" else None
+        return A.Drone(speed=cfg["speed"], route=A.DRONE_ROUTE, rng=self.rng,
+                       roam=cfg["route"] == "roam", pauses=pauses)
+
     def _difficulty(self):
         value = getattr(self.game, "difficulty", None)
         if isinstance(value, dict):
@@ -223,10 +246,14 @@ class ArchiveFloor(RoomMixin):
             self.say(f"Echo: drone recharging, {math.ceil(self.lure_cooldown)}s.", theme.MIST)
             return
         px = self.player.rect.centerx if self.player is not None else A.DRONE_X[0]
-        far = A.DRONE_X[1] if px < 15 * TILE else A.DRONE_X[0]
-        self.drone.lure = (far, A.DRONE_Y)                    # along its own aisle, never over the stacks
-        self.lure_left = LURE_SECONDS
-        self.lure_cooldown = LURE_COOLDOWN
+        if self.drone.route:                                  # the far corner of its route, by its own legs
+            here = self.player.rect.center if self.player is not None else (px, A.DRONE_Y)
+            self.drone.lure = self.drone.lure_toward(here)
+        else:
+            far = A.DRONE_X[1] if px < 15 * TILE else A.DRONE_X[0]
+            self.drone.lure = (far, A.DRONE_Y)                # along its own aisle, never over the stacks
+        self.lure_left = self.drone_cfg["lure_seconds"]
+        self.lure_cooldown = self.drone_cfg["lure_cooldown"]
         self.sfx("click")
         self.say("Echo: pulling the drone away. Go.", theme.TEAL)
 
@@ -323,20 +350,31 @@ class ArchiveFloor(RoomMixin):
                 self.drone.lure = None
         self.drone.update(dt)
         if self.drone.lure is not None or self.drone_grace > 0:
+            self.drone_lock.clear()
             return
+        lock_needed = self.drone_cfg["lock"]
         for player, _ in self.players():
             key = id(player)
             self.drone_wait[key] = max(0.0, self.drone_wait.get(key, 0.0) - dt)
             if self.drone_wait[key] > 0:
                 continue
-            if math.dist(player.rect.center, self.drone.centre) <= DRONE_RANGE:
-                self.drone_wait[key] = DRONE_COOLDOWN
-                self.drone_hits += 1
-                self.shake.add(0.3)
-                self.sfx("alarm")
-                self.say(f"The security drone logged you. -{DRONE_PENALTY}. Press X to lure it.", theme.CORAL)
-                if self.game:
-                    self.game.score.penalize(DRONE_PENALTY)
+            inside = math.dist(player.rect.center, self.drone.centre) <= self.drone_reach
+            if not inside:
+                self.drone_lock[key] = max(0.0, self.drone_lock.get(key, 0.0) - dt * LOCK_DECAY)
+                continue
+            self.drone_lock[key] = self.drone_lock.get(key, 0.0) + dt
+            if self.drone_lock[key] < lock_needed:
+                continue                                      # the light is red: step out of it
+            self.drone_lock[key] = 0.0
+            self.drone_wait[key] = DRONE_COOLDOWN
+            self.drone_hits += 1
+            self.drone.noticed(player.rect.center)
+            self.shake.add(0.3)
+            self.sfx("alarm")
+            penalty = self.drone_cfg["penalty"]
+            self.say(f"The security drone logged you. -{penalty}. Press X to lure it.", theme.CORAL)
+            if self.game:
+                self.game.score.penalize(penalty)
 
     def _update_npcs(self, dt):
         self.archivist.update(dt)
@@ -427,8 +465,9 @@ class ArchiveFloor(RoomMixin):
         door = badge_door.lamp_colour(self.door_open if self.stage >= REQUESTS else 0.0)
         out.append(lighting.Light((A.DOOR.x - 12, A.DOOR.centery), 100, door, 0.7))
         alert = any(v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values())
-        out.append(lighting.Light((self.drone.centre[0], self.drone.centre[1] + 14), DRONE_RANGE + 10,
-                                  theme.CORAL if alert else (210, 220, 240), 0.8))
+        warning = any(v > 0 for v in self.drone_lock.values())      # the red warning before a log
+        out.append(lighting.Light((self.drone.centre[0], self.drone.centre[1] + 14), self.drone_reach + 10,
+                                  theme.CORAL if (alert or warning) else (210, 220, 240), 0.8))
         out.append(lighting.Light((int(self.echo[0]), int(self.echo[1])), 50, theme.TEAL, 0.5))
         return out
 
@@ -454,13 +493,15 @@ class ArchiveFloor(RoomMixin):
         lighting.blob_shadow(world, self.archivist.rect, 90)
         self.archivist.draw(world, self.small)
         cx, cy = self.drone.centre
-        beam = pygame.Surface((DRONE_RANGE * 2, DRONE_RANGE), pygame.SRCALPHA)
-        pygame.draw.ellipse(beam, (220, 230, 255, 30), beam.get_rect())
-        world.blit(beam, (cx - DRONE_RANGE, cy + 14 - DRONE_RANGE // 2))
+        reach = self.drone_reach
+        warning = any(v > 0 for v in self.drone_lock.values())
+        beam = pygame.Surface((reach * 2, reach), pygame.SRCALPHA)
+        pygame.draw.ellipse(beam, (255, 90, 90, 46) if warning else (220, 230, 255, 30), beam.get_rect())
+        world.blit(beam, (cx - reach, cy + 14 - reach // 2))
         lighting.blob_shadow(world, pygame.Rect(cx - 8, cy + 18, 16, 6), 70)
         bob = int(2 * math.sin(t * 5))
-        draw_drone(world, (cx, cy + bob), "enemy_alert" if self.drone_hits and any(
-            v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values()) else "enemy", int(t * 12))
+        draw_drone(world, (cx, cy + bob), "enemy_alert" if warning or (self.drone_hits and any(
+            v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values())) else "enemy", int(t * 12))
         draw_drone(world, (int(self.echo[0]), int(self.echo[1]) + bob), "ally", int(t * 12))
         self.draw_sparks(world)
         self.lightlayer.apply(world, self._lights())
