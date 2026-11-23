@@ -10,7 +10,7 @@ import math
 import pygame
 
 from levels.common import draw_glow_text, GREEN
-from core.difficulty import DIFFICULTIES
+from core.difficulty import DIFFICULTIES, PRACTICE
 from core.hero_portrait import make_portrait
 from ui import theme
 from ui.backdrop import draw_backdrop
@@ -25,8 +25,10 @@ CONTROLS = [
     ("Any time", "ESC pause or quit.  After a loss: F retry floor, R new run"),
 ]
 
-DIFFICULTY_ORDER = ["easy", "medium", "hard"]
-DIFFICULTY_TINT = {"easy": theme.TEAL, "medium": theme.GOLD, "hard": theme.CORAL}
+DIFFICULTY_ORDER = ["easy", "medium", "hard", PRACTICE]
+DIFFICULTY_KEYS = ("1", "2", "3", "4")
+DIFFICULTY_TINT = {PRACTICE: theme.SKY, "easy": theme.TEAL, "medium": theme.GOLD, "hard": theme.CORAL}
+PRACTICE_BLURB = "Easy floors  |  no clocks  |  no security  |  not saved"
 PORTRAIT_SIZE = 96
 ROW_HEIGHT = 30
 SHIMMER_PERIOD = 300            # ticks between title shimmers
@@ -63,6 +65,8 @@ def bob(tick, phase=0.0, amplitude=3):
 
 def difficulty_blurb(name):
     """One line saying what a difficulty changes, from the real preset numbers."""
+    if name == PRACTICE:
+        return PRACTICE_BLURB
     d = DIFFICULTIES.get(name, DIFFICULTIES["medium"])
     hints = "hints on" if d["hints_enabled"] else "hints off"
     return (f"timer x{d['timer_multiplier']:g}  |  {hints}  |  "
@@ -88,7 +92,8 @@ class MainMenu:
         """Let the player switch difficulty with 1/2/3 while at the menu."""
         if event.type != pygame.KEYDOWN:
             return
-        chosen = {pygame.K_1: "easy", pygame.K_2: "medium", pygame.K_3: "hard"}.get(event.key)
+        chosen = {pygame.K_1: "easy", pygame.K_2: "medium", pygame.K_3: "hard",
+                  pygame.K_4: PRACTICE}.get(event.key)
         if chosen is not None:
             if chosen != self.selected_difficulty:
                 self._flash = FLASH_TICKS
@@ -102,9 +107,9 @@ class MainMenu:
         panel = pygame.Rect(0, 0, 720, 36 + len(CONTROLS) * ROW_HEIGHT + 14)
         panel.midtop = (cx, 168)
         chips = []
-        for i in range(3):
+        for i in range(len(DIFFICULTY_ORDER)):
             chip = pygame.Rect(0, 0, 170, 34)
-            chip.midtop = (cx + (i - 1) * 190, panel.bottom + 46)
+            chip.midtop = (cx + round((i - 1.5) * 185), panel.bottom + 46)
             chips.append(chip)
         blurb = pygame.Rect(0, 0, 640, 22)
         blurb.midtop = (cx, chips[0].bottom + 6)
@@ -159,13 +164,13 @@ class MainMenu:
             surface.blit(line, (panel.x + 250, y - line.get_height() // 2))
             y += ROW_HEIGHT
 
-        # Difficulty selector: three chips, the chosen one is solid
-        blit_centered(surface, self.heading_font.render("DIFFICULTY (press 1/2/3)", True, theme.SKY),
+        # Difficulty selector: four chips (Practice last), the chosen one is solid
+        blit_centered(surface, self.heading_font.render("DIFFICULTY (press 1/2/3, 4 to practise)", True, theme.SKY),
                       (width // 2, lay["chips"][0].y - 16))
         flash = self._flash / FLASH_TICKS
         self._flash = max(0, self._flash - 1)
-        for chip, key_num, name in zip(lay["chips"], ("1", "2", "3"), DIFFICULTY_ORDER):
-            label = DIFFICULTIES[name]["label"]
+        for chip, key_num, name in zip(lay["chips"], DIFFICULTY_KEYS, DIFFICULTY_ORDER):
+            label = "PRACTICE" if name == PRACTICE else DIFFICULTIES[name]["label"]
             tint = DIFFICULTY_TINT[name]
             chosen = name == self.selected_difficulty
             draw_chip(surface, chip, f"[{key_num}] {label}", self.control_font,

@@ -19,6 +19,8 @@ from core.difficulty import (
     run_time_seconds,
     question_time_multiplier,
     FLOOR_COOLDOWN,
+    PRACTICE_BASE,
+    is_practice,
 )
 from levels.legacy.level1 import Level1
 from levels.level2 import Level2
@@ -118,6 +120,7 @@ class Game:
         self.security = DifficultySecurityMeter(max_level=100)
         self.hints = HintSystem()
         self.difficulty = get_difficulty(DEFAULT_DIFFICULTY)
+        self.practice = False       # Practice: Easy floors, no clocks, no security, never saved
 
         # UI
         self.menu = MainMenu()
@@ -180,6 +183,8 @@ class Game:
 
     def _save_run(self, level_name):
         """Remember the floor just reached, so the menu can offer Continue."""
+        if self.practice:
+            return                  # never touch the story save
         save_progress(level_name, self.score.get_score(),
                       self.timer.get_remaining() if self.timer.active else 0,
                       self.difficulty["label"].lower(), self.coop)
@@ -201,6 +206,7 @@ class Game:
             return
         self.menu.selected_difficulty = saved["difficulty"]
         self.menu.coop = saved["coop"]
+        self.practice = False
         self.difficulty = get_difficulty(saved["difficulty"])
         self.security.penalty_multiplier = self.difficulty["security_penalty_multiplier"]
         self.coop = saved["coop"]
@@ -494,10 +500,11 @@ class Game:
 
                 elif event.key == pygame.K_RETURN:
                     if self.state == "menu":
+                        self.practice = is_practice(self.menu.selected_difficulty)
                         self.difficulty = get_difficulty(
-                            self.menu.selected_difficulty
+                            PRACTICE_BASE if self.practice else self.menu.selected_difficulty
                         )
-                        self.security.penalty_multiplier = self.difficulty[
+                        self.security.penalty_multiplier = 0.0 if self.practice else self.difficulty[
                             "security_penalty_multiplier"
                         ]
                         self.coop = self.menu.coop
@@ -831,7 +838,12 @@ class Game:
         if new_state == "menu":
             self._refresh_saved_run()
 
-        if new_state == "win":
+        if new_state == "win" and self.practice:
+            # Practice: a score to see, but no badges, leaderboard or save changes.
+            result = final_score(self.score.get_score(), 0, self.difficulty["score_multiplier"])
+            self.win_screen.begin(result["total"], "Practice", self.coop, result, badges=[])
+            self.win_screen.skip_entry()
+        elif new_state == "win":
             clear_progress()        # a finished run is not something to continue
             # Time left and difficulty turn the run score into the final one.
             result = final_score(
@@ -872,7 +884,8 @@ class Game:
         self.score.reset()
         self.security.reset()
         self.timer = Timer()
-        self.timer.start(run_time_seconds(self.difficulty))
+        if not self.practice:                # Practice: no run clock, so it never runs out
+            self.timer.start(run_time_seconds(self.difficulty))
 
         # Fresh levels — undoes prior completion.
         self._register_levels()

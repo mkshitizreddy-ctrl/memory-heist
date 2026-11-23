@@ -109,6 +109,8 @@ class RoomMixin:
 
     def clock_dt(self, dt):
         """The part of `dt` the question clock should count, after any reading hold."""
+        if getattr(getattr(self, "game", None), "practice", False) is True:
+            return 0.0                          # Practice: question clocks never run
         hold = getattr(self, "read_hold", 0.0)
         used = min(hold, dt)
         self.read_hold = hold - used
