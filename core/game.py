@@ -88,8 +88,10 @@ class DifficultySecurityMeter(SecurityMeter):
 
     def increase(self, amount=20):
         """Scale a base security increase before applying it."""
-        self.mistakes += 1
         adjusted_amount = round(amount * self.penalty_multiplier)
+        if adjusted_amount <= 0:
+            return                 # no penalty, no mistake: stars and badges stay honest
+        self.mistakes += 1
         super().increase(adjusted_amount)
 
 
