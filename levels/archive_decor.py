@@ -335,7 +335,7 @@ def draw_satchel(surface, items):
     surface.blit(img, (tag.x + 8, tag.y + 22))
 
 
-def draw_slip(surface, request, number, total, fraction, seconds, done, t, drop=1.0, warn=False):
+def draw_slip(surface, request, number, total, fraction, seconds, done, t, drop=1.0, warn=False, recap=None, streak=None):
     """The request slip pinned to the wall: cream paper, typed Python, a red stamp, a burning clock.
 
     drop 0..1 slides a new slip down out of the pneumatic tube; warn pulses its edge red."""
@@ -344,12 +344,12 @@ def draw_slip(surface, request, number, total, fraction, seconds, done, t, drop=
     previous = surface.get_clip()
     surface.set_clip(pygame.Rect(SLIP.x - 4, SLIP.y - 2, SLIP.w + 10, SLIP.h + 8))
     try:
-        _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t)
+        _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t, recap, streak)
     finally:
         surface.set_clip(previous)
 
 
-def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t):
+def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn, t, recap=None, streak=None):
     pygame.draw.rect(surface, (0, 0, 0), r.move(3, 3))
     pygame.draw.rect(surface, PAPER, r)
     pygame.draw.rect(surface, (150, 136, 100), r, 2)
@@ -358,6 +358,13 @@ def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn
         pygame.draw.rect(surface, theme.mix((150, 136, 100), theme.CORAL, pulse), r, 3)
     pygame.draw.circle(surface, theme.CORAL, (r.centerx, r.y + 5), 4)                    # the pin
     head = ui_font(13, bold=True)
+    if done and recap:
+        msg = head.render("ALL REQUESTS FILED  -  R: full recap", True, (40, 110, 70))
+        surface.blit(msg, (r.x + 10, r.y + 8))
+        font = code_font(13)
+        for k, (text, colour) in enumerate(recap[:4]):
+            surface.blit(font.render(text, True, colour), (r.x + 10, r.y + 28 + k * 15))
+        return
     if done:
         msg = head.render("ALL REQUESTS FILED", True, (40, 110, 70))
         surface.blit(msg, msg.get_rect(center=(r.centerx, r.y + 30)))
@@ -378,6 +385,156 @@ def _slip_body(surface, r, request, number, total, fraction, seconds, done, warn
     pygame.draw.rect(surface, colour, (bar.x, bar.y, int(bar.w * max(0.0, fraction)), bar.h))
     secs = head.render(f"{seconds:>2}s", True, colour)
     surface.blit(secs, (bar.right + 8, bar.y - 8))
+    if streak is not None:                                     # the refill pips: two clean answers refill the clock
+        have, goal = streak
+        label = ui_font(11, bold=True).render("REFILL", True, (120, 100, 70))
+        x = r.right - 14 - goal * 14 - label.get_width() - 4
+        surface.blit(label, (x, r.y + 11))
+        for k in range(goal):
+            centre = (r.right - 14 - (goal - k) * 14 + 7, r.y + 17)
+            pygame.draw.circle(surface, (40, 110, 70) if k < have else (190, 176, 140), centre, 5)
+            pygame.draw.circle(surface, (120, 100, 70), centre, 5, 1)
+
+
+def draw_slip_tags(surface, rush, guarded, t):
+    """Red stamps on the wall beside the slip: RUSH (shorter clock, double points) and GUARD."""
+    x, y = SLIP.x - 62, SLIP.y + 4
+    font = ui_font(12, bold=True)
+    small = ui_font(11, bold=True)
+    if rush:
+        box = pygame.Rect(x, y, 56, 34)
+        pulse = 0.5 + 0.5 * math.sin(t * 6)
+        pygame.draw.rect(surface, (50, 18, 18), box, border_radius=3)
+        pygame.draw.rect(surface, theme.mix(theme.CORAL, theme.PAPER, 0.25 * pulse), box, 2, border_radius=3)
+        a = font.render("RUSH", True, theme.CORAL)
+        b = small.render("x2 pts", True, theme.PAPER)
+        surface.blit(a, a.get_rect(center=(box.centerx, box.y + 11)))
+        surface.blit(b, b.get_rect(center=(box.centerx, box.y + 25)))
+        y += 40
+    if guarded:
+        box = pygame.Rect(x, y, 56, 34)
+        pygame.draw.rect(surface, (22, 28, 50), box, border_radius=3)
+        pygame.draw.rect(surface, (150, 190, 255), box, 2, border_radius=3)
+        a = font.render("GUARD", True, (170, 205, 255))
+        b = small.render("drone post", True, theme.PAPER)
+        surface.blit(a, a.get_rect(center=(box.centerx, box.y + 11)))
+        surface.blit(b, b.get_rect(center=(box.centerx, box.y + 25)))
+
+
+def draw_guard_post(surface, point, t):
+    """A pulsing ring on the floor where the drone lingers while a request is guarded."""
+    pulse = 0.5 + 0.5 * math.sin(t * 4)
+    ring = pygame.Surface((70, 70), pygame.SRCALPHA)
+    pygame.draw.circle(ring, (*theme.CORAL, int(60 + 70 * pulse)), (35, 35), int(20 + 8 * pulse), 2)
+    pygame.draw.circle(ring, (*theme.CORAL, 90), (35, 35), 4)
+    surface.blit(ring, ring.get_rect(center=(int(point[0]), int(point[1]) + 14)))
+
+
+def draw_heading(surface, drone, target, t):
+    """A chevron just ahead of the drone, pointing the way it is going (Echo's scan shows it)."""
+    dx, dy = target[0] - drone[0], target[1] - drone[1]
+    length = math.hypot(dx, dy)
+    if length < 1:
+        return
+    ux, uy = dx / length, dy / length
+    nx, ny = -uy, ux
+    base = (drone[0] + ux * (26 + 3 * math.sin(t * 8)), drone[1] + 14 + uy * (26 + 3 * math.sin(t * 8)))
+    tip = (base[0] + ux * 12, base[1] + uy * 12)
+    pts = [tip, (base[0] + nx * 7, base[1] + ny * 7), (base[0] - nx * 7, base[1] - ny * 7)]
+    pygame.draw.polygon(surface, theme.GOLD, pts)
+    pygame.draw.polygon(surface, (40, 30, 14), pts, 1)
+
+
+def draw_frozen(surface, drone, seconds, t):
+    """Ice over the drone while Echo's freeze holds it."""
+    cx, cy = int(drone[0]), int(drone[1]) + 4
+    glow = pygame.Surface((70, 70), pygame.SRCALPHA)
+    pygame.draw.circle(glow, (150, 210, 255, 70), (35, 35), 30)
+    pygame.draw.circle(glow, (200, 235, 255, 150), (35, 35), 30, 2)
+    for k in range(6):
+        a = k * math.tau / 6 + t * 0.5
+        pygame.draw.line(glow, (220, 240, 255, 190), (35 + math.cos(a) * 8, 35 + math.sin(a) * 8),
+                         (35 + math.cos(a) * 26, 35 + math.sin(a) * 26), 1)
+    surface.blit(glow, glow.get_rect(center=(cx, cy)))
+    label = ui_font(12, bold=True).render(f"FROZEN {seconds:.1f}s", True, (200, 235, 255))
+    surface.blit(label, label.get_rect(center=(cx, cy - 30)))
+
+
+ABILITY_Y = 592
+
+
+def draw_abilities(surface, abilities, t):
+    """The bottom wall band: one chip per Echo ability with a big countdown.
+
+    abilities: [{"key", "name", "state": ready|cooling|active|locked, "left", "total", "note"}]"""
+    big = ui_font(28, bold=True)
+    label = ui_font(15, bold=True)
+    note = ui_font(12)
+    for k, ab in enumerate(abilities):
+        box = pygame.Rect(2 * TILE + k * 252, ABILITY_Y, 240, 40)
+        state = ab["state"]
+        tone = {"ready": theme.TEAL, "cooling": theme.GOLD, "active": (170, 215, 255),
+                "locked": theme.MIST}[state]
+        pygame.draw.rect(surface, (18, 20, 28), box, border_radius=5)
+        pygame.draw.rect(surface, tone, box, 2, border_radius=5)
+        keycap = pygame.Rect(box.x + 6, box.y + 7, 26, 26)
+        pygame.draw.rect(surface, tone, keycap, border_radius=4)
+        kimg = label.render(ab["key"], True, (14, 16, 22))
+        surface.blit(kimg, kimg.get_rect(center=keycap.center))
+        name = label.render(ab["name"], True, theme.PAPER)
+        surface.blit(name, (box.x + 40, box.y + 5))
+        sub = note.render(ab.get("note", ""), True, theme.MIST)
+        surface.blit(sub, (box.x + 40, box.y + 22))
+        if state == "ready":
+            pulse = 0.75 + 0.25 * math.sin(t * 5)
+            text = big.render("READY", True, theme.mix(theme.TEAL, theme.PAPER, 1 - pulse))
+        elif state == "locked":
+            text = big.render("LOCKED", True, theme.MIST)
+        else:
+            text = big.render(f"{max(0, math.ceil(ab['left']))}s", True, tone)
+        surface.blit(text, text.get_rect(midright=(box.right - 10, box.centery - 1)))
+        total = max(0.001, ab.get("total", 1.0))
+        frac = 1.0 if state == "ready" else (0.0 if state == "locked" else
+                                              (ab["left"] / total if state == "active" else 1 - ab["left"] / total))
+        bar = pygame.Rect(box.x + 4, box.bottom - 5, box.w - 8, 3)
+        pygame.draw.rect(surface, (40, 44, 56), bar)
+        pygame.draw.rect(surface, tone, (bar.x, bar.y, int(bar.w * max(0.0, min(1.0, frac))), bar.h))
+
+
+RECAP_PANEL = pygame.Rect(7 * TILE, 8 * TILE + 8, 16 * TILE, 5 * TILE + 16)
+
+
+def draw_recap(surface, rows, notes, t):
+    """The file-room recap: one row per request, then the mistakes worth another look.
+
+    rows: [(text, colour)]; notes: [(text, colour)]"""
+    r = RECAP_PANEL
+    panel = pygame.Surface(r.size, pygame.SRCALPHA)
+    pygame.draw.rect(panel, (18, 20, 28, 226), panel.get_rect(), border_radius=6)
+    pygame.draw.rect(panel, (186, 150, 70, 255), panel.get_rect(), 2, border_radius=6)
+    surface.blit(panel, r)
+    head = ui_font(16, bold=True).render("ARCHIVE RECAP", True, BRASS)
+    surface.blit(head, (r.x + 14, r.y + 8))
+    hint = ui_font(12).render("R: close", True, theme.MIST)
+    surface.blit(hint, (r.right - hint.get_width() - 14, r.y + 12))
+    font = code_font(14)
+    y = r.y + 32
+    for text, colour in rows:
+        surface.blit(font.render(text, True, colour), (r.x + 14, y))
+        y += 18
+    y += 6
+    small = code_font(13)
+    if notes:
+        surface.blit(ui_font(13, bold=True).render("Worth another look:", True, theme.GOLD), (r.x + 14, y))
+        y += 18
+        for text, colour in notes:
+            img = small.render(text, True, colour)
+            if img.get_width() > r.w - 28:
+                img = pygame.transform.smoothscale(img, (r.w - 28, img.get_height()))
+            surface.blit(img, (r.x + 14, y))
+            y += 16
+    else:
+        surface.blit(ui_font(13, bold=True).render("A clean run. Nothing to review.", True, theme.TEAL), (r.x + 14, y))
 
 
 class Drone:
@@ -397,6 +554,8 @@ class Drone:
         self.lure_index = None
         self.pause_left = 0.0
         self.bias = None             # where someone was last logged: roam towards it
+        self.guard = None            # waypoint index it lingers at (a guarded request), or None
+        self.guard_pause = 0.0
         if self.route:
             self.last = len(self.route) - 1       # it starts at the east end of the aisle
             self.x, self.y = map(float, self.route[self.last])
@@ -455,6 +614,16 @@ class Drone:
         self.pause_left = 0.0
         return self.route[far]
 
+    def set_guard(self, index, seconds):
+        """Make the waypoint `index` a guard post: it scans there for `seconds`, and a roaming
+        drone keeps coming back to it."""
+        self.guard = index if self.route and index is not None and 0 <= index < len(self.route) else None
+        self.guard_pause = float(seconds) if self.guard is not None else 0.0
+
+    def heading(self):
+        """The point it is heading for, or None when it is not on a route."""
+        return self.route[self.target] if self.route else None
+
     def noticed(self, point):
         """Someone was just logged at `point`: a roaming drone heads back that way."""
         self.bias = point
@@ -466,6 +635,9 @@ class Drone:
         if self.bias is not None:
             pick = ahead if math.dist(self.route[ahead], self.bias) <= math.dist(self.route[behind], self.bias) else behind
             self.bias = None
+        elif self.guard is not None and self.rng.random() < 0.65:
+            near = lambda i: min(self._path_len(i, self.guard, 1), self._path_len(i, self.guard, -1))  # noqa: E731
+            pick = ahead if near(ahead) <= near(behind) else behind
         else:
             pick = self.rng.choice((ahead, behind))
         self.step_dir = 1 if pick == ahead else -1
@@ -477,6 +649,8 @@ class Drone:
             self.pause_left = self.rng.uniform(0.6, 1.0)
         else:
             self.pause_left = self.pauses.get(self.last, 0.0)
+        if self.guard is not None and self.last == self.guard:
+            self.pause_left = max(self.pause_left, self.guard_pause)
         self.target = self._choose_next()
 
     def _update_route(self, dt):

@@ -21,7 +21,7 @@ import pytest
 from levels import archive_decor as A
 from levels import archive_requests as R
 from levels.floor4_archive import (
-    DRONE_GRACE, DRONE_PENALTY, FINISH_BONUS, POINTS, TIMEOUT_PENALTY, TIMEOUT_SECURITY,
+    DRONE_GRACE, DRONE_PENALTY, FINISH_BONUS, POINTS, RUSH_POINTS, TIMEOUT_PENALTY, TIMEOUT_SECURITY,
     WRONG_PENALTY, WRONG_SECURITY, ArchiveFloor)
 
 pygame.init()
@@ -153,7 +153,7 @@ def test_right_answers_file_four_requests_and_fill_the_satchel():
     stand_and_press(level, player, level.request["answer"])
     assert level.satchel == satchel                                       # the dial leaves the satchel alone
     assert level.stage == 4 and level.gates_passed == 4
-    assert game.score.value == 4 * POINTS and game.security.level == 0
+    assert game.score.value == 3 * POINTS + RUSH_POINTS and game.security.level == 0     # one slip is RUSH
 
 
 def test_a_wrong_answer_raises_security_and_keeps_the_same_request():
@@ -228,9 +228,9 @@ def test_the_vault_door_opens_after_the_last_request_and_the_bonus_is_paid_once(
     for _ in range(90):
         level.update(1 / 60)
     assert level.is_complete()
-    assert game.score.value == 4 * POINTS + FINISH_BONUS
+    assert game.score.value == 3 * POINTS + RUSH_POINTS + FINISH_BONUS
     level.update(1.0)
-    assert game.score.value == 4 * POINTS + FINISH_BONUS
+    assert game.score.value == 3 * POINTS + RUSH_POINTS + FINISH_BONUS
 
 
 def test_second_player_answers_with_right_shift():
@@ -339,6 +339,6 @@ def test_the_slip_clock_holds_while_an_answer_is_read():
     stand_and_press(level, player, level.request["answer"])
     assert level.read_hold > 0
     level.update(level.read_hold - 0.1)
-    assert level.time_left == level.time_limit                   # the next slip waits for the reader
+    assert level.time_left == level._slip_limit()                # the next slip waits for the reader
     level.update(1.1)
-    assert level.time_left == pytest.approx(level.time_limit - 1.0)
+    assert level.time_left == pytest.approx(level._slip_limit() - 1.0)
