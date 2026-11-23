@@ -256,9 +256,9 @@ class ArchiveFloor(RoomMixin):
             if self.stage < REQUESTS:
                 self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
                 self.slip_drop = 0.0
-                self.say(f"{request['explain']}  Next request is up.", theme.TEAL)
+                self.say_answer(f"{request['explain']}  Next request is up.", theme.TEAL)
             else:
-                self.say(f"{request['explain']}  The vault door is opening.", theme.GOLD)
+                self.say_answer(f"{request['explain']}  The vault door is opening.", theme.GOLD)
                 self.sfx("door")
         else:
             self.wrong[(stage, index)] = WRONG_SECONDS
@@ -266,9 +266,9 @@ class ArchiveFloor(RoomMixin):
             self.burst(spot, theme.CORAL, 10)
             self.archivist.say(SCOLD[stage])
             if self._hints_on():
-                self.say("Wrong. " + request["hint"], theme.CORAL)
+                self.say_answer("Wrong. " + request["hint"], theme.CORAL)
             else:
-                self.say("Wrong. Read the slip again.", theme.CORAL)
+                self.say_answer("Wrong. Read the slip again.", theme.CORAL)
             if self.game:
                 self.game.security.increase(WRONG_SECURITY)
                 self.game.score.penalize(WRONG_PENALTY)
@@ -280,6 +280,7 @@ class ArchiveFloor(RoomMixin):
     def _tick_timer(self, dt):
         if self.stage >= REQUESTS:
             return
+        dt = self.clock_dt(dt)                  # held while the last answer's feedback is read
         self.time_left -= dt
         whole = math.ceil(self.time_left)
         if 0 < whole <= WARN_SECONDS and whole != self._last_tick:

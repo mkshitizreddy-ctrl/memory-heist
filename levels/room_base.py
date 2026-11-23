@@ -52,6 +52,17 @@ class RoomMap:
         return self.tilemap.collides(rect) or any(rect.colliderect(p) for p in self.props)
 
 
+# After an answer the question clock holds while the player reads the feedback line:
+# about 25 characters a second, never less than 1.5 s or more than 4 s.
+READ_HOLD_MIN, READ_HOLD_MAX = 1.5, 4.0
+READ_CHARS_PER_SECOND = 25
+
+
+def reading_seconds(text):
+    """How long the clock holds for a feedback line of this length."""
+    return max(READ_HOLD_MIN, min(READ_HOLD_MAX, len(text) / READ_CHARS_PER_SECOND))
+
+
 class RoomMixin:
     STEP_SOUND = "step"              # a floor can override this (metal grating, server floor...)
 
@@ -90,6 +101,18 @@ class RoomMixin:
 
     def say(self, text, tone=theme.PAPER):
         self.message, self.message_tone = text, tone
+
+    def say_answer(self, text, tone=theme.PAPER):
+        """Answer feedback (right or wrong): say it and hold the question clock while it is read."""
+        self.say(text, tone)
+        self.read_hold = max(getattr(self, "read_hold", 0.0), reading_seconds(text))
+
+    def clock_dt(self, dt):
+        """The part of `dt` the question clock should count, after any reading hold."""
+        hold = getattr(self, "read_hold", 0.0)
+        used = min(hold, dt)
+        self.read_hold = hold - used
+        return dt - used
 
     def burst(self, pos, colour, count):
         for _ in range(count):

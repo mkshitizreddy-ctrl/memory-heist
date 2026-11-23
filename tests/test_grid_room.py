@@ -1173,3 +1173,20 @@ def test_tunnel_lights_come_up_as_relays_go_live():
     for _ in range(300):
         room.update(1 / 60)
     assert sum(room.lightlayer.ambient) > dim + 60
+
+
+def test_the_clock_holds_while_an_answer_is_read_then_runs_again():
+    from levels.room_base import READ_HOLD_MAX, READ_HOLD_MIN
+    room, _, player = make_room()
+    set_pool(room, QS)
+    answer(room, player, "67")                                   # wrong: the hint is on the wall
+    hold = room.read_hold
+    assert READ_HOLD_MIN <= hold <= READ_HOLD_MAX
+    left = room.time_left
+    room.update(hold - 0.1)
+    assert room.time_left == left                                # frozen while reading
+    room.update(1.1)
+    assert room.time_left == pytest.approx(left - 1.0)           # then it counts again
+    answer(room, player, "42")                                   # right: next gate starts full and held
+    room.update(READ_HOLD_MIN - 0.1)
+    assert room.time_left == room.time_limit

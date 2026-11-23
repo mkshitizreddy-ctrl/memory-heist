@@ -149,3 +149,10 @@ def test_dialogue_clips_overflow_inside_panel(font):
     d.draw(s, (10, 10, 200, 80), font)
     sub = s.subsurface((0, 95, 400, 205))
     assert pygame.image.tostring(sub, "RGB") == bytes(400 * 205 * 3)
+
+
+def test_reading_hold_grows_with_the_line_but_stays_bounded():
+    from levels.room_base import READ_HOLD_MAX, READ_HOLD_MIN, reading_seconds
+    assert reading_seconds("Wrong.") == READ_HOLD_MIN
+    assert reading_seconds("x" * 1000) == READ_HOLD_MAX
+    assert READ_HOLD_MIN < reading_seconds("x" * 60) < READ_HOLD_MAX
