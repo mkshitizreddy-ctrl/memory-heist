@@ -199,7 +199,40 @@ def test_wrong_bin_message_respects_hints_off():
     level, _, player = make_level(hints=False)
     c = level.crates[0]
     deliver(level, player, c, wrong_bin(c))
-    assert "Hints are off" in level.message and f1.HINTS[c.answer] not in level.message
+    # Hints off: say why the chosen bin is wrong, never which bin is right.
+    chosen = wrong_bin(c)
+    assert level.message == f"Not {f1.with_article(chosen)}: {f1.NOT_WHY[chosen]}"
+    assert f1.HINTS[c.answer] not in level.message
+
+
+def test_a_right_bin_says_why_the_value_is_that_type():
+    level, _, player = make_level()
+    c = level.crates[0]
+    deliver(level, player, c, c.answer)
+    assert level.message == f1.FILED_FORMAT.format(
+        value=f1.display(c.value), kind=f1.with_article(c.answer), why=f1.WHY[c.answer])
+
+
+def test_every_why_line_is_true_for_every_crate_value():
+    """WHY must hold for each value of its type; NOT_WHY for each value of another type."""
+    values = {t: list(v) for t, v in f1._BASE.items()}
+    for traps in f1._TRAPS.values():
+        for t, vs in traps.items():
+            values[t].extend(vs)
+    for t, vs in values.items():
+        for v in vs:
+            assert type(v).__name__ == t
+    quoted = lambda v: isinstance(v, str)
+    has_point = lambda v: isinstance(v, float)
+    for v in values["str"]:
+        assert quoted(v)                                      # "it is inside quotes"
+    for v in values["float"]:
+        assert has_point(v) and not quoted(v)                 # "decimal point and no quotes"
+    for t in ("int", "float", "bool"):
+        for v in values[t]:
+            assert not quoted(v)                              # so "a str is always inside quotes" rules them out
+    for v in values["str"] + values["int"] + values["bool"]:
+        assert not has_point(v)                               # so "a float has a decimal point" rules them out
 
 
 def test_score_never_negative_on_wrong_answers():
@@ -519,7 +552,9 @@ def all_wall_messages():
              CLEARED_MESSAGE]
     for bin_type in BIN_TYPES:
         lines.append(f"Not {with_article(bin_type)}. {HINTS[bin_type]}")
-        lines.append(FILED_FORMAT.format(value=display("x"), kind=with_article(bin_type)))
+        lines.append(f"Not {with_article(bin_type)}: {f1.NOT_WHY[bin_type]}")
+        lines.append(FILED_FORMAT.format(value=display("A-4471"), kind=with_article(bin_type),
+                                         why=f1.WHY[bin_type]))
     lines.append(PICKUP_FORMAT.format(value=display("A-4471")))
     return lines
 

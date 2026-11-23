@@ -55,6 +55,23 @@ HINTS = {
     "bool": "Only True and False are bool.",
 }
 
+# Why a value IS its type: said when a crate lands in the right bin.
+WHY = {
+    "int": "a whole number, no decimal point.",
+    "str": "it is inside quotes.",
+    "float": "it has a decimal point.",
+    "bool": "only True and False are bool.",
+}
+
+# Why a value is NOT the bin's type: said on a wrong bin when hints are off (Hard),
+# so the player still learns the rule without being told the right bin.
+NOT_WHY = {
+    "int": "an int is a whole number like 7, with no quotes or point.",
+    "str": "a str is always inside quotes.",
+    "float": "a float has a decimal point and no quotes, like 2.0.",
+    "bool": "only True and False, without quotes, are bool.",
+}
+
 _BASE = {
     "int": [42, -7, 1000, 5],
     "str": ["hello", "agent", "NovaCorp", "A-4471"],
@@ -80,7 +97,7 @@ GUARD_ROUTE = [(19, 16), (25, 16), (25, 14)]
 # Parcel intake: reception is also the mail room, and Ghost walks in as a courier.
 START_MESSAGE = "Belt jammed: file each parcel by type."
 PICKUP_FORMAT = "Got {value}. Which chute?"
-FILED_FORMAT = "{value} is {kind}. Stamped!"
+FILED_FORMAT = "{value} is {kind}: {why}"
 BELT_SIGN = ("BELT OUT OF ORDER", "FILE BY HAND")
 BELT_FIXED_SIGN = ("BELT RESTARTED", "THANK YOU")      # once every parcel is filed
 BELT_PLATE = (722, 100, 138, 38)
@@ -435,7 +452,8 @@ class FloorOneLobby:
             if self.game:
                 self.game.score.add(CRATE_POINTS)
             self._sfx("stamp")
-            self._say(FILED_FORMAT.format(value=display(crate.value), kind=with_article(bin_type)), theme.TEAL)
+            self._say(FILED_FORMAT.format(value=display(crate.value), kind=with_article(bin_type),
+                                          why=WHY[bin_type]), theme.TEAL)
             self._npc_react("praise")
             self._check_gates()
         else:
@@ -443,10 +461,10 @@ class FloorOneLobby:
             crate.rect = crate.home.copy()
             self.shake.add(0.55)
             self._burst(centre, theme.CORAL, 12)
-            hint = HINTS[crate.answer]
             if self.game and not self.game.hints.enabled:
-                hint = "Hints are off on this difficulty."
-            self._say(f"Not {with_article(bin_type)}. {hint}", theme.CORAL)
+                self._say(f"Not {with_article(bin_type)}: {NOT_WHY[bin_type]}", theme.CORAL)
+            else:
+                self._say(f"Not {with_article(bin_type)}. {HINTS[crate.answer]}", theme.CORAL)
             self.guard.alert(player.rect, 1.6)
             self.guard.say(SCOLD)
             if self.game:

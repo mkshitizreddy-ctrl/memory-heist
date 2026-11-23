@@ -46,10 +46,13 @@ def _valid(data):
 
 def save_progress(level, score, remaining, difficulty, coop, path=None):
     """Write the run so far. Best-effort: a read-only disk just means no Continue."""
+    if _is_number(remaining):
+        # Keep a tenth of a second: 0.04 s left would round to 0.0 and the save be refused.
+        remaining = max(0.1, round(remaining, 1)) if remaining > 0 else remaining
     data = {
         "level": level,
         "score": score,
-        "remaining": round(remaining, 1) if _is_number(remaining) else remaining,
+        "remaining": remaining,
         "difficulty": difficulty,
         "coop": coop,
     }

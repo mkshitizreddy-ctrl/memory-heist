@@ -214,7 +214,7 @@ def test_a_right_answer_scores_opens_the_gate_resets_the_clock_and_loads_the_nex
     assert room.gates_passed == 1 and room.solved == [QS[0]]
     assert room.time_left == room.time_limit
     assert room.current_question is QS[1]
-    assert room.message == "Relay 1 live. Power gate 1 open."
+    assert room.message == "Relay 1 live. " + QS[0]["hint"]          # the rule behind the answer
     assert room.message_tone == theme.TEAL
     assert game.security.level == 0
     assert "door" in game.audio.played
@@ -239,7 +239,16 @@ def test_with_hints_off_a_wrong_answer_says_so():
     room, _, player = make_room(hints=False)
     set_pool(room, QS)
     answer(room, player, "13")
-    assert room.message == "Wrong. Hints are off on this difficulty."
+    assert room.message == "Wrong. Hints are off on this difficulty."   # a bank question has no why_wrong
+
+
+def test_with_hints_off_a_generated_question_says_why_that_breaker_is_wrong():
+    room, _, player = make_room(hints=False)
+    q = dict(QS[0], why_wrong={"13": "13 is what 6 + 7 gives."})
+    set_pool(room, [q, QS[1], QS[2]])
+    answer(room, player, "13")
+    assert room.message == "Wrong: 13 is what 6 + 7 gives."
+    assert q["answer"] not in room.message
 
 
 def test_a_question_without_a_hint_falls_back_to_try_again():
@@ -292,7 +301,7 @@ def test_the_third_answer_opens_the_exit_but_you_must_walk_out_for_the_bonus():
     for label in ("42", "True", "False"):
         answer(room, player, label)
     assert room.gates_passed == 3 and not room.is_complete()
-    assert room.message == "All relays live - the exit is open."
+    assert room.message == "All relays live. " + QS[2]["hint"]
     before = game.score.get_score()
     settle(room, 4)
     assert not room.is_complete() and room.gate_blocks[2].size == (0, 0)
@@ -418,7 +427,7 @@ def test_there_are_no_pads_once_every_gate_is_open():
         answer(room, player, label)
     assert room.pad_rects() == [] and room.pad_at(player) is None
     press(room)
-    assert room.message == "All relays live - the exit is open."
+    assert room.message == "All relays live. " + QS[2]["hint"]
 
 
 def test_a_pad_only_belongs_to_the_active_chamber():

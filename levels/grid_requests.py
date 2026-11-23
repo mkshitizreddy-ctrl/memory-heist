@@ -15,7 +15,8 @@ for each candidate x), so they cannot be wrong; for the "which x" questions
 exactly one breaker satisfies the question.  Pure data, no pygame.
 
 A question: id, room, difficulty, prompt, options (4, short enough for a
-breaker plate), answer, hint, explanation, points.
+breaker plate), answer, hint, explanation, points, and why_wrong: for each wrong
+breaker, one line on why it is wrong (shown on Hard, where hints are off).
 """
 
 import random
@@ -29,7 +30,7 @@ def _show(value):
     return repr(value) if isinstance(value, str) else str(value)
 
 
-def _pack(room, difficulty, prompt, answer, wrong, hint, explanation, rng):
+def _pack(room, difficulty, prompt, answer, wrong, hint, explanation, rng, why_wrong=None, fallback=None):
     options = [answer]
     for w in wrong:
         if w not in options and len(w) <= MAX_LABEL:
@@ -47,10 +48,19 @@ def _pack(room, difficulty, prompt, answer, wrong, hint, explanation, rng):
                 options.append(str(guess))
         step += 1
     rng.shuffle(options)
+    why_wrong = why_wrong or {}
+    reasons = {}
+    for option in options:
+        if option == answer:
+            continue
+        reason = why_wrong.get(option) or (fallback(option) if fallback else None)
+        if reason:
+            reasons[option] = reason
     tag = zlib.crc32(prompt.encode()) & 0xFFFF
     return {"id": f"grid_r{room}_{difficulty}_{tag:04x}", "room": room, "difficulty": difficulty,
             "prompt": prompt, "options": options, "answer": answer, "hint": hint,
-            "explanation": explanation, "points": POINTS[difficulty]}
+            "explanation": explanation, "points": POINTS[difficulty],
+            "why_wrong": reasons}
 
 
 # --- Relay 1: arithmetic ---------------------------------------------------------------
@@ -95,7 +105,7 @@ def arithmetic(rng, difficulty):
     expr, mistakes, hint = rng.choice(_arith_forms(rng, difficulty))
     value = eval(expr)                                          # noqa: S307 - our own expression
     answer = _show(value)
-    wrong = []
+    wrong, why = [], {}
     for m in mistakes:
         try:
             v = eval(m)                                         # noqa: S307
@@ -104,10 +114,13 @@ def arithmetic(rng, difficulty):
         if isinstance(v, float) and not v.is_integer():
             v = round(v, 2)
         wrong.append(_show(v))
+        why.setdefault(_show(v), f"{_show(v)} is what {m} gives.")
     if isinstance(value, float) and value.is_integer():
         wrong.insert(0, str(int(value)))                        # the classic: 4 instead of 4.0
+        why[str(int(value))] = f"{int(value)} is an int, but / always gives a float."
     return _pack(1, difficulty, f"What does {expr} evaluate to?", answer, wrong, hint,
-                 f"{expr} evaluates to {answer}.", rng)
+                 f"{expr} evaluates to {answer}.", rng, why_wrong=why,
+                 fallback=lambda option: f"{expr} does not give {option}.")
 
 
 # --- Relays 2 and 3: "which x makes it True / False?" -----------------------------------
@@ -124,7 +137,8 @@ def _which(rng, room, difficulty, cond, pool, want, hint):
     word = "True" if want else "False"
     explanation = f"x = {right}: {cond} is {word}; for {', '.join(map(str, wrong))} it is {not want}."
     return _pack(room, difficulty, f"Which x makes {cond} {word}?", str(right), [str(w) for w in wrong],
-                 hint, explanation, rng)
+                 hint, explanation, rng,
+                 fallback=lambda option: f"x = {option} makes {cond} {not want}.")
 
 
 def comparison(rng, difficulty):
