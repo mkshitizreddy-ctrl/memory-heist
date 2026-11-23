@@ -312,8 +312,6 @@ def test_the_lure_never_takes_the_drone_over_the_stacks(difficulty):
         r = pygame.Rect(0, 0, 16, 12)
         r.center = level.drone.centre
         assert not any(r.colliderect(s) for s in A.STACKS)
-    if difficulty == "easy":                      # easy keeps to its own aisle
-        assert abs(level.drone.y - A.DRONE_Y) < 2
 
 
 def test_a_new_slip_drops_out_of_the_tube():

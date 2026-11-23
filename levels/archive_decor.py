@@ -421,20 +421,37 @@ class Drone:
         self.y += dy / dist * step
         return step >= dist - 1e-6
 
+    def _path_len(self, i, j, step):
+        """Length of the route from waypoint i to waypoint j, walking in direction `step`."""
+        total = 0.0
+        while i != j:
+            nxt = self._cycle(i, step)
+            total += math.dist(self.route[i], self.route[nxt])
+            i = nxt
+        return total
+
     def lure_toward(self, point):
-        """Send the drone to the waypoint farthest from `point`, the long way round the route."""
+        """Send the drone to the waypoint farthest from `point`, by the shortest way along the route.
+
+        It may turn round mid-leg if the far corner is quicker the other way, but it never leaves
+        the route (it always goes via a waypoint, never cutting across the stacks)."""
         if not self.route:
             return None
         far = max(range(len(self.route)), key=lambda i: math.dist(self.route[i], point))
-        n = len(self.route)
-        forward = (far - self.last) % n
-        self.step_dir = 1 if forward <= n - forward else -1
+        pos = (self.x, self.y)
+        options = []                                           # (length, next waypoint, direction after it)
+        if math.dist(pos, self.route[self.last]) < 2:          # standing on a waypoint
+            for step in (1, -1):
+                length = self._path_len(self.last, far, step)
+                options.append((length, far if self.last == far else self._cycle(self.last, step), step))
+        else:                                                  # somewhere along the leg last -> target
+            leg = 1 if self.target == self._cycle(self.last, 1) else -1
+            options.append((math.dist(pos, self.route[self.target]) + self._path_len(self.target, far, leg),
+                            self.target, leg))
+            options.append((math.dist(pos, self.route[self.last]) + self._path_len(self.last, far, -leg),
+                            self.last, -leg))
+        _, self.target, self.step_dir = min(options, key=lambda o: o[0])
         self.lure_index = far
-        ahead = self._cycle(self.last, self.step_dir)
-        if math.dist((self.x, self.y), self.route[self.last]) < 2:
-            self.target = far if self.last == far else ahead
-        else:                                                  # mid-leg: never cut across, go via a waypoint
-            self.target = self.target if self.target == ahead else self.last
         self.pause_left = 0.0
         return self.route[far]
 
@@ -464,7 +481,8 @@ class Drone:
 
     def _update_route(self, dt):
         if self.lure is not None:
-            if self.last == self.lure_index and self.target == self.lure_index:
+            if (self.last == self.lure_index and self.target == self.lure_index
+                    and math.dist((self.x, self.y), self.route[self.last]) < 2):
                 return                                        # parked where Echo sent it
             if self._move_to(self.route[self.target], self.speed * 1.4, dt):
                 self.last = self.target

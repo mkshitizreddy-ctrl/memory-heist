@@ -1,4 +1,4 @@
-"""Floor 4's security drone: easy patrols its aisle, medium runs a loop, hard roams it."""
+"""Floor 4's security drone: easy runs the loop slowly, medium faster, hard roams it."""
 
 import math
 import os
@@ -54,7 +54,8 @@ def test_the_route_keeps_clear_of_the_spawn_and_goes_past_the_places_you_act():
 # --- the three behaviours --------------------------------------------------------------------
 def test_the_difficulties_get_different_drones():
     easy, medium, hard = (make_level(difficulty=d)[0] for d in DIFFS)
-    assert easy.drone.route is None and medium.drone.route and hard.drone.roam and not medium.drone.roam
+    assert easy.drone.route and medium.drone.route and hard.drone.roam
+    assert not easy.drone.roam and not medium.drone.roam
     assert easy.drone.speed < medium.drone.speed < hard.drone.speed
     assert easy.drone_reach < medium.drone_reach < hard.drone_reach
     assert easy.drone_grace > medium.drone_grace > hard.drone_grace
@@ -64,14 +65,16 @@ def test_the_difficulties_get_different_drones():
     assert cfg["easy"]["lure_seconds"] > cfg["medium"]["lure_seconds"] > cfg["hard"]["lure_seconds"]
 
 
-def test_easy_keeps_to_its_aisle():
+def test_easy_runs_the_same_loop_but_slower_with_longer_pauses():
     level, _, _ = make_level(difficulty="easy")
-    for _ in range(900):
-        level.drone.update(1 / 60)
-        assert abs(level.drone.y - A.DRONE_Y) < 2
+    order, waited_easy = _stops(level, 90)
+    assert order[:6] == [0, 1, 2, 3, 4, 0]
+    medium, _, _ = make_level(difficulty="medium")
+    _, waited_medium = _stops(medium, 90)
+    assert waited_easy / 60 >= 1.0 and DRONE_SETTINGS["easy"]["pause"] > DRONE_SETTINGS["medium"]["pause"]
 
 
-@pytest.mark.parametrize("difficulty", ["medium", "hard"])
+@pytest.mark.parametrize("difficulty", DIFFS)
 def test_the_drone_visits_the_whole_route_and_never_leaves_open_floor(difficulty):
     level, _, _ = make_level(difficulty=difficulty)
     seen = set()
@@ -131,8 +134,8 @@ def _put_in_light(level, player):
     player.rect.center = level.drone.centre
 
 
-def test_medium_and_hard_warn_in_red_before_they_log_you_easy_logs_at_once():
-    for difficulty, warns in (("easy", False), ("medium", True), ("hard", True)):
+def test_every_difficulty_warns_in_red_before_it_logs_you():
+    for difficulty, warns in (("easy", True), ("medium", True), ("hard", True)):
         level, game, player = make_level(difficulty=difficulty)
         level.update(level.drone_grace + 0.1)
         level.drone.speed = 0
@@ -141,7 +144,7 @@ def test_medium_and_hard_warn_in_red_before_they_log_you_easy_logs_at_once():
         if warns:
             assert game.score.value == 0 and level.drone_hits == 0
             assert any(v > 0 for v in level.drone_lock.values())      # the light has turned red
-            level.update(0.5)
+            level.update(0.7)
         assert level.drone_hits == 1 and game.score.value == -DRONE_SETTINGS[difficulty]["penalty"]
         assert game.security.level == 0                               # score only, as on every floor
 
@@ -169,14 +172,14 @@ def test_a_second_log_waits_for_the_cooldown():
     assert level.drone_hits == 1
 
 
-@pytest.mark.parametrize("difficulty", ["medium", "hard"])
+@pytest.mark.parametrize("difficulty", DIFFS)
 def test_the_lure_sends_a_route_drone_to_its_far_corner_then_it_carries_on(difficulty):
     level, _, player = make_level(difficulty=difficulty)
     level.update(0.5)
     level.handle_event(key(pygame.K_x))
     assert level.drone.lure is not None
     target = level.drone.lure
-    for _ in range(60 * 4):
+    for _ in range(60 * 12):                                # the slow easy drone needs longer to get there
         level.update(1 / 60)
         assert _in_open_floor(level.drone.centre, margin=6)
     assert level.drone.lure is None                        # the lure ran out
@@ -204,3 +207,31 @@ def test_rendering_every_difficulty_with_the_warning_on_does_not_fail():
         _put_in_light(level, player)
         level.update(0.1)
         level.render(pygame.Surface((960, 640)))
+
+
+@pytest.mark.parametrize("difficulty", DIFFS)
+def test_a_lure_turns_the_drone_round_when_the_far_corner_is_quicker_the_other_way(difficulty):
+    """It used to carry on towards you and loop the whole route; now it takes the short way."""
+    level, _, player = make_level(difficulty=difficulty)
+    drone = level.drone
+    level.update(level.drone_grace + 0.1)
+    player.rect.center = (300, 315)                      # the far corner from here is the east end (index 4)
+    drone.x, drone.y = 600.0, float(A.DRONE_Y)          # on the lower aisle, heading west to the first corner
+    drone.last, drone.target, drone.step_dir, drone.pause_left = 4, 0, 1, 0.0
+    start_x = drone.x
+    level.handle_event(key(pygame.K_x))
+    assert drone.lure_index == 4 and drone.target == 4   # straight back to the east end
+    for _ in range(30):
+        level.update(1 / 60)
+    assert drone.x > start_x                              # moving away from the player, not towards them
+
+
+def test_a_lure_that_starts_on_a_waypoint_goes_the_shorter_way_round():
+    level, _, player = make_level(difficulty="medium")
+    drone = level.drone
+    level.update(level.drone_grace + 0.1)
+    drone.x, drone.y = map(float, A.DRONE_ROUTE[2])      # standing on the top-left corner
+    drone.last, drone.target, drone.step_dir, drone.pause_left = 2, 3, 1, 0.0
+    player.rect.center = (700, 440)                      # the farthest waypoint from here is index 0
+    level.handle_event(key(pygame.K_x))
+    assert drone.lure_index == 0 and drone.target == 1 and drone.step_dir == -1

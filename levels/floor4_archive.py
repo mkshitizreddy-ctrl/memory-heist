@@ -22,8 +22,8 @@ Rules (Floor 4's original numbers):
     wrong answer   security +15, score -10, the same request stays
     out of time    security +25, score -15, a new slip
     security drone score -10 (hard -15) when it catches you in its light (score only);
-                   easy patrols its aisle, medium runs a loop past the shelf and catalogue,
-                   hard roams that loop and scans at corners.  A red warning comes first.
+                   easy runs the loop slowly with long pauses, medium runs it faster,
+                   hard roams it and scans at corners.  A red warning comes first.
     walk out       +100 bonus
 
 The original Level 4 stays in levels/legacy/level4_memory.py and returns with
@@ -65,10 +65,10 @@ LURE_SECONDS = 3.0
 LURE_COOLDOWN = 15.0
 DRONE_SETTINGS = {
     # route: "aisle" patrols back and forth, "loop" follows the route, "roam" picks its way round it
-    "easy": {"speed": 88.0, "reach": 70, "grace": 2.5, "penalty": 10, "lure_seconds": 4.0,
-             "lure_cooldown": 12.0, "lock": 0.0, "route": "aisle"},
+    "easy": {"speed": 70.0, "reach": 70, "grace": 2.5, "penalty": 10, "lure_seconds": 4.0,
+             "lure_cooldown": 12.0, "lock": 0.6, "route": "loop", "pause": 1.2},
     "medium": {"speed": 105.0, "reach": DRONE_RANGE, "grace": DRONE_GRACE, "penalty": DRONE_PENALTY,
-               "lure_seconds": LURE_SECONDS, "lure_cooldown": LURE_COOLDOWN, "lock": 0.4, "route": "loop"},
+               "lure_seconds": LURE_SECONDS, "lure_cooldown": LURE_COOLDOWN, "lock": 0.4, "route": "loop", "pause": 0.8},
     "hard": {"speed": 125.0, "reach": 90, "grace": 1.5, "penalty": 15, "lure_seconds": 2.5,
              "lure_cooldown": 20.0, "lock": 0.4, "route": "roam"},
 }
@@ -157,7 +157,7 @@ class ArchiveFloor(RoomMixin):
         cfg = self.drone_cfg
         if cfg["route"] == "aisle":
             return A.Drone(speed=cfg["speed"])
-        pauses = {i: 0.8 for i in A.ROUTE_CORNERS} if cfg["route"] == "loop" else None
+        pauses = {i: cfg["pause"] for i in A.ROUTE_CORNERS} if cfg["route"] == "loop" else None
         return A.Drone(speed=cfg["speed"], route=A.DRONE_ROUTE, rng=self.rng,
                        roam=cfg["route"] == "roam", pauses=pauses)
 
