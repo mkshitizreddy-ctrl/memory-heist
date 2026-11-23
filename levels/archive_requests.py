@@ -29,7 +29,7 @@ CODE_KEYS = ("ration", "curfew", "travel", "census")
 CODE_VALUES = ("B-7", "C-4", "R-2", "T-1", "K-9", "M-3")
 START_SATCHEL = ("badge",)          # Ghost walks in with the courier badge from Floor 1
 
-TOPICS = ("LIST INDEXING", "DICTIONARY KEYS", "LIST OPERATIONS")
+TOPICS = ("LIST INDEXING", "DICTIONARY KEYS", "LIST OPERATIONS", "LOOPS: THE VAULT DIAL")
 
 # The forms each difficulty may use, per request.  No form appears in two tiers.
 FORMS = {
@@ -42,6 +42,9 @@ FORMS = {
     2: {"easy": ("pop", "pop0", "minus2"),
         "medium": ("len_last", "remove", "slice1"),
         "hard": ("reverse", "rotate", "insert_pop")},
+    3: {"easy": ("sum", "range_len", "last"),
+        "medium": ("range_sum", "while", "evens"),
+        "hard": ("nested", "weighted", "comp")},
 }
 
 
@@ -286,12 +289,113 @@ def vault_request(rng, satchel, difficulty="medium"):
     }
 
 
+# --- stage 3: the vault dial (loops) ---------------------------------------------------
+DIAL_TRAYS = 3
+
+
+def _dial_form(form, rng):
+    """(code lines, hint, working, the classic wrong answer) for a dial form.
+
+    The slip's answer is worked out by running its own code, so it can never drift."""
+    if form == "sum":
+        a, b, c = rng.sample(range(2, 10), 3)
+        return ([f"total = 0", f"for n in [{a}, {b}, {c}]:", "    total += n", "vault.dial(total)"],
+                "total adds every number in the list, one pass per number.",
+                f"{a} + {b} + {c}.", None)
+    if form == "range_len":
+        k = rng.randrange(4, 10)
+        return (["steps = 0", f"for i in range({k}):", "    steps += 1", "vault.dial(steps)"],
+                "range(k) runs the loop k times (it counts 0 up to k - 1).",
+                f"range({k}) gives {k} passes, so steps ends at {k}.", k + 1)
+    if form == "last":
+        nums = rng.sample(range(2, 20), 4)
+        return ([f"for n in {nums}:", "    last = n", "vault.dial(last)"],
+                "last is overwritten on every pass, so the final pass wins.",
+                f"The final pass sets last to {nums[-1]}.", nums[0])
+    if form == "range_sum":
+        a = rng.randrange(1, 4)
+        b = a + rng.randrange(3, 6)
+        return (["total = 0", f"for i in range({a}, {b}):", "    total += i", "vault.dial(total)"],
+                f"range({a}, {b}) starts at {a} and stops BEFORE {b}.",
+                f"It adds {', '.join(str(i) for i in range(a, b))}.", sum(range(a, b + 1)))
+    if form == "while":
+        step = rng.choice((2, 3, 4))
+        limit = rng.randrange(10, 18)
+        start = rng.randrange(0, 3)
+        return ([f"n = {start}", f"while n < {limit}:", f"    n += {step}", "vault.dial(n)"],
+                f"The loop stops once n is no longer below {limit}; n keeps the value it had then.",
+                f"n counts up by {step}: it ends on the first value that is {limit} or more.", None)
+    if form == "evens":
+        nums = rng.sample(range(2, 15), 4)
+        return (["total = 0", f"for n in {nums}:", "    if n % 2 == 0: total += n", "vault.dial(total)"],
+                "n % 2 == 0 is true for even numbers only; odd numbers are skipped.",
+                f"Only the even numbers are added: {[n for n in nums if n % 2 == 0]}.", sum(nums))
+    if form == "nested":
+        a, b = rng.randrange(2, 5), rng.randrange(2, 5)
+        return (["count = 0", f"for i in range({a}):", f"    for j in range({b}): count += 1", "vault.dial(count)"],
+                "The inner loop runs completely for every pass of the outer loop.",
+                f"{a} outer passes x {b} inner passes = {a * b}.", a + b)
+    if form == "weighted":
+        a, step = rng.randrange(3, 6), rng.randrange(2, 5)
+        return (["total = 0", f"for i in range({a}):", f"    total += i * {step}", "vault.dial(total)"],
+                f"i takes the values 0 to {a - 1}; each is multiplied by {step} before it is added.",
+                f"({' + '.join(str(i) for i in range(a))}) x {step}.", step * sum(range(1, a + 1)))
+    nums = rng.sample(range(1, 12), 4)
+    t = rng.randrange(3, 7)
+    return ([f"nums = {nums}", f"code = sum([n * 2 for n in nums if n > {t}])", "vault.dial(code)"],
+            f"The list keeps only numbers greater than {t}, doubles them, and sum() adds the result.",
+            f"Numbers above {t}: {[n for n in nums if n > t]}; doubled and added.",
+            sum(n * 2 for n in nums))
+
+
+def dial_request(rng, difficulty="medium"):
+    """Stage 3: the vault asks for its code; the code is what the slip's loop leaves in the dial."""
+    difficulty = _tier(difficulty)
+    form = rng.choice(forms_for(3, difficulty))
+    for _ in range(50):
+        lines, hint, walk, slip = _dial_form(form, rng)
+        sent = []
+        scope = {"__builtins__": {"range": range, "sum": sum},
+                 "vault": type("V", (), {"dial": staticmethod(sent.append)})}
+        exec("\n".join(lines), scope)                       # noqa: S102 - one namespace: works on every Python
+        answer = sent[-1]
+        if answer >= 1 and slip != answer:
+            break
+    pool = [v for v in (slip, answer + 1, answer - 1, answer + 2, answer - 2, answer * 2) if v and v >= 1 and v != answer]
+    values = []
+    for v in pool:
+        if v not in values:
+            values.append(v)
+    values = values[:DIAL_TRAYS - 1] + [answer]
+    right = str(answer)
+    rng.shuffle(values)
+    labels = [str(v) for v in values]
+    reasons = {}
+    for i, v in enumerate(values):
+        if v == answer:
+            continue
+        if slip is not None and v == slip:
+            reasons[i] = "The classic slip: check exactly where the loop starts and where it stops."
+        elif abs(v - answer) == 1:
+            reasons[i] = "Off by one. Trace the first and the last pass of the loop."
+        else:
+            reasons[i] = "Not what the loop leaves in the dial. Trace it pass by pass."
+    return {
+        "stage": 3, "topic": TOPICS[3], "lines": lines, "form": form, "difficulty": difficulty,
+        "labels": labels, "answer": labels.index(right), "hint": hint, "walk": walk, "reasons": reasons,
+        "explain": f"The loop leaves {answer} in the dial. The vault accepts it.",
+        "take": None, "value": answer,
+    }
+
+
 def make_request(stage, rng, satchel, difficulty="medium"):
     if stage == 0:
         return shelf_request(rng, difficulty)
     if stage == 1:
         return catalogue_request(rng, difficulty)
-    return vault_request(rng, satchel, difficulty)
+    if stage == 2:
+        return vault_request(rng, satchel, difficulty)
+    return dial_request(rng, difficulty)
 
 
 def why_wrong(request, index):

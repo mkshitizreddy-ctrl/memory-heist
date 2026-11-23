@@ -12,9 +12,9 @@ file on every citizen, Ghost's stolen memory among them.
              security drone's aisle ------------------------------------>  exit:
       spawn  lift      [reading tables]               [ vault counter ]    vault door
 
-Three requests, in order: pull a box from the shelf (a list index), open a drawer
+Four requests, in order: pull a box from the shelf (a list index), open a drawer
 of the catalogue (a dictionary key), feed one satchel item to the vault (a list
-operation).  Nothing here changes a rule; floor4_archive.py owns those.
+operation), then set the vault's dial on the same trays (a loop).  Nothing here changes a rule; floor4_archive.py owns those.
 """
 
 import math
@@ -98,7 +98,7 @@ def tray_rect(i):
 
 def targets(stage, count):
     """The things you act on for a stage: boxes, drawers or trays."""
-    rect = (box_rect, drawer_rect, tray_rect)[stage]
+    rect = (box_rect, drawer_rect, tray_rect, tray_rect)[stage]      # the vault dial reuses the trays
     return [rect(i) for i in range(count)]
 
 

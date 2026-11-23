@@ -132,13 +132,13 @@ def test_vault_answer_is_the_item_python_feeds(difficulty):
 def test_slip_lines_fit_the_slip():
     rng = random.Random(3)
     for _ in range(200):
-        for stage in range(3):
+        for stage in range(4):
             r = R.make_request(stage, rng, ["badge", "dossier", "B-7"], "medium")
             assert len(r["lines"]) <= 4 and all(len(line) <= 44 for line in r["lines"])
 
 
 # --- the rules -------------------------------------------------------------------------
-def test_right_answers_file_three_requests_and_fill_the_satchel():
+def test_right_answers_file_four_requests_and_fill_the_satchel():
     level, game, player = make_level()
     assert level.satchel == ["badge"] and level.gates_passed == 0
     stand_and_press(level, player, level.request["answer"])
@@ -147,8 +147,13 @@ def test_right_answers_file_three_requests_and_fill_the_satchel():
     stand_and_press(level, player, level.request["answer"])
     assert level.stage == 2 and level.satchel[-1] == card
     stand_and_press(level, player, level.request["answer"])
-    assert level.stage == 3 and level.gates_passed == 3
-    assert game.score.value == 3 * POINTS and game.security.level == 0
+    assert level.stage == 3 and level.gates_passed == 3 and not level.is_complete()
+    assert level.request["stage"] == 3 and len(level.satchel) == 2        # the vault took one item
+    satchel = list(level.satchel)
+    stand_and_press(level, player, level.request["answer"])
+    assert level.satchel == satchel                                       # the dial leaves the satchel alone
+    assert level.stage == 4 and level.gates_passed == 4
+    assert game.score.value == 4 * POINTS and game.security.level == 0
 
 
 def test_a_wrong_answer_raises_security_and_keeps_the_same_request():
@@ -215,7 +220,7 @@ def test_scan_gives_the_hint_and_is_jammed_when_hints_are_off():
 
 def test_the_vault_door_opens_after_the_last_request_and_the_bonus_is_paid_once():
     level, game, player = make_level()
-    for _ in range(3):
+    for _ in range(4):
         stand_and_press(level, player, level.request["answer"])
     player.rect.center = A.EXIT_ZONE.center
     level.update(0.1)
@@ -223,9 +228,9 @@ def test_the_vault_door_opens_after_the_last_request_and_the_bonus_is_paid_once(
     for _ in range(90):
         level.update(1 / 60)
     assert level.is_complete()
-    assert game.score.value == 3 * POINTS + FINISH_BONUS
+    assert game.score.value == 4 * POINTS + FINISH_BONUS
     level.update(1.0)
-    assert game.score.value == 3 * POINTS + FINISH_BONUS
+    assert game.score.value == 4 * POINTS + FINISH_BONUS
 
 
 def test_second_player_answers_with_right_shift():

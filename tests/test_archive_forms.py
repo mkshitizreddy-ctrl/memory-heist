@@ -12,8 +12,8 @@ SEEDS = range(400)
 
 
 def _run(lines, **env):
-    names = dict(env)
-    exec("\n".join(lines), {"__builtins__": {"len": len, "list": list}}, names)   # noqa: S102
+    names = dict(env, __builtins__={"len": len, "list": list, "range": range, "sum": sum})
+    exec("\n".join(lines), names)                                                  # noqa: S102
     return names
 
 
@@ -51,6 +51,17 @@ def _check_vault(r, satchel):
     assert fed[-1] == satchel[r["answer"]]
 
 
+def _check_dial(r):
+    sent = []
+
+    class Vault:
+        dial = staticmethod(sent.append)
+
+    _run(r["lines"], vault=Vault)
+    assert sent[-1] == r["value"] == int(r["labels"][r["answer"]])
+    assert len(r["lines"]) <= 4 and all(len(line) <= 44 for line in r["lines"])
+
+
 @pytest.mark.parametrize("difficulty", DIFFS)
 def test_every_request_is_answerable_and_unambiguous(difficulty):
     for seed in SEEDS:
@@ -62,21 +73,23 @@ def test_every_request_is_answerable_and_unambiguous(difficulty):
         satchel = ["badge", "dossier", r1["take"]]
         r2 = R.vault_request(rng, satchel, difficulty)
         _check_vault(r2, satchel)
-        for r in (r0, r1, r2):
+        r3 = R.dial_request(rng, difficulty)
+        _check_dial(r3)
+        for r in (r0, r1, r2, r3):
             assert len(set(r["labels"])) == len(r["labels"])
             assert 0 <= r["answer"] < len(r["labels"])
             assert r["hint"] and r["walk"] and r["explain"]
             assert set(r["reasons"]) == set(range(len(r["labels"]))) - {r["answer"]}
 
 
-@pytest.mark.parametrize("stage", [0, 1, 2])
+@pytest.mark.parametrize("stage", [0, 1, 2, 3])
 def test_difficulties_never_share_a_form(stage):
     easy, medium, hard = (set(R.forms_for(stage, d)) for d in DIFFS)
     assert not (easy & medium) and not (easy & hard) and not (medium & hard)
     assert min(len(easy), len(medium), len(hard)) >= 3
 
 
-@pytest.mark.parametrize("stage", [0, 1, 2])
+@pytest.mark.parametrize("stage", [0, 1, 2, 3])
 @pytest.mark.parametrize("difficulty", DIFFS)
 def test_every_form_in_a_tier_actually_appears(stage, difficulty):
     seen = set()
@@ -91,7 +104,7 @@ def test_a_request_only_uses_forms_of_its_own_difficulty():
     for difficulty in DIFFS:
         for seed in range(100):
             rng = random.Random(seed)
-            for stage in (0, 1, 2):
+            for stage in (0, 1, 2, 3):
                 r = R.make_request(stage, rng, ["badge", "dossier", "B-7"], difficulty)
                 assert r["form"] in R.forms_for(stage, difficulty)
                 assert r["difficulty"] == difficulty
@@ -113,7 +126,7 @@ def test_feedback_lines_fit_the_message_line():
     for difficulty in DIFFS:
         for seed in range(150):
             rng = random.Random(seed)
-            for stage in (0, 1, 2):
+            for stage in (0, 1, 2, 3):
                 r = R.make_request(stage, rng, ["badge", "dossier", "B-7"], difficulty)
                 assert len("Wrong again. " + r["walk"]) <= MESSAGE_CHARS
                 assert all(len("Wrong. " + t) <= MESSAGE_CHARS for t in r["reasons"].values())
@@ -192,3 +205,46 @@ def test_easy_timeouts_cost_a_little_less_security_than_medium_and_hard():
         level.update(0.05)
         assert game.security.level == cost
     assert EASY_TIMEOUT_SECURITY < TIMEOUT_SECURITY
+
+
+# --- the vault dial: request 4 ------------------------------------------------------------
+def _play_to_dial(difficulty="medium", seed=1):
+    level, game, player = _floor(difficulty, seed=seed)
+    for _ in range(3):
+        _press(level, player, level.request["answer"])
+    assert level.stage == 3
+    return level, game, player
+
+
+@pytest.mark.parametrize("difficulty", DIFFS)
+def test_a_full_run_files_four_requests_then_opens_the_door(difficulty):
+    level, game, player = _play_to_dial(difficulty)
+    assert level.request["stage"] == 3 and level.request["difficulty"] == difficulty
+    assert level.fed == {}                           # the trays are clear for the dial
+    _press(level, player, level.request["answer"])
+    assert level.stage == 4 and level.gates_passed == 4 and "vault door" in level.message
+    assert game.security.level == 0
+
+
+def test_a_wrong_dial_costs_the_usual_and_explains_the_loop():
+    level, game, player = _play_to_dial()
+    request = level.request
+    pick = _wrong_pick(level)
+    _press(level, player, pick)
+    assert level.stage == 3 and game.security.level == 15
+    assert request["reasons"][pick] in level.message
+    assert (3, pick) in level.wrong
+    _press(level, player, pick)
+    assert level.message.startswith("Wrong again.") and request["walk"] in level.message
+
+
+def test_the_dial_uses_the_trays_and_the_archivist_scolds_it_in_character():
+    from levels.floor4_archive import SCOLD
+    level, _, player = _play_to_dial()
+    _press(level, player, _wrong_pick(level))
+    assert level.archivist.speech == SCOLD[3]
+    assert "set the dial" in "E: set the dial"      # the key hint line is drawn for stage 3
+    import pygame
+    surface = pygame.Surface((960, 640))
+    level.update(0.016)
+    level.render(surface)                            # draws the dial labels on the trays without error

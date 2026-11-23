@@ -2,15 +2,16 @@
 levels/floor4_archive.py
 Owner: Member 1 - Core Game System (Floor 4 rebuilt on the shared kit)
 
-Floor 4 - The Records Archive  (topic: lists and dictionaries)
+Floor 4 - The Records Archive  (topic: lists, dictionaries and loops)
 
 NovaCorp keeps a file on every citizen down here, and Ghost's stolen memory sits
-in the vault at the far end.  The request slip on the wall asks for three things,
+in the vault at the far end.  The request slip on the wall asks for four things,
 one at a time, and you answer each by doing it:
 
     request 1   pull Ghost's dossier from the shelf          (a list index:   shelf[-2])
     request 2   open the right card-catalogue drawer         (a dictionary:   codes[name])
     request 3   feed one item from your satchel to the vault (a list method:  satchel.pop())
+    request 4   set the vault's dial: the number the slip's loop leaves in it (a loop)
 
     E / Right Shift   pull, open or feed at the thing you stand in front of
     Q                 Echo's drone scans the slip for a hint (once per slip, hints on)
@@ -36,14 +37,14 @@ from core.tilemap import TILE, TileMap, make_tiles
 from entities.sprites import draw_drone
 from levels import archive_decor as A
 from levels import badge_door, depth_fx, lighting
-from levels.archive_requests import START_SATCHEL, make_request, why_wrong
+from levels.archive_requests import DIAL_TRAYS, START_SATCHEL, make_request, why_wrong
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
 from ui.fonts import ui_font
 from ui.kit import shadowed
 
 LEVEL_KEY = "level4"
-REQUESTS = 3
+REQUESTS = 4
 POINTS = 40
 FINISH_BONUS = 100
 WRONG_SECURITY, WRONG_PENALTY = 15, 10
@@ -70,7 +71,8 @@ IDLE_LINES = ("Index from zero. Always zero.", "Every citizen has a file. Every 
 NOTICE_LINES = ("Courier? Requests come through the slip.", "Read the slip. Then touch nothing else.",
                 "The shelf counts from zero, courier.")
 PRAISE = ("Filed correctly.", "Accurate. How rare.")
-SCOLD = ("That is not the box on the slip.", "Wrong drawer. Keys are exact.", "The vault does not take that.")
+SCOLD = ("That is not the box on the slip.", "Wrong drawer. Keys are exact.", "The vault does not take that.",
+         "The dial does not turn to that. Count the passes.")
 FAREWELL = "Your file has been... updated."
 NOT_YET = ("Not on the slip yet.", "The slip is not asking for that yet.")
 DONE_LINE = "Already filed."
@@ -172,7 +174,7 @@ class ArchiveFloor(RoomMixin):
         stage = self.stage if stage is None else stage
         if stage >= REQUESTS:
             return None
-        count = 5 if stage == 0 else (4 if stage == 1 else 3)
+        count = 5 if stage == 0 else (4 if stage == 1 else DIAL_TRAYS)
         for i in range(count):
             if A.stand_zone(stage, i).collidepoint(player.rect.center):
                 return i
@@ -251,12 +253,13 @@ class ArchiveFloor(RoomMixin):
                 self.fed[index] = 0.01
             if request["take"] is not None:
                 self.satchel.append(request["take"])
-            elif 0 <= index < len(self.satchel):
+            elif stage == 2 and 0 <= index < len(self.satchel):
                 self.satchel.pop(index)
             self.stage += 1
             self.scanned = False
             self.misses = 0
-            self.time_left = self.time_limit
+            if self.stage == 3:
+                self.fed = {}                                 # the same trays now carry the dial            self.time_left = self.time_limit
             if self.stage < REQUESTS:
                 self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
                 self.slip_drop = 0.0
@@ -438,14 +441,14 @@ class ArchiveFloor(RoomMixin):
         here = self._highlight()
         wrong0 = {i for (s, i) in self.wrong if s == 0}
         wrong1 = {i for (s, i) in self.wrong if s == 1}
-        wrong2 = {i for (s, i) in self.wrong if s == 2}
+        wrong2 = {i for (s, i) in self.wrong if s in (2, 3)}
         A.draw_shelf(world, self.pulled, wrong0, here if self.stage == 0 else None, t)
         drawer_labels = self.request["labels"] if self.stage == 1 else (
             self.solved[1]["labels"] if len(self.solved) > 1 else ["", "", "", ""])
         A.draw_drawers(world, drawer_labels, self.opened, wrong1, here if self.stage == 1 else None, self.card, t)
-        tray_labels = self.request["labels"] if self.stage == 2 else (
-            self.solved[2]["labels"] if len(self.solved) > 2 else [])
-        A.draw_trays(world, tray_labels, self.fed, wrong2, here if self.stage == 2 else None, t)
+        tray_labels = self.request["labels"] if self.stage in (2, 3) else (
+            self.solved[3]["labels"] if len(self.solved) > 3 else [])
+        A.draw_trays(world, tray_labels, self.fed, wrong2, here if self.stage in (2, 3) else None, t)
         badge_door.draw_badge_door(world, A.DOOR, self.door_open, t)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         lighting.blob_shadow(world, self.archivist.rect, 90)
@@ -467,6 +470,7 @@ class ArchiveFloor(RoomMixin):
                     warn=self.stage < REQUESTS and self.time_left <= WARN_SECONDS)
         A.draw_satchel(world, self.satchel)
         world.blit(*self._title)
-        hint = ("E: pull the box", "E: open the drawer", "E: feed the vault", "Walk into the vault")[min(self.stage, 3)]
+        hint = ("E: pull the box", "E: open the drawer", "E: feed the vault", "E: set the dial",
+                "Walk into the vault")[min(self.stage, 4)]
         self.draw_message(world, hint + "   Q scan   X lure", self.line_font, self.small)
         self.present(surface, world)
