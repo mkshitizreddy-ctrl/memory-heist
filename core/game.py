@@ -18,7 +18,7 @@ from core.difficulty import (
     DEFAULT_DIFFICULTY,
     run_time_seconds,
     question_time_multiplier,
-    FLOOR_COOLDOWN,
+    lift_cooldown,
     PRACTICE_BASE,
     is_practice,
 )
@@ -300,7 +300,7 @@ class Game:
             if self._is_next_floor(previous, current_name):
                 cleared = self._floor_summary(previous)
             if cleared is not None and self.state == "playing":
-                self.security.cool(FLOOR_COOLDOWN)     # WARDEN loses the trail in the lift
+                self.security.cool(lift_cooldown(self.security.level))   # WARDEN loses the trail in the lift
             self._floor_snap = self._take_snapshot()
             if cleared is not None and self.state == "playing":
                 self._save_run(current_name)

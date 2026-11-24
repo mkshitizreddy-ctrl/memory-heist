@@ -56,8 +56,14 @@ def get_difficulty(name):
     return DIFFICULTIES.get(name, DIFFICULTIES[DEFAULT_DIFFICULTY])
 
 
-# Security cools a little in the lift between floors, so one bad floor does not doom the run.
+# Security cools in the lift between floors, so one bad floor does not doom the run:
+# the lift takes off half the meter (rounded up), and never less than FLOOR_COOLDOWN.
 FLOOR_COOLDOWN = 25
+
+
+def lift_cooldown(level):
+    """How much security the lift takes off when the meter stands at `level`."""
+    return max(FLOOR_COOLDOWN, (max(0, int(level)) + 1) // 2)
 
 
 def question_time_multiplier(difficulty):
