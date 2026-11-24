@@ -642,6 +642,8 @@ class ArchiveFloor(RoomMixin):
         badge_door.draw_badge_door(world, A.DOOR, self.door_open, t)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         lighting.blob_shadow(world, self.archivist.rect, 90)
+        self.archivist.bubble_avoid = [A.SHELF, A.CATALOGUE]   # the boxes and drawers you have to read
+        self.archivist.bubble_soft_avoid = self.hero_bodies()    # and not behind Ghost, who is drawn on top
         self.archivist.draw(world, self.small)
         cx, cy = self.drone.centre
         reach = self.drone_reach

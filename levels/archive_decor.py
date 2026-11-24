@@ -504,11 +504,20 @@ def draw_abilities(surface, abilities, t):
 RECAP_PANEL = pygame.Rect(7 * TILE, 8 * TILE + 8, 16 * TILE, 5 * TILE + 16)
 
 
+def recap_rect(rows, notes):
+    """RECAP_PANEL, made taller if the rows and notes need it (the same steps draw_recap uses)."""
+    needed = 32 + rows * 18 + 6 + 18 + max(1, notes) * 16 + 10
+    r = RECAP_PANEL.copy()
+    r.h = max(r.h, needed)
+    return r
+
+
 def draw_recap(surface, rows, notes, t):
     """The file-room recap: one row per request, then the mistakes worth another look.
 
-    rows: [(text, colour)]; notes: [(text, colour)]"""
-    r = RECAP_PANEL
+    rows: [(text, colour)]; notes: [(text, colour)]
+    The panel grows downwards when a miss on every request needs four notes."""
+    r = recap_rect(len(rows), len(notes))
     panel = pygame.Surface(r.size, pygame.SRCALPHA)
     pygame.draw.rect(panel, (18, 20, 28, 226), panel.get_rect(), border_radius=6)
     pygame.draw.rect(panel, (186, 150, 70, 255), panel.get_rect(), 2, border_radius=6)
