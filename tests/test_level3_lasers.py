@@ -484,3 +484,44 @@ def test_opening_the_gate_switches_the_cameras_off():
     assert level.gate2.is_open()
     level.check_laser_collision(1 / 60)
     assert level.camera_bank.on is False
+
+
+def test_the_protection_after_a_hit_lasts_two_seconds():
+    level, events = make_level(1)
+    assert level.laser_penalty_duration == 2.0                # was 1.0 before the Floor 3 playtest
+    level.game.score.add(100)
+    player = level.game.player.rect
+    laser = level.lasers[0]
+    laser["cx"], laser["cy"], laser["half"], laser["angle"] = 400, 300, 90, 0
+    player.topleft = (390, 292)
+    level.laser_clock = level.LASER_ENTRY_GRACE + laser.get("phase_offset", 0.0) + 0.5     # active
+    level.check_laser_collision(0.0)
+    assert events == [10]
+    assert level.laser_penalty_cooldown == pytest.approx(2.0)
+    level.laser_penalty_cooldown -= 1.9                         # 1.9 s later: still protected
+    level.check_laser_collision(0.0)
+    assert events == [10] and level.laser_penalty_cooldown > 0
+
+
+def test_a_camera_sighting_shares_the_same_two_second_protection():
+    level, _ = make_level(2)
+    level._camera_hit()
+    assert level.laser_penalty_cooldown == pytest.approx(2.0)
+    assert level.robot_detection_cooldown >= 2.0
+
+
+def test_room2_gate_says_what_it_is_waiting_for():
+    level, _ = make_level(room=2)
+    assert level.room2_gate_status() is None            # question not answered yet
+    level.room2_gate_question_solved = True
+    assert "ENTER THE SCANNER ZONE" in level.room2_gate_status()
+    level.emitters[0]["state"] = "pending"
+    assert "SYNCING" in level.room2_gate_status()
+    level.emitters[0]["state"] = "warning"
+    assert "DODGE" in level.room2_gate_status()
+    level.emitters[0]["state"] = "cooldown"
+    assert "RESETTING" in level.room2_gate_status()
+    level.room2_gate_challenge_survived = True
+    assert level.room2_gate_status() is None
+    surface = pygame.Surface((960, 640))
+    level.render(surface)                                # draws without error

@@ -18,6 +18,13 @@ pygame.init()
 DIFFS = ("easy", "medium", "hard")
 
 
+@pytest.fixture(autouse=True)
+def generated_questions(monkeypatch):
+    """The generated questions are behind a switch (the fixed bank is the default); these tests use them."""
+    monkeypatch.setenv("MEMORY_HEIST_GENERATED_LEVEL3", "1")
+    monkeypatch.delenv("MEMORY_HEIST_OLD_LEVEL3", raising=False)
+
+
 def every_request(room, difficulty, seeds=200):
     return [LR.make_request(room, difficulty, random.Random(seed)) for seed in range(seeds)]
 
@@ -122,9 +129,27 @@ def test_room3_core_vents_after_the_boards_pulses(pulses):
     assert level.core_timer > 0 and level.core_pulse_count == 0
 
 
-def test_old_question_bank_is_one_switch_away(monkeypatch):
-    monkeypatch.setenv("MEMORY_HEIST_OLD_LEVEL3", "1")
+def test_the_old_question_bank_is_the_default(monkeypatch):
+    monkeypatch.delenv("MEMORY_HEIST_GENERATED_LEVEL3", raising=False)
+    monkeypatch.delenv("MEMORY_HEIST_OLD_LEVEL3", raising=False)
     level, _ = C.make3()
     assert level.room_requests == {}
     assert all(q["id"].startswith("level3_loop_") for q in level.selected_questions)
-    assert level.lit_pads is None and level.core_vent_after is None
+    assert level.lit_pads is None and level.core_vent_after is None       # the plain rooms
+    assert level._loop_board()["code"] == level.code_lines                # the original board code
+
+
+def test_the_generated_questions_are_one_switch_away(monkeypatch):
+    monkeypatch.setenv("MEMORY_HEIST_GENERATED_LEVEL3", "1")
+    monkeypatch.delenv("MEMORY_HEIST_OLD_LEVEL3", raising=False)
+    level, _ = C.make3()
+    assert set(level.room_requests) == {1, 2, 3}
+    assert level.core_vent_after is not None                              # room 3 follows its board
+    assert level._loop_board()["code"] == level.room_requests[3]["code"]
+
+
+def test_the_old_switch_still_wins_over_the_generated_one(monkeypatch):
+    monkeypatch.setenv("MEMORY_HEIST_GENERATED_LEVEL3", "1")
+    monkeypatch.setenv("MEMORY_HEIST_OLD_LEVEL3", "1")
+    level, _ = C.make3()
+    assert level.room_requests == {}

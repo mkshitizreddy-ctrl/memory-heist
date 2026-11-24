@@ -226,7 +226,9 @@ class Level3LaserLoop:
         self.laser_speed = 200
 
         self.laser_penalty_cooldown = 0.0
-        self.laser_penalty_duration = 1.0
+        # Protection after any hit (laser, core ring or camera sighting): 2 s, up from 1 s, because a
+        # playtest found the carry-over from Floor 2 plus 1 s windows too punishing.
+        self.laser_penalty_duration = 2.0
         self.laser_hit_feedback_timer = 0.0
 
         # Team-architecture compatibility: no patrol lanes, droid or night guard here.
@@ -236,11 +238,13 @@ class Level3LaserLoop:
         self.droid = None
         self.answer_at_door = False
 
-        # Each room's door question is about the loop that room really runs
-        # (levels/laser_requests.py): lit pads, sweeping cameras, core pulses.
-        # MEMORY_HEIST_OLD_LEVEL3=1 brings back the fixed question bank in data/puzzles.json.
+        # The door questions come from the fixed question bank (data/puzzles.json) by default.
+        # MEMORY_HEIST_GENERATED_LEVEL3=1 switches on the generated requests instead
+        # (levels/laser_requests.py): each room's door asks about the loop that room really runs
+        # (lit pads, sweeping cameras, core pulses) and the LOOP LOGIC board shows it.
         self.room_requests = {}
-        if os.environ.get("MEMORY_HEIST_OLD_LEVEL3") != "1":
+        if (os.environ.get("MEMORY_HEIST_GENERATED_LEVEL3") == "1"
+                and os.environ.get("MEMORY_HEIST_OLD_LEVEL3") != "1"):
             difficulty = self.get_selected_difficulty()
             self.room_requests = {room: laser_requests.make_request(room, difficulty)
                                   for room in (1, 2, 3)}
@@ -5083,10 +5087,39 @@ class Level3LaserLoop:
 
         self._draw_question_panel(surface)
         if room_number == 2:
+            self._draw_room2_gate_status(surface)
             self._draw_room2_override_modal(surface)
         if room_number == 3:
             self._draw_room3_terminal_modal(surface)
         self._draw_room_transition(surface)
+
+    def room2_gate_status(self):
+        """What Gate 2 is waiting for once its question is answered (None = nothing to say)."""
+        if (not self.room2_gate_question_solved
+                or self.room2_gate_challenge_survived
+                or self.gates[1].state != "locked"
+                or not self.emitters):
+            return None
+        state = self.emitters[0]["state"]
+        if state == "pending":
+            return "GATE SEALED - SCANNER SYNCING... HOLD POSITION"
+        if state in ("opening", "tracking", "warning", "locking", "active"):
+            return "DODGE THE SCANNER BEAM TO OPEN THE GATE"
+        if state in ("retracting", "cooldown"):
+            return "SCANNER RESETTING - STEP BACK IN TO TRY AGAIN"
+        return "GATE SEALED - ENTER THE SCANNER ZONE NEAR THE GATE"
+
+    def _draw_room2_gate_status(self, surface):
+        text = self.room2_gate_status()
+        if text is None or self.room2_override_panel_open:
+            return
+        label = self._font(18).render(text, True, (255, 220, 120))
+        box = label.get_rect(center=(self.gates[1].rect.centerx - 120,
+                                     self.play_bottom - 14)).inflate(18, 8)
+        box.clamp_ip(pygame.Rect(self.room_x, self.room_y, self.room_width, self.room_height))
+        pygame.draw.rect(surface, (14, 16, 28), box, border_radius=6)
+        pygame.draw.rect(surface, (240, 200, 70), box, 1, border_radius=6)
+        surface.blit(label, label.get_rect(center=box.center))
 
     def _loop_board(self):
         """Header layout: the LOOP LOGIC board (the loop this room really runs,
