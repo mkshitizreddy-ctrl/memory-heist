@@ -103,10 +103,14 @@ Close the window using its title bar (X) to quit at any time.
 
 The original levels can be switched back on for comparison with the
 environment variables `MEMORY_HEIST_OLD_LEVEL1=1`, `MEMORY_HEIST_OLD_LEVEL2=1`,
-`MEMORY_HEIST_OLD_LEVEL3=1` (Floor 3's fixed question bank), `MEMORY_HEIST_OLD_LEVEL4=1`,
+`MEMORY_HEIST_OLD_LEVEL4=1`,
 `MEMORY_HEIST_OLD_LEVEL5=1` and
 `MEMORY_HEIST_OLD_FINAL_VAULT=1`. Those no longer used by the game live in
 `levels/legacy/`.
+
+Floor 3's door questions come from the fixed question bank (`data/puzzles.json`) by default.
+`MEMORY_HEIST_GENERATED_LEVEL3=1` switches on the generated questions instead: each room's door asks
+about the loop the room really runs (lit pads, sweeping cameras, core pulses), and the LOOP LOGIC board shows it.
 
 ## Voice clips
 
