@@ -247,14 +247,38 @@ def draw_static(bg, accent):
     draw_panel_signs(bg)
     draw_wall_pipes(bg, metal)
     draw_toolbox(bg, TOOLBOX)
-    for gate, (_, last) in enumerate(BANDS):                     # relay stencils on the floor
-        label = ui_font(16, bold=True).render(f"RELAY BAY {gate + 1} - {TOPICS[gate]}", True,
+    for gate in range(len(BANDS)):                               # relay stencils on the floor
+        label = ui_font(16, bold=True).render(relay_label_text(gate), True,
                                               theme.mix(theme.INK, accent, 0.9))
-        spot = label.get_rect(center=(PAD_CENTRE_X[gate], (last + 1) * TILE - 10))
-        plate = pygame.Surface((spot.w + 14, spot.h + 2), pygame.SRCALPHA)
+        plate_rect = relay_label_rects()[gate]
+        spot = label.get_rect(center=plate_rect.center)
+        plate = pygame.Surface(plate_rect.size, pygame.SRCALPHA)
         pygame.draw.rect(plate, (*theme.INK, 170), plate.get_rect(), border_radius=3)
-        bg.blit(plate, (spot.x - 7, spot.y - 1))                 # dark plate so the stencil reads
+        bg.blit(plate, plate_rect)                               # dark plate so the stencil reads
         bg.blit(label, spot)
+
+
+def relay_label_text(gate):
+    return f"RELAY BAY {gate + 1} - {TOPICS[gate]}"
+
+
+def relay_label_rects():
+    """The dark plate behind each RELAY BAY stencil on the floor, one per corridor."""
+    font = ui_font(16, bold=True)
+    rects = []
+    for gate, (_, last) in enumerate(BANDS):
+        w, h = font.size(relay_label_text(gate))
+        spot = pygame.Rect(0, 0, w, h)
+        spot.center = (PAD_CENTRE_X[gate], (last + 1) * TILE - 10)
+        rects.append(pygame.Rect(spot.x - 7, spot.y - 1, w + 14, h + 2))
+    return rects
+
+
+def labels_to_keep_clear(panels=(), pads=()):
+    """Everything on Floor 2 a speech bubble must not cover: relay stencils, the
+    TRUE = LIVE plates, the fuse box and poster, the floor panels and the answer pads."""
+    return (relay_label_rects() + list(PANEL_SIGNS) + [FUSE_BOX, POSTER]
+            + [tile["rect"] for tile in panels] + list(pads))
 
 
 PANEL_SIGNS = (pygame.Rect(PANEL_COLS[0] * TILE + 8, SEPARATORS[0] * TILE + 5, 112, 22),       # under crossing 1

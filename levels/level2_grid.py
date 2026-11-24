@@ -417,6 +417,7 @@ class GridRoom(RoomMixin, Level2):
             G.draw_floor_panel(world, tile, self.panel_state.get(index, "unknown"), self.time)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         self._draw_shadows(world)
+        self.engineer.bubble_avoid = G.labels_to_keep_clear(self.panels, self.pad_rects())
         self.engineer.draw(world, self.small)
         self.draw_sparks(world)
         self.lightlayer.apply(world, self._lights())

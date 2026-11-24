@@ -1190,3 +1190,39 @@ def test_the_clock_holds_while_an_answer_is_read_then_runs_again():
     answer(room, player, "42")                                   # right: next gate starts full and held
     room.update(READ_HOLD_MIN - 0.1)
     assert room.time_left == room.time_limit
+
+
+# --- the engineer's speech bubble keeps the signs readable ------------------------------
+def test_place_bubble_slides_off_a_sign_and_keeps_the_side_when_it_can():
+    from ui.kit import place_bubble
+    bounds = pygame.Rect(0, 0, 960, 640)
+    anchor = pygame.Rect(300, 300, 32, 32)
+    plain = place_bubble((200, 30), anchor, bounds, below=True)
+    sign = pygame.Rect(plain.right - 40, plain.top, 60, 22)
+    moved = place_bubble((200, 30), anchor, bounds, below=True, avoid=[sign])
+    assert not moved.colliderect(sign) and moved.top == plain.top       # same side, slid sideways
+    assert moved.left <= anchor.centerx <= moved.right + 24              # the tail still reaches him
+
+
+def test_place_bubble_falls_back_to_the_plain_spot_when_nothing_is_clear():
+    from ui.kit import place_bubble
+    bounds = pygame.Rect(0, 0, 960, 640)
+    anchor = pygame.Rect(300, 300, 32, 32)
+    assert place_bubble((200, 30), anchor, bounds, below=True, avoid=[bounds]) == \
+        place_bubble((200, 30), anchor, bounds, below=True)
+
+
+def test_the_engineer_never_talks_over_a_relay_label_sign_or_pad():
+    from ui.kit import place_bubble
+    room, _, _ = make_room()
+    font = room.small
+    avoid = G.labels_to_keep_clear(room.panels, room.pad_rects())
+    bounds = pygame.Rect(0, 0, 30 * TILE, 20 * TILE)
+    xs = [p[0] for p in L2.ENGINEER_ROUTE]
+    for x in range(min(xs), max(xs) + 1, 8):                       # every spot on his patrol
+        anchor = pygame.Rect(x, L2.ENGINEER_ROUTE[0][1], 32, 32)
+        for line in L2.ENGINEER_LINES + (L2.PANEL_LINE,):
+            size = font.render(line, True, (0, 0, 0)).get_rect().inflate(16, 10).size
+            box = place_bubble(size, anchor, bounds, below=True, avoid=avoid)
+            hits = [r for r in avoid if box.colliderect(r)]
+            assert not hits, (x, line, hits)

@@ -158,4 +158,5 @@ class NPC:
         draw_character(surface, self.rect, image, lift, self.facing_left)
         if self.speech and font is not None:
             draw_speech_bubble(surface, font, self.speech, self.rect,
-                               below=getattr(self, "bubble_below", False))
+                               below=getattr(self, "bubble_below", False),
+                               avoid=getattr(self, "bubble_avoid", ()))
