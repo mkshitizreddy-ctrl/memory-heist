@@ -103,6 +103,15 @@ class HUD:
         self._prev_security = None
         self._sec_flash = 0           # frames left of the meter flash
 
+    def reset(self, score=0, security=0):
+        """A new, continued or retried run: show its score at once, with no count-up,
+        no gold flash and no popups left over from the run before."""
+        self._shown_score = float(score)
+        self._last_score = self._prev_score = score
+        self._prev_security = security
+        self._flash = self._sec_flash = 0
+        self.popups = []
+
     def _track(self, score, security):
         """Age the popups, then add one for each real change since the last frame."""
         for popup in self.popups:

@@ -18,7 +18,7 @@ from core.difficulty import (
     DEFAULT_DIFFICULTY,
     run_time_seconds,
     question_time_multiplier,
-    FLOOR_COOLDOWN,
+    lift_cooldown,
     PRACTICE_BASE,
     is_practice,
 )
@@ -215,6 +215,7 @@ class Game:
         self.score.reset()
         self.score.add(saved["score"])
         self.security.reset()
+        self.hud.reset(self.score.get_score())      # no count-up from the last run's number
         self.timer = Timer()
         self.timer.start(saved["remaining"])
         self._register_levels()
@@ -300,7 +301,7 @@ class Game:
             if self._is_next_floor(previous, current_name):
                 cleared = self._floor_summary(previous)
             if cleared is not None and self.state == "playing":
-                self.security.cool(FLOOR_COOLDOWN)     # WARDEN loses the trail in the lift
+                self.security.cool(lift_cooldown(self.security.level))   # WARDEN loses the trail in the lift
             self._floor_snap = self._take_snapshot()
             if cleared is not None and self.state == "playing":
                 self._save_run(current_name)
@@ -883,6 +884,7 @@ class Game:
         self._continued = False
         self.score.reset()
         self.security.reset()
+        self.hud.reset()                     # no count-down from the last run's number
         self.timer = Timer()
         if not self.practice:                # Practice: no run clock, so it never runs out
             self.timer.start(run_time_seconds(self.difficulty))

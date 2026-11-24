@@ -1114,6 +1114,7 @@ def test_the_engineers_route_stays_on_open_floor_and_off_the_answer_plates():
         r = pygame.Rect(x, y, 32, 32)
         assert not room.room_map.blocked(r)
         assert not any(r.colliderect(pad.inflate(8, 8)) for pad in G.pad_rects(0, 4))      # he never stands on a plate
+        assert not any(r.colliderect(label) for label in G.relay_label_rects())           # nor on a stencil
 
 
 def test_the_engineer_mutters_now_and_then_when_nobody_is_talking_to_him():
@@ -1190,3 +1191,72 @@ def test_the_clock_holds_while_an_answer_is_read_then_runs_again():
     answer(room, player, "42")                                   # right: next gate starts full and held
     room.update(READ_HOLD_MIN - 0.1)
     assert room.time_left == room.time_limit
+
+
+# --- the engineer's speech bubble keeps the signs readable ------------------------------
+def test_place_bubble_slides_off_a_sign_and_keeps_the_side_when_it_can():
+    from ui.kit import place_bubble
+    bounds = pygame.Rect(0, 0, 960, 640)
+    anchor = pygame.Rect(300, 300, 32, 32)
+    plain = place_bubble((200, 30), anchor, bounds, below=True)
+    sign = pygame.Rect(plain.right - 40, plain.top, 60, 22)
+    moved = place_bubble((200, 30), anchor, bounds, below=True, avoid=[sign])
+    assert not moved.colliderect(sign) and moved.top == plain.top       # same side, slid sideways
+    assert moved.left <= anchor.centerx <= moved.right + 24              # the tail still reaches him
+
+
+def test_place_bubble_falls_back_to_the_plain_spot_when_nothing_is_clear():
+    from ui.kit import place_bubble
+    bounds = pygame.Rect(0, 0, 960, 640)
+    anchor = pygame.Rect(300, 300, 32, 32)
+    assert place_bubble((200, 30), anchor, bounds, below=True, avoid=[bounds]) == \
+        place_bubble((200, 30), anchor, bounds, below=True)
+
+
+def test_the_engineer_never_talks_over_a_relay_label_sign_or_pad():
+    from ui.kit import place_bubble
+    room, _, _ = make_room()
+    font = room.small
+    avoid = G.labels_to_keep_clear(room.panels, room.pad_rects())
+    bounds = pygame.Rect(0, 0, 30 * TILE, 20 * TILE)
+    xs = [p[0] for p in L2.ENGINEER_ROUTE]
+    for x in range(min(xs), max(xs) + 1, 8):                       # every spot on his patrol
+        anchor = pygame.Rect(x, L2.ENGINEER_ROUTE[0][1], 32, 32)
+        for line in L2.ENGINEER_LINES + (L2.PANEL_LINE,):
+            size = font.render(line, True, (0, 0, 0)).get_rect().inflate(16, 10).size
+            box = place_bubble(size, anchor, bounds, below=True, avoid=avoid)
+            hits = [r for r in avoid if box.colliderect(r)]
+            assert not hits, (x, line, hits)
+
+
+# --- ... and never talks behind Ghost, who is drawn over him -------------------------
+def test_place_bubble_dodges_a_soft_rect_but_never_onto_a_sign():
+    from ui.kit import place_bubble
+    bounds = pygame.Rect(0, 0, 960, 640)
+    anchor = pygame.Rect(300, 300, 32, 32)
+    plain = place_bubble((200, 30), anchor, bounds, below=True)
+    hero = pygame.Rect(plain.right - 44, plain.top - 10, 44, 46)
+    dodged = place_bubble((200, 30), anchor, bounds, below=True, soft=[hero])
+    assert not dodged.colliderect(hero)
+    # When the only spots clear of the hero cover a sign, the sign wins.
+    signs = [pygame.Rect(0, 0, 960, plain.top), pygame.Rect(0, plain.bottom, 960, 640),
+             pygame.Rect(0, 0, plain.left, 640), pygame.Rect(plain.right, 0, 960, 640)]
+    assert place_bubble((200, 30), anchor, bounds, below=True, avoid=signs, soft=[hero]) == plain
+
+
+def test_the_engineer_keeps_his_bubble_out_from_under_ghost():
+    room, _, player = make_room()
+    eng = room.engineer
+    eng.rect.topleft = L2.ENGINEER_ROUTE[0]
+    player.rect.midtop = (eng.rect.right + 30, eng.rect.bottom + 8)     # standing just beside, below him
+    eng.say(L2.SCOLD)
+    room.render(pygame.Surface((960, 640)))
+    assert eng.bubble_soft_avoid == room.hero_bodies()
+    body = room.hero_bodies()[0]
+    assert body.collidepoint(player.rect.midbottom[0], player.rect.bottom)   # the sprite, not just the feet box
+    from ui.kit import place_bubble
+    size = room.small.render(L2.SCOLD, True, (0, 0, 0)).get_rect().inflate(16, 10).size
+    box = place_bubble(size, eng.rect, pygame.Rect(0, 0, 960, 640), below=True,
+                       avoid=eng.bubble_avoid, soft=eng.bubble_soft_avoid)
+    assert not box.colliderect(body)
+    assert not any(box.colliderect(r) for r in eng.bubble_avoid)

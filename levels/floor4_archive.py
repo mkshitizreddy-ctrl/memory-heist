@@ -2,25 +2,33 @@
 levels/floor4_archive.py
 Owner: Member 1 - Core Game System (Floor 4 rebuilt on the shared kit)
 
-Floor 4 - The Records Archive  (topic: lists and dictionaries)
+Floor 4 - The Records Archive  (topic: lists, dictionaries and loops)
 
 NovaCorp keeps a file on every citizen down here, and Ghost's stolen memory sits
-in the vault at the far end.  The request slip on the wall asks for three things,
+in the vault at the far end.  The request slip on the wall asks for four things,
 one at a time, and you answer each by doing it:
 
     request 1   pull Ghost's dossier from the shelf          (a list index:   shelf[-2])
     request 2   open the right card-catalogue drawer         (a dictionary:   codes[name])
     request 3   feed one item from your satchel to the vault (a list method:  satchel.pop())
+    request 4   set the vault's dial: the number the slip's loop leaves in it (a loop)
 
     E / Right Shift   pull, open or feed at the thing you stand in front of
     Q                 Echo's drone scans the slip for a hint (once per slip, hints on)
     X                 Echo's drone lures the security drone away for a few seconds
+    F                 Echo freezes the drone for a moment (unlocks after request 2, long cooldown)
+    R                 the recap of your run, once every request is filed
 
 Rules (Floor 4's original numbers):
-    right answer   +40, the next request comes up, the clock resets
+    right answer   +40 and the next request comes up.  The clock carries on; two right
+                   answers in a row (no wrong answer between) refill it
+    RUSH slip      one request (never the first) has a shorter clock and pays double (+80)
+    guarded slip   another request is guarded: the drone lingers at the post nearest its answer
     wrong answer   security +15, score -10, the same request stays
     out of time    security +25, score -15, a new slip
-    security drone score -10 when it catches you in its light (score only)
+    security drone score -10 (hard -15) when it catches you in its light (score only);
+                   easy runs the loop slowly with long pauses, medium runs it faster,
+                   hard roams it and scans at corners.  A red warning comes first.
     walk out       +100 bonus
 
 The original Level 4 stays in levels/legacy/level4_memory.py and returns with
@@ -28,6 +36,7 @@ MEMORY_HEIST_OLD_LEVEL4=1.
 """
 
 import math
+import random
 
 import pygame
 
@@ -36,28 +45,58 @@ from core.tilemap import TILE, TileMap, make_tiles
 from entities.sprites import draw_drone
 from levels import archive_decor as A
 from levels import badge_door, depth_fx, lighting
-from levels.archive_requests import START_SATCHEL, make_request
+from levels.archive_requests import DIAL_TRAYS, START_SATCHEL, make_request, why_wrong
 from levels.room_base import MESSAGE_Y, TITLE_Y, RoomMap, RoomMixin
 from ui import theme
 from ui.fonts import ui_font
 from ui.kit import shadowed
 
 LEVEL_KEY = "level4"
-REQUESTS = 3
+REQUESTS = 4
 POINTS = 40
 FINISH_BONUS = 100
 WRONG_SECURITY, WRONG_PENALTY = 15, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
-BASE_SECONDS = 45
+MESSAGE_CHARS = 108                 # what fits on the one message line under the title
+EASY_TIMEOUT_SECURITY = 20           # easy is a little gentler on a slip that runs out
+BASE_SECONDS = 45                # the slip clock before the shared question multiplier
+# The slip clock, per difficulty.  It carries over, so two slips share one clock.  Easy is
+# never shorter than the shared rule (45 s x the easy question multiplier = 90 s).
+SLIP_SECONDS = {"easy": 90, "medium": 50, "hard": 35}
+STREAK_FOR_REFILL = 2            # right answers in a row (no wrong answer between) that refill the clock
+MIN_CARRY_SECONDS = 10           # a carried clock never drops below this, so a slip can always be read
 DOOR_SECONDS = 1.2
 WARN_SECONDS = 5                 # the last seconds tick and the slip pulses red
 SLIP_DROP_SECONDS = 0.45
-DRONE_PENALTY = 10
+DRONE_PENALTY = 10               # the medium (default) numbers; DRONE_SETTINGS has all three
 DRONE_RANGE = 78                 # its searchlight's reach
 DRONE_COOLDOWN = 3.0
-DRONE_GRACE = 2.5                # it cannot log you in the first moments
-LURE_SECONDS = 4.0
-LURE_COOLDOWN = 12.0
+DRONE_GRACE = 2.0                # it cannot log you in the first moments
+LURE_SECONDS = 3.0
+LURE_COOLDOWN = 15.0
+DRONE_SETTINGS = {
+    # route: "aisle" patrols back and forth, "loop" follows the route, "roam" picks its way round it
+    "easy": {"speed": 70.0, "reach": 70, "grace": 2.5, "penalty": 10, "lure_seconds": 4.0,
+             "lure_cooldown": 12.0, "lock": 0.6, "route": "loop", "pause": 1.2},
+    "medium": {"speed": 105.0, "reach": DRONE_RANGE, "grace": DRONE_GRACE, "penalty": DRONE_PENALTY,
+               "lure_seconds": LURE_SECONDS, "lure_cooldown": LURE_COOLDOWN, "lock": 0.4, "route": "loop", "pause": 0.8},
+    "hard": {"speed": 125.0, "reach": 90, "grace": 1.5, "penalty": 15, "lure_seconds": 2.5,
+             "lure_cooldown": 20.0, "lock": 0.4, "route": "roam"},
+}
+LOCK_DECAY = 2.0                 # the red warning fades twice as fast as it builds
+
+RUSH_POINTS = POINTS * 2         # the RUSH slip pays double; the penalties do not change
+RUSH_SHARE = {"easy": 0.70, "medium": 0.60, "hard": 0.50}     # of the normal slip clock
+RUSH_MIN_SECONDS = 15            # a RUSH slip is never shorter than this
+GUARD_POSTS = (2, 3, 4, 4)       # the route waypoint nearest each request's answer (shelf, catalogue, trays)
+GUARD_PAUSE = {"easy": 2.0, "medium": 2.4, "hard": 2.2}       # seconds the drone scans at a guard post
+SCAN_FLASH = 4.0                 # how long Echo's scan shows the drone's heading
+FREEZE_FROM_STAGE = 2            # Echo's freeze module unlocks once two requests are filed
+FREEZE_SETTINGS = {"easy": {"seconds": 3.0, "cooldown": 25.0},
+                   "medium": {"seconds": 2.5, "cooldown": 30.0},
+                   "hard": {"seconds": 2.0, "cooldown": 40.0}}
+RECAP_SECONDS = 10.0             # the recap panel stays up this long after the last request
+SHORT_TOPIC = ("INDEX", "KEYS", "LIST OPS", "LOOPS")
 WRONG_SECONDS = 0.5
 AMBIENT = (128, 126, 140)        # a dim, dusty hall; the lamps do the work
 LAMP = (210, 230, 150)           # banker's lamps: green glass, warm bulb
@@ -68,7 +107,8 @@ IDLE_LINES = ("Index from zero. Always zero.", "Every citizen has a file. Every 
 NOTICE_LINES = ("Courier? Requests come through the slip.", "Read the slip. Then touch nothing else.",
                 "The shelf counts from zero, courier.")
 PRAISE = ("Filed correctly.", "Accurate. How rare.")
-SCOLD = ("That is not the box on the slip.", "Wrong drawer. Keys are exact.", "The vault does not take that.")
+SCOLD = ("That is not the box on the slip.", "Wrong drawer. Keys are exact.", "The vault does not take that.",
+         "The dial does not turn to that. Count the passes.")
 FAREWELL = "Your file has been... updated."
 NOT_YET = ("Not on the slip yet.", "The slip is not asking for that yet.")
 DONE_LINE = "Already filed."
@@ -83,13 +123,25 @@ class ArchiveFloor(RoomMixin):
         self.complete = False
         self.init_room(seed)
         self.difficulty = self._difficulty()
-        self.time_limit = max(1, round(BASE_SECONDS * self._timer_multiplier()))
+        self.time_limit = SLIP_SECONDS[self.difficulty]
+        self.streak = 0                   # right answers in a row since the clock last refilled
         self.time_left = self.time_limit
 
         self.stage = 0
         self.satchel = list(START_SATCHEL)
+        plan = random.Random()                                    # the RUSH / guarded plan, drawn from a
+        plan.setstate(self.rng.getstate())                        # copy so the slips themselves never change
+        self.rush_stage = plan.choice((1, 2, 3))
+        self.guard_stage = plan.choice([n for n in range(REQUESTS) if n != self.rush_stage])
+        self.attempts = {n: {"wrong": [], "timeouts": 0} for n in range(REQUESTS)}
+        self.freeze_left = 0.0
+        self.freeze_cooldown = 0.0
+        self.scan_flash = 0.0
+        self.recap_left = 0.0
         self.request = make_request(0, self.rng, self.satchel, self.difficulty)
+        self._tag_request()
         self.scanned = False
+        self.misses = 0                   # wrong answers on the current slip
         self.slip_drop = 0.0              # 0 -> 1 as a new slip drops out of the tube
         self._last_tick = None
         self.say("Read the request slip, then do what it asks. E to act.", theme.PAPER)
@@ -109,8 +161,12 @@ class ArchiveFloor(RoomMixin):
         self._notices = 0
         self._praised = 0
 
-        self.drone = A.Drone()
-        self.drone_grace = DRONE_GRACE
+        self.drone_cfg = DRONE_SETTINGS[self.difficulty]
+        self.drone_reach = self.drone_cfg["reach"]
+        self.drone = self._make_drone()
+        self.drone_grace = self.drone_cfg["grace"]
+        self._apply_guard()
+        self.drone_lock = {}             # player id -> seconds inside the light (the red warning)
         self.drone_wait = {}             # player id -> seconds until the drone can log them again
         self.drone_hits = 0
         self.lure_left = 0.0
@@ -132,17 +188,64 @@ class ArchiveFloor(RoomMixin):
         self._title = None
         self.lightlayer = lighting.LightLayer(ambient=AMBIENT)
 
+    # --- the RUSH slip, the guarded slip -------------------------------------------
+    def _slip_limit(self, stage=None):
+        """Seconds on the clock for a slip of `stage`: shorter for the RUSH request."""
+        stage = self.stage if stage is None else stage
+        if stage != self.rush_stage:
+            return self.time_limit
+        short = round(self.time_limit * RUSH_SHARE[self.difficulty])
+        return min(self.time_limit, max(RUSH_MIN_SECONDS, short))
+
+    def _tag_request(self):
+        self.request["rush"] = self.stage == self.rush_stage
+        self.request["guarded"] = self.stage == self.guard_stage
+
+    def _next_request(self, reset_clock=True):
+        """A fresh slip for the current stage and its guard post; the clock is refilled unless told not to."""
+        self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
+        self._tag_request()
+        if reset_clock:
+            self.time_left = self._slip_limit()
+            self._last_tick = None
+        self._apply_guard()
+
+    def _carry_clock(self):
+        """After a right answer: the clock carries on, unless this is the second clean answer in a row."""
+        self.streak += 1
+        limit = self._slip_limit()
+        if self.streak >= STREAK_FOR_REFILL:
+            self.streak = 0
+            self.time_left = limit
+            self._last_tick = None                            # the last-seconds ticks can sound again
+            return True
+        self.time_left = min(limit, max(self.time_left, MIN_CARRY_SECONDS))
+        return False
+
+    def _guard_index(self):
+        if self.stage < REQUESTS and self.stage == self.guard_stage:
+            return GUARD_POSTS[self.stage]
+        return None
+
+    def _apply_guard(self):
+        index = self._guard_index()
+        self.drone.set_guard(index, GUARD_PAUSE[self.difficulty] if index is not None else 0.0)
+
     # --- difficulty -------------------------------------------------------------
+    def _make_drone(self):
+        cfg = self.drone_cfg
+        if cfg["route"] == "aisle":
+            return A.Drone(speed=cfg["speed"])
+        pauses = {i: cfg["pause"] for i in A.ROUTE_CORNERS} if cfg["route"] == "loop" else None
+        return A.Drone(speed=cfg["speed"], route=A.DRONE_ROUTE, rng=self.rng,
+                       roam=cfg["route"] == "roam", pauses=pauses)
+
     def _difficulty(self):
         value = getattr(self.game, "difficulty", None)
         if isinstance(value, dict):
             value = value.get("name", value.get("label"))
         value = str(value or "medium").lower().strip()
         return value if value in {"easy", "medium", "hard"} else "medium"
-
-    def _timer_multiplier(self):
-        from core.difficulty import question_time_multiplier
-        return question_time_multiplier(self.difficulty)
 
     def _hints_on(self):
         hints = getattr(self.game, "hints", None)
@@ -169,7 +272,7 @@ class ArchiveFloor(RoomMixin):
         stage = self.stage if stage is None else stage
         if stage >= REQUESTS:
             return None
-        count = 5 if stage == 0 else (4 if stage == 1 else 3)
+        count = 5 if stage == 0 else (4 if stage == 1 else DIAL_TRAYS)
         for i in range(count):
             if A.stand_zone(stage, i).collidepoint(player.rect.center):
                 return i
@@ -184,6 +287,12 @@ class ArchiveFloor(RoomMixin):
             return
         if event.key == pygame.K_x:
             self._lure()
+            return
+        if event.key == pygame.K_f:
+            self._freeze()
+            return
+        if event.key == pygame.K_r:
+            self._toggle_recap()
             return
         for player, key in self.players():
             if event.key != key:
@@ -206,6 +315,7 @@ class ArchiveFloor(RoomMixin):
         if not self._hints_on():
             self.say("Echo: the scanner is jammed on this difficulty.", theme.MIST)
             return
+        self.scan_flash = SCAN_FLASH                          # the drone's heading shows for a moment
         if self.scanned:
             self.say("Echo: I already scanned this slip. " + self.request["hint"], theme.GOLD)
             return
@@ -218,12 +328,65 @@ class ArchiveFloor(RoomMixin):
             self.say(f"Echo: drone recharging, {math.ceil(self.lure_cooldown)}s.", theme.MIST)
             return
         px = self.player.rect.centerx if self.player is not None else A.DRONE_X[0]
-        far = A.DRONE_X[1] if px < 15 * TILE else A.DRONE_X[0]
-        self.drone.lure = (far, A.DRONE_Y)                    # along its own aisle, never over the stacks
-        self.lure_left = LURE_SECONDS
-        self.lure_cooldown = LURE_COOLDOWN
+        if self.drone.route:                                  # the far corner of its route, by its own legs
+            here = self.player.rect.center if self.player is not None else (px, A.DRONE_Y)
+            self.drone.lure = self.drone.lure_toward(here)
+        else:
+            far = A.DRONE_X[1] if px < 15 * TILE else A.DRONE_X[0]
+            self.drone.lure = (far, A.DRONE_Y)                # along its own aisle, never over the stacks
+        self.lure_left = self.drone_cfg["lure_seconds"]
+        self.lure_cooldown = self.drone_cfg["lure_cooldown"]
         self.sfx("click")
         self.say("Echo: pulling the drone away. Go.", theme.TEAL)
+
+    def _freeze(self):
+        if self.stage < FREEZE_FROM_STAGE:
+            self.say("Echo: the freeze module unlocks once two requests are filed.", theme.MIST)
+            return
+        if self.freeze_left > 0:
+            return
+        if self.freeze_cooldown > 0:
+            self.say(f"Echo: freeze recharging, {math.ceil(self.freeze_cooldown)}s.", theme.MIST)
+            return
+        cfg = FREEZE_SETTINGS[self.difficulty]
+        self.freeze_left = cfg["seconds"]
+        self.freeze_cooldown = cfg["cooldown"]
+        self.drone_lock.clear()
+        self.sfx("chime")
+        self.say(f"Echo: drone frozen for {cfg['seconds']:g}s. Go.", (170, 215, 255))
+
+    def _toggle_recap(self):
+        if self.stage < REQUESTS:
+            self.say("Echo: the recap opens once every request is filed.", theme.MIST)
+            return
+        self.recap_left = 0.0 if self.recap_left > 0 else RECAP_SECONDS
+
+    def _recap_rows(self, on_paper=True):
+        """One (text, colour) per filed request: dark inks for the paper slip, bright ones for the panel."""
+        rows = []
+        for n, request in enumerate(self.solved):
+            info = self.attempts[request["stage"]]
+            misses, outs = len(info["wrong"]), info["timeouts"]
+            notes = ["clean" if not misses and not outs else ""]
+            if misses:
+                notes.append(f"{misses} miss{'es' if misses != 1 else ''}")
+            if outs:
+                notes.append(f"{outs} timed out")
+            if request.get("rush"):
+                notes.append("RUSH")
+            status = ", ".join(x for x in notes if x)
+            good, bad = ((40, 110, 70), (150, 60, 40)) if on_paper else ((120, 220, 160), theme.CORAL)
+            colour = good if not misses and not outs else bad
+            rows.append((f"{n + 1} {SHORT_TOPIC[request['stage']]:<8} [{request['form']}]  {status}", colour))
+        return rows
+
+    def _recap_notes(self):
+        """The mistakes worth another look: what was picked, and why it was wrong."""
+        out = []
+        for request in self.solved:
+            for label, why in self.attempts[request["stage"]]["wrong"]:
+                out.append((f"{SHORT_TOPIC[request['stage']]} [{request['form']}]: {label} - {why}", theme.CORAL))
+        return out[-4:]
 
     # --- the rules ----------------------------------------------------------------
     def _answer(self, index):
@@ -233,9 +396,9 @@ class ArchiveFloor(RoomMixin):
         if index == request["answer"]:
             self.solved.append(request)
             if self.game:
-                self.game.score.add(POINTS)
+                self.game.score.add(RUSH_POINTS if request.get("rush") else POINTS)
             self.burst(spot, A.PAPER, 18)                    # loose file pages
-            self.burst(spot, theme.GOLD, 6)
+            self.burst(spot, theme.GOLD, 14 if request.get("rush") else 6)
             self.sfx("switch")
             self.sfx("chime")
             self._praise()
@@ -248,25 +411,41 @@ class ArchiveFloor(RoomMixin):
                 self.fed[index] = 0.01
             if request["take"] is not None:
                 self.satchel.append(request["take"])
-            elif 0 <= index < len(self.satchel):
+            elif stage == 2 and 0 <= index < len(self.satchel):
                 self.satchel.pop(index)
             self.stage += 1
             self.scanned = False
-            self.time_left = self.time_limit
+            self.misses = 0
+            if self.stage == 3:
+                self.fed = {}                                 # the same trays now carry the dial
+            refilled = self._carry_clock()                    # carried on, or refilled after two clean answers
             if self.stage < REQUESTS:
-                self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
+                self._next_request(reset_clock=False)
                 self.slip_drop = 0.0
-                self.say_answer(f"{request['explain']}  Next request is up.", theme.TEAL)
+                tail = "Clock refilled." if refilled else "Next request is up."
+                self.say_answer(f"{request['explain']}  {tail}", theme.TEAL)
             else:
                 self.say_answer(f"{request['explain']}  The vault door is opening.", theme.GOLD)
                 self.sfx("door")
+                self._apply_guard()                           # nothing left to guard
+                self.recap_left = RECAP_SECONDS + self.read_hold      # the ten seconds start once the last line is read
         else:
             self.wrong[(stage, index)] = WRONG_SECONDS
             self.shake.add(0.5)
             self.burst(spot, theme.CORAL, 10)
             self.archivist.say(SCOLD[stage])
+            self.misses += 1
+            self.streak = 0                                   # a wrong answer breaks the run of clean answers
+            self.attempts[stage]["wrong"].append((request["labels"][index], why_wrong(request, index)))
             if self._hints_on():
-                self.say_answer("Wrong. " + request["hint"], theme.CORAL)
+                if self.misses == 1:
+                    # the reason, plus the hint when both fit on the one message line
+                    text = f"Wrong. {why_wrong(request, index)}"
+                    if len(text) + len(request["hint"]) + 2 <= MESSAGE_CHARS:
+                        text += f"  {request['hint']}"
+                else:
+                    text = f"Wrong again. {request['walk']}"
+                self.say_answer(text, theme.CORAL)
             else:
                 self.say_answer("Wrong. Read the slip again.", theme.CORAL)
             if self.game:
@@ -287,39 +466,62 @@ class ArchiveFloor(RoomMixin):
             self._last_tick = whole
             self.sfx("click")                               # the slip's clock ticks out loud near the end
         if self.time_left <= 0:
-            self.time_left = self.time_limit
-            self.request = make_request(self.stage, self.rng, self.satchel, self.difficulty)
+            self.attempts[self.stage]["timeouts"] += 1
+            self.streak = 0
+            self._next_request()                            # a new slip for the same stage, a fresh clock
             self.scanned = False
+            self.misses = 0
             self.slip_drop = 0.0
             self.say("TIME'S UP! Security increased. A new slip came down the tube.", theme.CORAL)
             self.shake.add(0.5)
             if self.game:
-                self.game.security.increase(TIMEOUT_SECURITY)
+                self.game.security.increase(
+                    EASY_TIMEOUT_SECURITY if self.difficulty == "easy" else TIMEOUT_SECURITY)
                 self.game.score.penalize(TIMEOUT_PENALTY)
 
     def _update_drone(self, dt):
         self.drone_grace = max(0.0, self.drone_grace - dt)
         self.lure_cooldown = max(0.0, self.lure_cooldown - dt)
+        self.freeze_cooldown = max(0.0, self.freeze_cooldown - dt)
+        self.scan_flash = max(0.0, self.scan_flash - dt)
+        self.recap_left = max(0.0, self.recap_left - dt)
         if self.lure_left > 0:
             self.lure_left -= dt
             if self.lure_left <= 0:
                 self.drone.lure = None
+        if self.freeze_left > 0:                              # Echo's freeze: no moving, no light, no log
+            self.freeze_left = max(0.0, self.freeze_left - dt)
+            self.drone_lock.clear()
+            for key in self.drone_wait:
+                self.drone_wait[key] = max(0.0, self.drone_wait[key] - dt)
+            return
         self.drone.update(dt)
         if self.drone.lure is not None or self.drone_grace > 0:
+            self.drone_lock.clear()
             return
+        lock_needed = self.drone_cfg["lock"]
         for player, _ in self.players():
             key = id(player)
             self.drone_wait[key] = max(0.0, self.drone_wait.get(key, 0.0) - dt)
             if self.drone_wait[key] > 0:
                 continue
-            if math.dist(player.rect.center, self.drone.centre) <= DRONE_RANGE:
-                self.drone_wait[key] = DRONE_COOLDOWN
-                self.drone_hits += 1
-                self.shake.add(0.3)
-                self.sfx("alarm")
-                self.say(f"The security drone logged you. -{DRONE_PENALTY}. Press X to lure it.", theme.CORAL)
-                if self.game:
-                    self.game.score.penalize(DRONE_PENALTY)
+            inside = math.dist(player.rect.center, self.drone.centre) <= self.drone_reach
+            if not inside:
+                self.drone_lock[key] = max(0.0, self.drone_lock.get(key, 0.0) - dt * LOCK_DECAY)
+                continue
+            self.drone_lock[key] = self.drone_lock.get(key, 0.0) + dt
+            if self.drone_lock[key] < lock_needed:
+                continue                                      # the light is red: step out of it
+            self.drone_lock[key] = 0.0
+            self.drone_wait[key] = DRONE_COOLDOWN
+            self.drone_hits += 1
+            self.drone.noticed(player.rect.center)
+            self.shake.add(0.3)
+            self.sfx("alarm")
+            penalty = self.drone_cfg["penalty"]
+            self.say(f"The security drone logged you. -{penalty}. Press X to lure it.", theme.CORAL)
+            if self.game:
+                self.game.score.penalize(penalty)
 
     def _update_npcs(self, dt):
         self.archivist.update(dt)
@@ -410,8 +612,13 @@ class ArchiveFloor(RoomMixin):
         door = badge_door.lamp_colour(self.door_open if self.stage >= REQUESTS else 0.0)
         out.append(lighting.Light((A.DOOR.x - 12, A.DOOR.centery), 100, door, 0.7))
         alert = any(v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values())
-        out.append(lighting.Light((self.drone.centre[0], self.drone.centre[1] + 14), DRONE_RANGE + 10,
-                                  theme.CORAL if alert else (210, 220, 240), 0.8))
+        warning = any(v > 0 for v in self.drone_lock.values())      # the red warning before a log
+        if self.freeze_left > 0:
+            out.append(lighting.Light((self.drone.centre[0], self.drone.centre[1] + 14), self.drone_reach // 2,
+                                      (150, 200, 255), 0.45))
+        else:
+            out.append(lighting.Light((self.drone.centre[0], self.drone.centre[1] + 14), self.drone_reach + 10,
+                                      theme.CORAL if (alert or warning) else (210, 220, 240), 0.8))
         out.append(lighting.Light((int(self.echo[0]), int(self.echo[1])), 50, theme.TEAL, 0.5))
         return out
 
@@ -424,35 +631,77 @@ class ArchiveFloor(RoomMixin):
         here = self._highlight()
         wrong0 = {i for (s, i) in self.wrong if s == 0}
         wrong1 = {i for (s, i) in self.wrong if s == 1}
-        wrong2 = {i for (s, i) in self.wrong if s == 2}
+        wrong2 = {i for (s, i) in self.wrong if s in (2, 3)}
         A.draw_shelf(world, self.pulled, wrong0, here if self.stage == 0 else None, t)
         drawer_labels = self.request["labels"] if self.stage == 1 else (
             self.solved[1]["labels"] if len(self.solved) > 1 else ["", "", "", ""])
         A.draw_drawers(world, drawer_labels, self.opened, wrong1, here if self.stage == 1 else None, self.card, t)
-        tray_labels = self.request["labels"] if self.stage == 2 else (
-            self.solved[2]["labels"] if len(self.solved) > 2 else [])
-        A.draw_trays(world, tray_labels, self.fed, wrong2, here if self.stage == 2 else None, t)
+        tray_labels = self.request["labels"] if self.stage in (2, 3) else (
+            self.solved[3]["labels"] if len(self.solved) > 3 else [])
+        A.draw_trays(world, tray_labels, self.fed, wrong2, here if self.stage in (2, 3) else None, t)
         badge_door.draw_badge_door(world, A.DOOR, self.door_open, t)
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         lighting.blob_shadow(world, self.archivist.rect, 90)
+        self.archivist.bubble_avoid = [A.SHELF, A.CATALOGUE]   # the boxes and drawers you have to read
+        self.archivist.bubble_soft_avoid = self.hero_bodies()    # and not behind Ghost, who is drawn on top
         self.archivist.draw(world, self.small)
         cx, cy = self.drone.centre
-        beam = pygame.Surface((DRONE_RANGE * 2, DRONE_RANGE), pygame.SRCALPHA)
-        pygame.draw.ellipse(beam, (220, 230, 255, 30), beam.get_rect())
-        world.blit(beam, (cx - DRONE_RANGE, cy + 14 - DRONE_RANGE // 2))
+        reach = self.drone_reach
+        warning = any(v > 0 for v in self.drone_lock.values())
+        frozen = self.freeze_left > 0
+        post = self._guard_index()
+        if post is not None and self.drone.route:
+            A.draw_guard_post(world, self.drone.route[post], t)
+        beam = pygame.Surface((reach * 2, reach), pygame.SRCALPHA)
+        pygame.draw.ellipse(beam, (150, 200, 255, 26) if frozen else
+                            (255, 90, 90, 46) if warning else (220, 230, 255, 30), beam.get_rect())
+        world.blit(beam, (cx - reach, cy + 14 - reach // 2))
         lighting.blob_shadow(world, pygame.Rect(cx - 8, cy + 18, 16, 6), 70)
         bob = int(2 * math.sin(t * 5))
-        draw_drone(world, (cx, cy + bob), "enemy_alert" if self.drone_hits and any(
-            v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values()) else "enemy", int(t * 12))
+        draw_drone(world, (cx, cy + bob), "enemy_alert" if warning or (self.drone_hits and any(
+            v > DRONE_COOLDOWN - 0.6 for v in self.drone_wait.values())) else "enemy", int(t * 12))
         draw_drone(world, (int(self.echo[0]), int(self.echo[1]) + bob), "ally", int(t * 12))
+        if frozen:
+            A.draw_frozen(world, (cx, cy + bob), self.freeze_left, t)
+        elif self.scan_flash > 0 and self.drone.heading() is not None and self.drone.lure is None:
+            A.draw_heading(world, (cx, cy), self.drone.heading(), t)
         self.draw_sparks(world)
         self.lightlayer.apply(world, self._lights())
         A.draw_slip(world, self.request, min(self.stage + 1, REQUESTS), REQUESTS,       # paper stays readable
-                    self.time_left / self.time_limit, max(0, math.ceil(self.time_left)),
+                    self.time_left / self._slip_limit(), max(0, math.ceil(self.time_left)),
                     self.stage >= REQUESTS, t, drop=self.slip_drop,
-                    warn=self.stage < REQUESTS and self.time_left <= WARN_SECONDS)
+                    warn=self.stage < REQUESTS and self.time_left <= WARN_SECONDS,
+                    recap=self._recap_rows() if self.stage >= REQUESTS else None,
+                    streak=(self.streak, STREAK_FOR_REFILL) if self.stage < REQUESTS else None)
+        if self.stage < REQUESTS:
+            A.draw_slip_tags(world, self.request.get("rush", False), self.request.get("guarded", False), t)
         A.draw_satchel(world, self.satchel)
         world.blit(*self._title)
-        hint = ("E: pull the box", "E: open the drawer", "E: feed the vault", "Walk into the vault")[min(self.stage, 3)]
-        self.draw_message(world, hint + "   Q scan   X lure", self.line_font, self.small)
+        if self.recap_left > 0 and self.stage >= REQUESTS:
+            A.draw_recap(world, self._recap_rows(on_paper=False), self._recap_notes(), t)
+            draw_drone(world, (cx, cy + bob), "enemy", int(t * 12))          # the drone stays in sight
+        A.draw_abilities(world, self._abilities(), t)
+        hint = ("E: pull the box", "E: open the drawer", "E: feed the vault", "E: set the dial",
+                "Walk into the vault   R: recap")[min(self.stage, 4)]
+        keys = "   Q scan   X lure" + ("   F freeze" if self.stage >= FREEZE_FROM_STAGE else "")
+        self.draw_message(world, hint + keys, self.line_font, self.small)
         self.present(surface, world)
+
+    def _abilities(self):
+        cfg = FREEZE_SETTINGS[self.difficulty]
+        lure = {"key": "X", "name": "LURE", "note": "pull the drone away",
+                "state": "cooling" if self.lure_cooldown > 0 else "ready",
+                "left": self.lure_cooldown, "total": self.drone_cfg["lure_cooldown"]}
+        if self.stage < FREEZE_FROM_STAGE:
+            freeze = {"key": "F", "name": "FREEZE", "note": "unlocks after request 2",
+                      "state": "locked", "left": 0.0, "total": cfg["cooldown"]}
+        elif self.freeze_left > 0:
+            freeze = {"key": "F", "name": "FREEZE", "note": "drone held",
+                      "state": "active", "left": self.freeze_left, "total": cfg["seconds"]}
+        elif self.freeze_cooldown > 0:
+            freeze = {"key": "F", "name": "FREEZE", "note": "recharging",
+                      "state": "cooling", "left": self.freeze_cooldown, "total": cfg["cooldown"]}
+        else:
+            freeze = {"key": "F", "name": "FREEZE", "note": f"holds it {cfg['seconds']:g}s",
+                      "state": "ready", "left": 0.0, "total": cfg["cooldown"]}
+        return [lure, freeze]

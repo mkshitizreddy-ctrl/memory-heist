@@ -255,7 +255,7 @@ Every floor follows the same loop: **explore → read the code in the room → a
 
 - **Movement and co-op:** Ghost moves with WASD; press C on the menu to add Echo as Player 2 (arrow keys, Right Shift).
 - **Score:** points for right answers, floors and bonuses; mistakes and hazards cost points.
-- **Security meter:** mistakes raise it; at 100 the tower locks down and the run is lost. It cools by 25 in the lift after each floor. (The proposal's lives system was replaced by this meter.)
+- **Security meter:** mistakes raise it; at 100 the tower locks down and the run is lost. It cools in the lift after each floor: the lift takes off half the meter, and never less than 25. (The proposal's lives system was replaced by this meter.)
 - **Timers:** a whole-run clock (15 minutes on Medium) and a per-question clock on Floors 2-5, both scaled by difficulty.
 - **Hints:** H shows a hint for a small score cost; off on Hard.
 - **Difficulty:** Easy, Medium and Hard change the clocks, hints, security penalty and score multiplier.

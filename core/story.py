@@ -61,11 +61,11 @@ STORY = {
         "warden": True,
         "memory": "Name: REDACTED. Team: WARDEN logic. Status: erased. By: self.",
         "title": "FLOOR 4 - THE RECORDS ARCHIVE",
-        "concept": "Lists and dictionaries",
+        "concept": "Lists, dictionaries and loops",
         "lines": [
             "A night-shift badge says courier. The archivist will send slips.",
             "NovaCorp keeps a file on every citizen. Echo: \"G... yours is too.\"",
-            "Fill each slip: a list index, a dictionary key, a list method.",
+            "Fill each slip: an index, a key, a list method, then the vault's loop.",
         ],
     },
     "level5": {

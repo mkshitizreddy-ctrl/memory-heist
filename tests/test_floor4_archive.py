@@ -21,7 +21,7 @@ import pytest
 from levels import archive_decor as A
 from levels import archive_requests as R
 from levels.floor4_archive import (
-    DRONE_GRACE, DRONE_PENALTY, FINISH_BONUS, POINTS, TIMEOUT_PENALTY, TIMEOUT_SECURITY,
+    DRONE_GRACE, DRONE_PENALTY, FINISH_BONUS, POINTS, RUSH_POINTS, TIMEOUT_PENALTY, TIMEOUT_SECURITY,
     WRONG_PENALTY, WRONG_SECURITY, ArchiveFloor)
 
 pygame.init()
@@ -65,6 +65,20 @@ def stand_and_press(level, player, index):
     level.handle_event(key(pygame.K_e))
 
 
+class _SpyDict(dict):
+    """A dict that remembers the last key it was asked for."""
+
+    last = None
+
+    def __getitem__(self, key):
+        self.last = key
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        self.last = key
+        return super().get(key, default)
+
+
 # --- the slips are real Python ---------------------------------------------------------
 @pytest.mark.parametrize("difficulty", ["easy", "medium", "hard"])
 def test_shelf_answer_is_what_python_returns(difficulty):
@@ -73,7 +87,9 @@ def test_shelf_answer_is_what_python_returns(difficulty):
         r = R.shelf_request(rng, difficulty)
         shelf = r["names"]
         expr = r["lines"][-1][len("pull("):-1]
-        assert eval(expr, {"shelf": shelf, "len": len}) == "ghost"
+        result = eval(expr, {"shelf": shelf, "len": len})
+        # most slips name the box's item; shelf.index('ghost') names its position
+        assert (shelf[result] if isinstance(result, int) else result) == "ghost"
         assert shelf[r["answer"]] == "ghost"
         assert r["labels"][r["answer"]] == f"[{r['answer']}]"
 
@@ -90,11 +106,11 @@ def test_catalogue_answer_is_the_key_python_looks_up(difficulty):
             key_used = next(k for k, v in codes.items() if v == wanted)
         else:
             looked = []
-            scope = {"codes": codes, "open": looked.append}
-            for line in r["lines"][2:]:
-                exec(line, scope)
-            value = looked[0]
-            key_used = next(k for k, v in codes.items() if v == value)
+            spy = _SpyDict(codes)
+            scope = {"codes": spy, "open": looked.append, "list": list}
+            exec("\n".join(r["lines"][2:]), scope)
+            # the key Python really looked up; open(list(codes)[i]) names the drawer directly
+            key_used = spy.last if spy.last is not None else looked[0]
         assert r["labels"][r["answer"]] == repr(key_used)
         assert r["take"] == codes[key_used]
         assert len(set(r["labels"])) == 4
@@ -116,13 +132,13 @@ def test_vault_answer_is_the_item_python_feeds(difficulty):
 def test_slip_lines_fit_the_slip():
     rng = random.Random(3)
     for _ in range(200):
-        for stage in range(3):
+        for stage in range(4):
             r = R.make_request(stage, rng, ["badge", "dossier", "B-7"], "medium")
             assert len(r["lines"]) <= 4 and all(len(line) <= 44 for line in r["lines"])
 
 
 # --- the rules -------------------------------------------------------------------------
-def test_right_answers_file_three_requests_and_fill_the_satchel():
+def test_right_answers_file_four_requests_and_fill_the_satchel():
     level, game, player = make_level()
     assert level.satchel == ["badge"] and level.gates_passed == 0
     stand_and_press(level, player, level.request["answer"])
@@ -131,8 +147,13 @@ def test_right_answers_file_three_requests_and_fill_the_satchel():
     stand_and_press(level, player, level.request["answer"])
     assert level.stage == 2 and level.satchel[-1] == card
     stand_and_press(level, player, level.request["answer"])
-    assert level.stage == 3 and level.gates_passed == 3
-    assert game.score.value == 3 * POINTS and game.security.level == 0
+    assert level.stage == 3 and level.gates_passed == 3 and not level.is_complete()
+    assert level.request["stage"] == 3 and len(level.satchel) == 2        # the vault took one item
+    satchel = list(level.satchel)
+    stand_and_press(level, player, level.request["answer"])
+    assert level.satchel == satchel                                       # the dial leaves the satchel alone
+    assert level.stage == 4 and level.gates_passed == 4
+    assert game.score.value == 3 * POINTS + RUSH_POINTS and game.security.level == 0     # one slip is RUSH
 
 
 def test_a_wrong_answer_raises_security_and_keeps_the_same_request():
@@ -199,7 +220,7 @@ def test_scan_gives_the_hint_and_is_jammed_when_hints_are_off():
 
 def test_the_vault_door_opens_after_the_last_request_and_the_bonus_is_paid_once():
     level, game, player = make_level()
-    for _ in range(3):
+    for _ in range(4):
         stand_and_press(level, player, level.request["answer"])
     player.rect.center = A.EXIT_ZONE.center
     level.update(0.1)
@@ -207,9 +228,9 @@ def test_the_vault_door_opens_after_the_last_request_and_the_bonus_is_paid_once(
     for _ in range(90):
         level.update(1 / 60)
     assert level.is_complete()
-    assert game.score.value == 3 * POINTS + FINISH_BONUS
+    assert game.score.value == 3 * POINTS + RUSH_POINTS + FINISH_BONUS
     level.update(1.0)
-    assert game.score.value == 3 * POINTS + FINISH_BONUS
+    assert game.score.value == 3 * POINTS + RUSH_POINTS + FINISH_BONUS
 
 
 def test_second_player_answers_with_right_shift():
@@ -282,15 +303,15 @@ def test_the_game_builds_the_archive_unless_the_old_level_is_asked_for(monkeypat
     assert isinstance(game.level_manager.levels["level4"], Level4MemoryVault)
 
 
-def test_the_lure_keeps_the_drone_in_its_aisle_not_over_the_stacks():
-    level, _, _ = make_level()
+@pytest.mark.parametrize("difficulty", ["easy", "medium", "hard"])
+def test_the_lure_never_takes_the_drone_over_the_stacks(difficulty):
+    level, _, _ = make_level(difficulty=difficulty)
     level.handle_event(key(pygame.K_x))
-    for _ in range(120):
+    for _ in range(240):
         level.update(1 / 60)
         r = pygame.Rect(0, 0, 16, 12)
         r.center = level.drone.centre
         assert not any(r.colliderect(s) for s in A.STACKS)
-    assert abs(level.drone.y - A.DRONE_Y) < 2
 
 
 def test_a_new_slip_drops_out_of_the_tube():
@@ -318,6 +339,6 @@ def test_the_slip_clock_holds_while_an_answer_is_read():
     stand_and_press(level, player, level.request["answer"])
     assert level.read_hold > 0
     level.update(level.read_hold - 0.1)
-    assert level.time_left == level.time_limit                   # the next slip waits for the reader
+    assert level.time_left == level._slip_limit()                # the next slip waits for the reader
     level.update(1.1)
-    assert level.time_left == pytest.approx(level.time_limit - 1.0)
+    assert level.time_left == pytest.approx(level._slip_limit() - 1.0)
