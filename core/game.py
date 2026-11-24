@@ -215,6 +215,7 @@ class Game:
         self.score.reset()
         self.score.add(saved["score"])
         self.security.reset()
+        self.hud.reset(self.score.get_score())      # no count-up from the last run's number
         self.timer = Timer()
         self.timer.start(saved["remaining"])
         self._register_levels()
@@ -883,6 +884,7 @@ class Game:
         self._continued = False
         self.score.reset()
         self.security.reset()
+        self.hud.reset()                     # no count-down from the last run's number
         self.timer = Timer()
         if not self.practice:                # Practice: no run clock, so it never runs out
             self.timer.start(run_time_seconds(self.difficulty))
