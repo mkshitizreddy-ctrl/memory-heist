@@ -65,8 +65,9 @@ COMMS = {
             "I kept every one of these safe. Even yours.",
         ]),
         "progress": ("Echo", [
-            "Right key. One shelf closer to the vault.",
+            "Right box. One shelf closer to the vault.",
             "G... the next slip has no name on it.",
+            "The vault took it. One dial left. Count the passes.",
             "That file is yours. I should have told you.",
         ]),
         "danger": ("WARDEN", ["Please. Do not open the last drawer. You asked me not to."]),

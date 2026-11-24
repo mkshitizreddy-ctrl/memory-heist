@@ -38,11 +38,13 @@ def test_question_clocks_are_kinder_on_easy_and_medium():
     assert question_time_multiplier("nonsense") == question_time_multiplier("medium")
 
 
-def test_floor4_clock_uses_the_question_multiplier():
+def test_floor4_slip_clock_is_kinder_on_easy():
+    pygame.font.init()                     # the floor loads its fonts; run alone, nothing else has
+    from types import SimpleNamespace
     from levels.floor4_archive import BASE_SECONDS, ArchiveFloor
-    floor = ArchiveFloor()
-    floor.difficulty = "easy"
-    assert round(BASE_SECONDS * floor._timer_multiplier()) == round(BASE_SECONDS * 2.0)
+    limits = {d: ArchiveFloor(game=SimpleNamespace(difficulty=d)).time_limit for d in ("easy", "medium", "hard")}
+    assert limits["easy"] > limits["medium"] > limits["hard"]
+    assert limits["easy"] >= round(BASE_SECONDS * question_time_multiplier("easy"))
 
 
 @pytest.mark.parametrize("level, cooled", [(100, 50), (90, 45), (61, 30), (60, 30), (50, 25),
