@@ -59,8 +59,10 @@ WRONG_SECURITY, WRONG_PENALTY = 15, 10
 TIMEOUT_SECURITY, TIMEOUT_PENALTY = 25, 15
 MESSAGE_CHARS = 108                 # what fits on the one message line under the title
 EASY_TIMEOUT_SECURITY = 20           # easy is a little gentler on a slip that runs out
-BASE_SECONDS = 45                # kept for the shared fairness test; the slip clock uses SLIP_SECONDS
-SLIP_SECONDS = {"easy": 60, "medium": 50, "hard": 35}     # the slip clock, per difficulty
+BASE_SECONDS = 45                # the slip clock before the shared question multiplier
+# The slip clock, per difficulty.  It carries over, so two slips share one clock.  Easy is
+# never shorter than the shared rule (45 s x the easy question multiplier = 90 s).
+SLIP_SECONDS = {"easy": 90, "medium": 50, "hard": 35}
 STREAK_FOR_REFILL = 2            # right answers in a row (no wrong answer between) that refill the clock
 MIN_CARRY_SECONDS = 10           # a carried clock never drops below this, so a slip can always be read
 DOOR_SECONDS = 1.2
@@ -244,10 +246,6 @@ class ArchiveFloor(RoomMixin):
             value = value.get("name", value.get("label"))
         value = str(value or "medium").lower().strip()
         return value if value in {"easy", "medium", "hard"} else "medium"
-
-    def _timer_multiplier(self):
-        from core.difficulty import question_time_multiplier
-        return question_time_multiplier(self.difficulty)
 
     def _hints_on(self):
         hints = getattr(self.game, "hints", None)

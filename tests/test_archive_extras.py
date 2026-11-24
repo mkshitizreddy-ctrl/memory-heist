@@ -40,7 +40,7 @@ def play_all(level, player, miss_stages=()):
 
 # --- the slip clock: carried on, refilled after two clean answers in a row ----------------------------
 def test_the_slip_clock_numbers():
-    assert SLIP_SECONDS == {"easy": 60, "medium": 50, "hard": 35}
+    assert SLIP_SECONDS == {"easy": 90, "medium": 50, "hard": 35}
     for difficulty, seconds in SLIP_SECONDS.items():
         assert make_level(difficulty=difficulty)[0].time_limit == seconds
 

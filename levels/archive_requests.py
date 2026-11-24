@@ -291,6 +291,15 @@ def vault_request(rng, satchel, difficulty="medium"):
 
 # --- stage 3: the vault dial (loops) ---------------------------------------------------
 DIAL_TRAYS = 3
+SLIP_WHY = {           # why each form's classic wrong answer is wrong
+    "range_len": "range(k) counts 0 to k - 1: that is k passes, not k + 1.",
+    "last": "last is overwritten on every pass, so the final pass wins, not the first.",
+    "range_sum": "range(a, b) stops BEFORE b, so b itself is never added.",
+    "evens": "Odd numbers fail n % 2 == 0, so they are skipped, not added.",
+    "nested": "Nested loops multiply: the inner loop runs fully on every outer pass.",
+    "weighted": "i runs from 0 up to one below the range end, not from 1 up to it.",
+    "comp": "The if drops every number that is not above the limit before doubling.",
+}
 
 
 def _dial_form(form, rng):
@@ -375,7 +384,7 @@ def dial_request(rng, difficulty="medium"):
         if v == answer:
             continue
         if slip is not None and v == slip:
-            reasons[i] = "The classic slip: check exactly where the loop starts and where it stops."
+            reasons[i] = SLIP_WHY.get(form, "Check exactly where the loop starts and where it stops.")
         elif abs(v - answer) == 1:
             reasons[i] = "Off by one. Trace the first and the last pass of the loop."
         else:
