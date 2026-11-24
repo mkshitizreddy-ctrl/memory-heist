@@ -199,16 +199,8 @@ def _bubble_box(size, anchor, bounds, gap, below):
     return box
 
 
-def place_bubble(size, anchor, bounds, gap=6, below=False, avoid=()):
-    """Where a bubble of `size` goes: the asked side first, slid sideways, then the other side.
-
-    It keeps clear of every rect in `avoid` (labels the player must read) when it can,
-    staying as close to the speaker as possible; with no clear spot it falls back to the
-    plain placement. The tail is always kept over the speaker.
-    """
-    plain = _bubble_box(size, anchor, bounds, gap, below)
-    if not avoid:
-        return plain
+def _clear_spot(size, anchor, bounds, gap, below, avoid):
+    """The nearest bubble spot that covers nothing in `avoid`, or None."""
     reach = size[0] // 2 + 24                           # far enough to clear a sign, near enough for the tail
     for side in (below, not below):
         start = _bubble_box(size, anchor, bounds, gap, side)
@@ -217,21 +209,40 @@ def place_bubble(size, anchor, bounds, gap=6, below=False, avoid=()):
             box.clamp_ip(bounds)
             if not any(box.colliderect(r) for r in avoid):
                 return box
-    return plain
+    return None
+
+
+def place_bubble(size, anchor, bounds, gap=6, below=False, avoid=(), soft=()):
+    """Where a bubble of `size` goes: the asked side first, slid sideways, then the other side.
+
+    It keeps clear of every rect in `avoid` (labels the player must read) when it can,
+    staying as close to the speaker as possible; with no clear spot it falls back to the
+    plain placement. `soft` rects (the heroes, who are drawn over the bubble) are kept
+    clear too when there is room, but never at the cost of covering an `avoid` rect.
+    The tail is always kept over the speaker.
+    """
+    avoid, soft = list(avoid), list(soft)
+    for keep_clear in ((avoid + soft) if soft else None, avoid or None):
+        if keep_clear:
+            box = _clear_spot(size, anchor, bounds, gap, below, keep_clear)
+            if box is not None:
+                return box
+    return _bubble_box(size, anchor, bounds, gap, below)
 
 
 def draw_speech_bubble(surface, font, text, anchor, gap=6, fill=theme.INK, border=theme.MIST,
-                       colour=theme.PAPER, below=False, avoid=()):
+                       colour=theme.PAPER, below=False, avoid=(), soft=()):
     """A small speech bubble above `anchor` (a Rect), kept inside the surface.
 
     below=True hangs it under the speaker instead (for someone standing just
     beneath something the player must read). `avoid` lists rects the bubble should
-    not cover (see place_bubble). Returns the bubble's rect.
+    not cover and `soft` the ones it should dodge when it can (see place_bubble).
+    Returns the bubble's rect.
     The little tail points at the speaker.
     """
     image = font.render(str(text), True, colour)
     box = place_bubble(image.get_rect().inflate(16, 10).size, anchor, surface.get_rect(),
-                       gap, below, avoid)
+                       gap, below, avoid, soft)
     below = box.top >= anchor.bottom                    # the side it actually went to
     draw_panel(surface, box, fill=fill, border=border, radius=7)
     tip_x = max(box.left + 10, min(box.right - 10, anchor.centerx))

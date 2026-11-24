@@ -45,7 +45,8 @@ GATE_OPEN_RATE = 3.0            # how fast a gate retracts (per second)
 EXIT_SECONDS = 1.2              # the exit door: badge scan, then the leaves slide apart
 FLASH_SECONDS = 0.5             # a wrong pad flashes red this long
 DONE_PAD_SECONDS = 0.9          # the pad you got right lingers in green this long
-ENGINEER_ROUTE = [(5 * TILE, 9 * TILE), (11 * TILE, 9 * TILE), (16 * TILE, 9 * TILE), (11 * TILE, 9 * TILE)]
+ENGINEER_ROUTE = [(5 * TILE, 9 * TILE), (8 * TILE, 9 * TILE), (16 * TILE, 9 * TILE), (8 * TILE, 9 * TILE)]
+# He stops at each point; none is on a stencil, so "RELAY BAY 1" is never hidden behind him for long.
 IDLE_LINES = ("Pressure's up again.", "Who keeps flipping my breakers?",
               "Not my panels. Not my problem.", "Spanner. Where is my spanner?")
 IDLE_EVERY = 16.0               # seconds between his mutterings when nobody is talking to him
@@ -418,6 +419,7 @@ class GridRoom(RoomMixin, Level2):
         self.draw_dust(world, theme.floor_palette(LEVEL_KEY)["floor"])
         self._draw_shadows(world)
         self.engineer.bubble_avoid = G.labels_to_keep_clear(self.panels, self.pad_rects())
+        self.engineer.bubble_soft_avoid = self.hero_bodies()     # Ghost is drawn on top: don't talk behind him
         self.engineer.draw(world, self.small)
         self.draw_sparks(world)
         self.lightlayer.apply(world, self._lights())

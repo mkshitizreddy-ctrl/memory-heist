@@ -37,6 +37,7 @@ STEP_EVERY = 0.32               # seconds between footstep sounds
 DUST_EVERY = 0.12               # seconds between footstep puffs while walking
 DUST_LIFE = 0.45
 SPARK_LIFE = 0.6
+HERO_BODY = (44, 46)            # a hero sprite (40 x 42) with its rim light and a pixel of air
 TITLE_Y = 48                    # text on the wall band, between the HUD and the floor
 MESSAGE_Y = 74
 
@@ -87,6 +88,16 @@ class RoomMixin:
         if game is not None and getattr(game, "coop", False) and getattr(game, "player2", None):
             out.append((game.player2, pygame.K_RSHIFT))
         return out
+
+    def hero_bodies(self):
+        """Where the heroes are drawn. The game draws them after the room, so a speech
+        bubble under one of them is hidden: NPCs pass these as `bubble_soft_avoid`."""
+        bodies = []
+        for player, _ in self.players():
+            body = pygame.Rect(0, 0, HERO_BODY[0], HERO_BODY[1])
+            body.midbottom = (player.rect.centerx, player.rect.bottom + 2)
+            bodies.append(body)
+        return bodies
 
     @staticmethod
     def near(player, rect, reach=REACH):
